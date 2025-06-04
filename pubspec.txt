@@ -1,0 +1,70 @@
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_bloc: ^8.1.3
+  bloc: ^8.1.2
+  equatable: ^2.0.5
+
+  # Dependency Injection
+  get_it: ^7.6.4
+  injectable: ^2.3.2
+
+  # Navigation
+  go_router: ^12.1.1
+
+  # Networking
+  dio: ^5.3.4
+  retrofit: ^4.0.3
+  json_annotation: ^4.8.1
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  firebase_messaging: ^14.7.9
+  firebase_analytics: ^10.7.4
+  firebase_crashlytics: ^3.4.8
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+
+  # UI/UX
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.0
+  shimmer: ^3.0.0
+  photo_view: ^0.14.0
+  smooth_page_indicator: ^1.1.0
+  flutter_animate: ^4.3.0
+
+  # Utilities
+  intl: ^0.18.1
+  collection: ^1.18.0
+  rxdart: ^0.27.7
+  freezed_annotation: ^2.4.1
+  permission_handler: ^11.1.0
+  image_picker: ^1.0.5
+  image_cropper: ^5.0.1
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  url_launcher: ^6.2.2
+  path_provider: ^2.1.1
+  connectivity_plus: ^5.0.2
+
+  # WebRTC for calls
+  flutter_webrtc: ^0.9.47
+  
+  # Payments
+  # Add payment SDK when ready
+  
+  # Analytics & Monitoring
+  flutter_dotenv: ^5.1.0
+  logger: ^2.0.2+1

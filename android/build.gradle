@@ -20,10 +20,11 @@ allprojects {
     }
 }
 
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
+// Using default build directory to avoid path conflicts with plugins
+// rootProject.buildDir = '../build'
+// subprojects {
+//     project.buildDir = "${rootProject.buildDir}/${project.name}"
+// }
 subprojects {
     project.evaluationDependsOn(':app')
 }

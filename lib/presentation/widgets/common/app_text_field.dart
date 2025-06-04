@@ -24,7 +24,7 @@ class AppTextField extends StatefulWidget {
   final AutovalidateMode autovalidateMode;
 
   const AppTextField({
-    Key? key,
+    super.key,
     this.label,
     this.hintText,
     this.controller,
@@ -43,7 +43,7 @@ class AppTextField extends StatefulWidget {
     this.onEditingComplete,
     this.autofocus = false,
     this.autovalidateMode = AutovalidateMode.onUserInteraction,
-  }) : super(key: key);
+  });
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();

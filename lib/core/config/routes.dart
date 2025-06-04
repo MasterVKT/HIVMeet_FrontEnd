@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:hivmeet/presentation/pages/splash/splash_page.dart';
+import 'package:hivmeet/presentation/pages/onboarding/onboarding_page.dart';
 import 'package:hivmeet/presentation/pages/auth/login_page.dart';
 import 'package:hivmeet/presentation/pages/auth/register_page.dart';
 
 class AppRoutes {
   static const String splash = '/';
+  static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String register = '/register';
   static const String home = '/home';
   static const String profile = '/profile';
+  static const String profileCreate = '/profile/create';
 }
 
 class AppRouter {
@@ -17,7 +22,11 @@ class AppRouter {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => const SplashScreen(),
+        builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        builder: (context, state) => const OnboardingPage(),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -27,7 +36,7 @@ class AppRouter {
         path: AppRoutes.register,
         builder: (context, state) => const RegisterPage(),
       ),
-      // Autres routes à implémenter
+      // Autres routes à implémenter (home, profile, etc.)
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -35,18 +44,4 @@ class AppRouter {
       ),
     ),
   );
-}
-
-// Placeholder pour le SplashScreen
-class SplashScreen extends StatelessWidget {
-  const SplashScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
 }
