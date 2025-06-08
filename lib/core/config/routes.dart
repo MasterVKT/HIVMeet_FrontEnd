@@ -15,6 +15,9 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String profileCreate = '/profile/create';
   static const String verification = '/verification';
+  static const String discovery = '/discovery';
+  static const String discovery_filters = '/discovery/filters';
+  static const String profile_id = '/profile/:id';
 }
 
 class AppRouter {
@@ -37,7 +40,19 @@ class AppRouter {
         path: AppRoutes.register,
         builder: (context, state) => const RegisterPage(),
       ),
-      // Autres routes à implémenter (home, profile, etc.)
+      GoRoute(
+  path: AppRoutes.discovery_filters,
+  builder: (context, state) => const FiltersPage(),
+),
+GoRoute(
+  path: AppRoutes.profile_id,
+  builder: (context, state) {
+    // TODO: Récupérer le profil par ID
+    return ProfileDetailPage(
+      profile: state.extra as DiscoveryProfile,
+    );
+  },
+),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
