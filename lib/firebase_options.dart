@@ -48,12 +48,14 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB_Osga8cc7BEyXYP7hEsmH1yE4i5tctgo',
-    appId: '1:634137235718:ios:your-ios-app-id',
+    apiKey: 'AIzaSyAx3xEZgPGY3nTqdPngEgaVhZ1eQb2SE-U',
+    appId: '1:634137235718:ios:e7ccba0933b1b1f050ce87',
     messagingSenderId: '634137235718',
     projectId: 'hivmeet-f76f8',
     storageBucket: 'hivmeet-f76f8.firebasestorage.app',
-    iosClientId: '634137235718-q1m47f4gpj7oio33n2etco2p6oiapiol.apps.googleusercontent.com',
-    iosBundleId: 'com.hivmeet.app',
+    androidClientId: '634137235718-0e8npjn2m2qa5uohi813nb8jc4b3d5oc.apps.googleusercontent.com',
+    iosClientId: '634137235718-bnisegqlgjai9qmol9um8u0mtb7j3iud.apps.googleusercontent.com',
+    iosBundleId: 'com.hivmeet.hivmeet',
   );
+
 }

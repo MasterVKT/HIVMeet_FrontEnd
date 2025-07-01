@@ -14,22 +14,23 @@ import 'package:logger/logger.dart';
 abstract class InjectionModule {
   @lazySingleton
   FirebaseAuth get firebaseAuth => FirebaseAuth.instance;
-  
+
   @lazySingleton
   FirebaseFirestore get firestore => FirebaseFirestore.instance;
-  
+
   @lazySingleton
   FirebaseStorage get firebaseStorage => FirebaseStorage.instance;
-  
+
   @lazySingleton
   FirebaseMessaging get firebaseMessaging => FirebaseMessaging.instance;
-  
+
   @lazySingleton
   FlutterSecureStorage get secureStorage => const FlutterSecureStorage();
-  
+
   @preResolve
-  Future<SharedPreferences> get sharedPreferences => SharedPreferences.getInstance();
-  
+  Future<SharedPreferences> get sharedPreferences =>
+      SharedPreferences.getInstance();
+
   @lazySingleton
   Dio get dio {
     final dio = Dio();
@@ -45,16 +46,16 @@ abstract class InjectionModule {
     ));
     return dio;
   }
-  
+
   @lazySingleton
   Logger get logger => Logger(
-    printer: PrettyPrinter(
-      methodCount: 0,
-      errorMethodCount: 5,
-      lineLength: 100,
-      colors: true,
-      printEmojis: true,
-      printTime: true,
-    ),
-  );
+        printer: PrettyPrinter(
+          methodCount: 0,
+          errorMethodCount: 5,
+          lineLength: 100,
+          colors: true,
+          printEmojis: true,
+          printTime: true,
+        ),
+      );
 }

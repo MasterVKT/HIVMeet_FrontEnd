@@ -9,7 +9,6 @@ import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/verification/verification_bloc.dart';
 import 'package:hivmeet/presentation/blocs/verification/verification_event.dart';
 import 'package:hivmeet/presentation/blocs/verification/verification_state.dart';
-import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
 import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 import 'package:hivmeet/presentation/pages/verification/steps/identity_document_step.dart';
@@ -19,7 +18,7 @@ import 'package:hivmeet/presentation/pages/verification/steps/verification_intro
 import 'package:hivmeet/presentation/pages/verification/steps/verification_review_step.dart';
 
 class VerificationPage extends StatefulWidget {
-  const VerificationPage({Key? key}) : super(key: key);
+  const VerificationPage({super.key});
 
   @override
   State<VerificationPage> createState() => _VerificationPageState();

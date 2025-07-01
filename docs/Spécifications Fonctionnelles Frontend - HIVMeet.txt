@@ -1,0 +1,628 @@
+# Spécifications Fonctionnelles Frontend - HIVMeet
+
+## 1. Vue d'Ensemble
+
+HIVMeet est une application de rencontre sécurisée et confidentielle destinée aux personnes vivant avec le VIH. Ce document définit les spécifications fonctionnelles spécifiques au développement frontend.
+
+### 1.1 Objectifs du Frontend
+
+- Créer une interface utilisateur intuitive, accessible et moderne
+- Implémenter une expérience utilisateur fluide et cohérente sur iOS et Android
+- Garantir le respect de la vie privée et la sécurité des utilisateurs
+- Intégrer les interactions avec les API backend tout en maintenant l'autonomie du frontend
+
+### 1.2 Technologies Frontend Cibles
+
+- **iOS**: Application native Swift (iOS 13.0+)
+- **Android**: Application native Kotlin (Android 8.0+)
+- **Langues**: Implémentation multilingue (français principal, anglais secondaire)
+
+## 2. Composants d'Interface Utilisateur
+
+### 2.1 Système d'Authentification
+
+#### 2.1.1 Écran de Création de Compte
+
+**Formulaire d'inscription**
+- Champ Email
+  - Validation en temps réel (regex: `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+  - Message d'erreur contextuel si format invalide
+  - Vérification d'unicité après perte de focus (appel API)
+  - Animation de chargement pendant la vérification
+
+- Champ Mot de passe
+  - Indicateur de force en temps réel (faible/moyen/fort avec code couleur)
+  - Barre de progression visuelle montant à mesure du renforcement
+  - Validation selon critères: 8+ caractères, 1+ chiffre, 1+ majuscule, 1+ minuscule, 1+ caractère spécial
+  - Toggle pour afficher/masquer le mot de passe
+
+- Confirmation du mot de passe
+  - Validation en temps réel avec le mot de passe principal
+  - Indicateur visuel de correspondance (✓ vert ou ✗ rouge)
+
+- Sélecteur de date de naissance
+  - Composant natif adapté à chaque plateforme (date picker)
+  - Limitation programmée (18+ uniquement)
+  - Calcul et affichage automatique de l'âge
+  - Gestion des erreurs pour dates invalides
+
+- Numéro de téléphone (optionnel)
+  - Formatage automatique selon norme internationale
+  - Sélecteur de code pays avec drapeaux
+  - Validation selon format du pays sélectionné
+
+- Checkboxes CGU et Politique de confidentialité
+  - Design distinct pour état coché/non-coché
+  - Liens hypertextes vers textes complets
+  - Animation subtile lors de la sélection
+  - Gestion d'erreur si non cochées à la soumission
+
+**États et Transitions**
+- État initial: formulaire vide
+- États intermédiaires: validation en cours (animations par champ)
+- État d'erreur: mise en évidence visuelle des champs problématiques
+- État de soumission: bouton désactivé + animation de chargement
+- Transition vers création de profil après confirmation d'email
+
+**Feedback Utilisateur**
+- Messages d'erreur inline sous chaque champ
+- Toast/snackbar pour erreurs générales
+- Animation de succès à la soumission réussie
+- Vibration subtile sur erreur (configurable)
+
+#### 2.1.2 Écran de Connexion
+
+**Composants**
+- Champs email et mot de passe avec validation
+- Option "Se souvenir de moi" (persistance locale sécurisée)
+- Lien "Mot de passe oublié"
+- Bouton de connexion avec états (normal, désactivé, chargement)
+- Lien vers création de compte
+
+**Gestion d'Erreurs**
+- Message pour identifiants incorrects (sans préciser lequel)
+- Option de réinitialisation après 3 échecs
+- Détection de compte non vérifié avec option de renvoi d'email
+
+### 2.2 Création et Gestion de Profil
+
+#### 2.2.1 Écran de Création de Profil Initial
+
+**Composants**
+- Upload photo principale avec:
+  - Prévisualisation en temps réel
+  - Contrôles de recadrage (aspect ratio 1:1)
+  - Indicateur de qualité d'image
+  - Animation de chargement pendant l'upload
+
+- Formulaire de profil avec:
+  - Champ nom d'affichage (validation 3-30 caractères)
+  - Sélecteur de ville/pays avec recherche autocomplétée
+  - Switch pour masquer la ville exacte
+  - Sélecteur multi-choix pour genres recherchés
+  - Sélecteur type de relation (UI radio buttons)
+  - Curseurs pour âge recherché et distance
+
+- Champ bio avec:
+  - Compteur de caractères en temps réel (0/500)
+  - Suggestions de sujets (chips sélectionnables)
+  - Support emoji avec sélecteur intégré
+
+- Sélecteur centres d'intérêt:
+  - Interface à grille avec icônes
+  - Sélection limitée à 3 avec feedback visuel
+  - Animation lors de la sélection/désélection
+
+**États de progression**
+- Indicateur visuel de complétion du profil (%)
+- Étapes clairement identifiées (1/4, 2/4, etc.)
+- Option de sauvegarde partielle et reprise
+
+#### 2.2.2 Écran d'Édition de Profil
+
+**Fonctionnalités**
+- Interface identique à la création mais pré-remplie
+- Indicateur visuel des champs modifiés non sauvegardés
+- Confirmation avant d'abandonner des modifications
+- Preview du profil tel que vu par les autres utilisateurs
+
+**Gestion des Photos**
+- Affichage limité à 1 photo pour compte gratuit
+- Interface adaptative pour 6 photos (premium)
+- UI de réorganisation par drag & drop (premium)
+- Interface de filtres photo basiques (premium)
+
+#### 2.2.3 Vérification de Compte
+
+**Process d'upload de documents**
+- Interface sécurisée pour photo d'identité
+  - Cadre de guidage avec instructions
+  - Détection automatique de document
+  - Floutage automatique des informations non nécessaires
+  - Confirmation visuelle avant envoi
+
+- Interface pour document médical
+  - Instructions spécifiques par type de document
+  - Option de masquage manuel des données sensibles
+  - Confirmation de confidentialité avec checkbox
+
+- Capture de selfie avec code
+  - Affichage du code unique à inclure
+  - Guide visuel pour positionnement
+  - Compte à rebours et capture automatique
+  - Option de reprise si qualité insuffisante
+
+**États de vérification**
+- Indicateurs visuels d'étapes (upload ID, document médical, selfie)
+- Badge "En attente de vérification"
+- États de traitement avec estimation de durée
+- Notification push et badge in-app à l'approbation
+
+### 2.3 Interface de Découverte
+
+#### 2.3.1 Écran de Swipe
+
+**Composants Principaux**
+- Carte de profil principale
+  - Animation de swipe fluide (60fps)
+  - Retour haptique lors du swipe
+  - Animation de transition entre profils
+  - Gestion du préchargement pour expérience fluide
+
+- Affichage du profil
+  - Photo principale avec indicateur multi-photos
+  - Carousel de photos avec pagination visible
+  - Informations clés (nom, âge, distance)
+  - Badges (vérifié, premium) avec états visuels distincts
+  - Indicateur de statut en ligne avec états visuels
+
+- Boutons d'action
+  - Dislike (X) et Like (Cœur) avec animations
+  - Super Like (étoile) avec effet visuel spécial
+  - Compteur de likes restants (utilisateurs gratuits)
+  - Rétroaction visuelle sur limite atteinte
+
+**Interactions**
+- Tap sur photo pour agrandissement
+- Swipe up pour voir la bio complète
+- Swipe down pour fermer la bio
+- Transitions entre photos par swipe horizontal
+- Animation de match si like réciproque
+
+**Gestion des États**
+- État de chargement initial avec skeleton UI
+- État d'erreur avec option de rafraîchissement
+- État "Fin des profils" avec illustrations
+- Rétroaction pour limites atteintes (likes quotidiens)
+
+#### 2.3.2 Écran de Filtres
+
+**Contrôles interactifs**
+- Double curseur pour tranche d'âge
+  - Affichage des valeurs en temps réel
+  - Animation fluide de déplacement
+  - Contraintes min/max (18-99)
+
+- Curseur de distance
+  - Représentation visuelle du rayon
+  - Valeur numérique dynamique
+  - Option "N'importe où" grisée (premium)
+
+- Sélecteurs de type de relation
+  - UI radio buttons avec icônes
+  - Animation de sélection
+  - Indication visuelle de compatibilité
+
+- Toggle "Profils vérifiés uniquement"
+  - Animation de switch
+  - Style distinct activé/désactivé
+  - Explication contextuelle au tap
+
+**Comportements**
+- Application instantanée des filtres
+- Sauvegarde automatique des préférences
+- Animation de transition vers résultats
+- Compteur de résultats estimés
+
+### 2.4 Messagerie et Communication
+
+#### 2.4.1 Liste des Matches
+
+**Composants**
+- Liste des matches actifs
+  - Photo de profil ronde
+  - Nom et dernier message tronqué
+  - Horodatage relatif
+  - Indicateur de nouveaux messages (badge numérique)
+  - Indicateur de statut en ligne
+
+- Onglets distincts
+  - Matches récents (conversations actives)
+  - Likes reçus (premium uniquement)
+  - Likes envoyés (en attente)
+
+- Actions par swipe
+  - Swipe gauche pour options (supprimer, bloquer)
+  - Animation et rétroaction haptique
+  - Confirmation pour actions destructives
+
+**États et transitions**
+- État vide avec illustration et CTA
+- Animation d'entrée pour nouveaux matches
+- Transition fluide vers conversation
+
+#### 2.4.2 Écran de Conversation
+
+**Interface de messagerie**
+- Bulles de message avec distinction visuelle (envoyé/reçu)
+- Horodatage relatif ou absolu selon contexte
+- Indicateurs de lecture (double check)
+- Animations d'envoi et réception
+
+**Composants d'interaction**
+- Champ de texte extensible
+  - Expansion automatique (jusqu'à 5 lignes visibles)
+  - Compteur de caractères approchant limite (>800)
+  - État désactivé si limite atteinte
+
+- Bouton emoji
+  - Sélecteur intégré avec catégories
+  - Emojis récents
+  - Suggestion contextuelle
+
+- Boutons media (premium)
+  - États actif/inactif visibles
+  - Badge premium sur fonctions verrouillées
+  - Tooltip explicatif au tap
+
+**Gestion des états**
+- État de chargement (historique)
+- Indication visuelle messages en cours d'envoi
+- Animation d'erreur d'envoi avec option de réessai
+- Notification de limite de stockage approchée
+
+#### 2.4.3 Appels Audio/Vidéo (Premium)
+
+**Interface d'appel**
+- Écran d'appel entrant
+  - Photo de profil large
+  - Nom et badges
+  - Boutons accepter/refuser avec animations
+  - Retour haptique à la réponse
+
+- Interface d'appel en cours
+  - Contrôles audio (mute, haut-parleur)
+  - Bascule caméra avant/arrière
+  - Bouton fin d'appel (rouge)
+  - Minuteur visible
+  - Notification à 5 min de la fin (limite 30 min)
+
+- Mode vidéo
+  - Aperçu local (repositionnable)
+  - Contrôle d'effet portrait flou
+  - Option plein écran/view réduite
+  - Rotation automatique orientation
+
+**États et transitions**
+- Animation de connexion
+  - Feedback visuel qualité réseau
+  - État "Reconnexion en cours" si problème
+  - Compte à rebours avant déconnexion auto
+
+### 2.5 Contenu et Ressources
+
+#### 2.5.1 Fil d'actualité
+
+**Composants**
+- Liste de publications
+  - En-tête avec auteur et horodatage
+  - Corps de texte avec formatage basique
+  - Image unique avec lazy loading
+  - Compteurs de likes/commentaires
+  - Interactions (like, commenter, partager)
+
+- Contrôles de filtrage
+  - Tabs par catégorie
+  - Pull-to-refresh (avec limitation)
+  - Bouton "Charger plus"
+  - Indicateur de nouveaux contenus
+
+**États et comportements**
+- Animation de chargement initiale
+- Skeleton UI pendant chargement
+- État vide avec suggestion
+- Transition fluide entre contenus
+- Animation lors du like
+
+#### 2.5.2 Ressources d'information
+
+**Structure de navigation**
+- Catégorisation hiérarchique
+  - Navigation par cards avec icônes
+  - Organisation visuelle par pertinence
+  - Indicateurs de nouveau contenu
+
+- Recherche intégrée
+  - Suggestions en temps réel
+  - Historique récent
+  - Filtres rapides par type
+
+**Composants de contenu**
+- Articles
+  - Mise en page responsive
+  - Support de contenu riche (images, listes)
+  - Progression de lecture visible
+  - Option de favoris (bookmark)
+
+- Vidéos
+  - Player intégré avec contrôles
+  - Option sous-titres
+  - Qualité adaptative
+  - État pause/lecture persistent
+
+- Listes d'associations
+  - Filtrage géographique
+  - Carte interactive (optionnelle)
+  - Appel direct depuis fiche
+  - Sauvegarde en favoris
+
+## 3. Fonctionnalités Premium Frontend
+
+### 3.1 Affichage et Gestion des Fonctionnalités Premium
+
+**Stratégie de présentation**
+- Indication claire des fonctionnalités premium
+  - Badge "Premium" cohérent
+  - Version grisée pour utilisateurs gratuits
+  - Tooltip explicatif au tap
+  - CTA contextuel (upgrade)
+
+- Intégration non intrusive
+  - Pas de popups forcés
+  - Suggestions contextuelles pertinentes
+  - Expérience dégradée gracieusement
+
+**Implémentation UI spécifique**
+- Interface de gestion multi-photos
+  - UI drag & drop pour réorganisation
+  - Prévisualisation du carrousel
+  - Sélection photo principale
+
+- Contrôles de visibilité
+  - Mode incognito avec timer visuel
+  - Paramètres de visibilité sélective
+  - Interface de masquage distance/activité
+
+### 3.2 Interface d'Abonnement
+
+**Écran de présentation**
+- Comparaison côte à côte des plans
+  - Tableau de fonctionnalités avec icônes
+  - Mise en évidence plan recommandé
+  - Calcul d'économie pour plan annuel
+  - Boutons CTA distincts par offre
+
+- Processus d'achat
+  - Intégration native StoreKit/Billing
+  - Animation de traitement
+  - Écran de confirmation
+  - Explication période d'essai
+
+**Gestion d'abonnement**
+- Interface de détails
+  - État actuel avec date de renouvellement
+  - Historique des paiements
+  - Options de téléchargement factures
+  - Processus d'annulation guidé
+
+## 4. Intégration Backend
+
+### 4.1 Structure des Appels API
+
+**Principes généraux**
+- Implémentation de gestionnaires d'état
+  - États chargement/succès/erreur pour chaque requête
+  - UI adaptative selon état
+  - Gestion des timeout
+
+- Stratégie de mise en cache
+  - Stockage local des réponses fréquentes
+  - Invalidation conditionnelle
+  - Mode hors ligne partiel
+
+**Endpoints principaux**
+- Authentification
+  - `/auth/register`
+  - `/auth/login`
+  - `/auth/refresh-token`
+  - `/auth/reset-password`
+
+- Profil
+  - `/users/profile`
+  - `/users/verification`
+  - `/users/preferences`
+  - `/users/photos`
+
+- Découverte
+  - `/discover/profiles`
+  - `/discover/like`
+  - `/discover/dislike`
+  - `/discover/matches`
+
+- Messagerie
+  - `/messages/conversations`
+  - `/messages/{id}`
+  - `/messages/send`
+  - `/calls/initiate`
+
+### 4.2 Gestion du Mode Hors Ligne
+
+**Comportements offline**
+- Mise en cache des données critiques
+  - Profil utilisateur
+  - Matches récents
+  - Messages non envoyés
+  - Ressources consultées
+
+- Feedback visuel spécifique
+  - Indicateur de mode hors ligne
+  - Options disponibles/indisponibles
+  - File d'attente d'actions différées
+
+- Synchronisation à la reconnexion
+  - Prioritisation des actions critiques
+  - Résolution des conflits
+  - Notification de synchronisation complète
+
+## 5. Considérations d'Accessibilité
+
+### 5.1 Conformité WCAG
+
+**Implémentation spécifique**
+- Contraste et lisibilité
+  - Respect ratio 4.5:1 minimum
+  - Tailles de texte adaptatives
+  - Mode contraste élevé
+
+- Navigation et interactions
+  - Support navigation clavier/switch
+  - Zones tactiles dimensionnées (min 44x44px)
+  - Feedback non uniquement visuel
+  - Alternatives aux gestes complexes
+
+- Compatibilité lecteurs d'écran
+  - Labels accessibles sur tous composants
+  - Structure hiérarchique sémantique
+  - Descriptions alternatives pour médias
+  - Annonces d'états dynamiques
+
+### 5.2 Adaptation Multiplateforme
+
+**Spécificités par plateforme**
+- iOS
+  - Intégration VoiceOver
+  - Support Dynamic Type
+  - Respect directives HIG
+  - Gestes assistifs natifs
+
+- Android
+  - Compatibilité TalkBack
+  - Support de la navigation sans vue
+  - Labels contentDescription
+  - Respect Material Design Accessibility
+
+## 6. Internationalisation
+
+### 6.1 Architecture i18n
+
+**Implémentation technique**
+- Système de fichiers de ressources
+  - Structure clé-valeur hiérarchique
+  - Variables dynamiques
+  - Pluralisation
+
+- Adaptations spécifiques
+  - Gestion du LTR/RTL
+  - Formats de date localisés
+  - Unités de mesure adaptées
+  - Claviers spécifiques par langue
+
+**Langues prioritaires**
+- Français (principal)
+  - UI complète
+  - Messages d'erreur contextuels
+  - Ressources d'information
+
+- Anglais (secondaire)
+  - Traduction complète
+  - Adaptation des références culturelles
+
+## 7. Analytics et Monitoring
+
+### 7.1 Événements Utilisateur
+
+**Implémentation frontend**
+- Tracking des interactions clés
+  - Onboarding (complétion par étape)
+  - Matches (taux, durée)
+  - Engagement (temps par écran)
+  - Conversion premium
+
+- Rapports d'erreurs
+  - Erreurs UI non fatales
+  - Problèmes de performance
+  - Crashes avec contexte
+  - Feedback utilisateur
+
+### 7.2 Tests Utilisateurs
+
+**Outils d'amélioration**
+- Heatmaps d'interaction
+  - Zones d'intérêt principales
+  - Parcours utilisateur
+  - Points de friction
+
+- A/B testing
+  - Interface de variation UI
+  - Segmentation utilisateurs
+  - Métriques de conversion
+  - Boucle de feedback
+
+## 8. Contraintes et Limitations Frontend
+
+### 8.1 Performance
+
+**Métriques cibles**
+- Temps de chargement initial < 2 secondes
+- 60 FPS pour animations critiques
+- Interaction sans délai perceptible
+- Temps de transition écran < 300ms
+
+**Optimisations**
+- Lazy loading des médias
+- Recyclage des vues (RecyclerView/UICollectionView)
+- Compression des assets
+- Préchargement intelligent
+
+### 8.2 Utilisation Mémoire et Réseau
+
+**Contraintes device**
+- Fonctionnement devices low-end
+  - Dégradation gracieuse
+  - Mode économie données
+  - Optimisation batterie
+
+- Bande passante limitée
+  - Compression images adaptative
+  - Prioritisation contenus critiques
+  - Tailles de paquet optimisées
+  - Mise en cache agressive
+
+## 9. Sécurité Frontend
+
+### 9.1 Protection des Données
+
+**Mesures spécifiques**
+- Stockage sécurisé
+  - Chiffrement local (KeyStore/Keychain)
+  - Pas de données sensibles en clair
+  - Nettoyage après déconnexion
+
+- Contrôle d'accès
+  - Verrouillage auto après inactivité
+  - Option authentification biométrique
+  - Protection contre les captures d'écran (sections sensibles)
+
+### 9.2 Protection de la Vie Privée
+
+**Fonctionnalités spécifiques**
+- Paramètres de visibilité granulaires
+  - Contrôles distance/activité
+  - Mode incognito
+  - Blocage utilisateurs
+
+- Modération et signalement
+  - Interface intuitive de signalement
+  - Catégorisation des problèmes
+  - Option d'ajout de preuves
+  - Feedback sur actions prises

@@ -12,7 +12,7 @@ import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 import 'package:go_router/go_router.dart';
 
 class LikesReceivedPage extends StatelessWidget {
-  const LikesReceivedPage({Key? key}) : super(key: key);
+  const LikesReceivedPage({super.key});
 
   @override
   Widget build(BuildContext context) {

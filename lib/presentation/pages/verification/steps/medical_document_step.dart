@@ -17,10 +17,10 @@ class MedicalDocumentStep extends StatefulWidget {
   final VoidCallback onBack;
 
   const MedicalDocumentStep({
-    Key? key,
+    super.key,
     required this.onNext,
     required this.onBack,
-  }) : super(key: key);
+  });
 
   @override
   State<MedicalDocumentStep> createState() => _MedicalDocumentStepState();

@@ -10,11 +10,11 @@ class HIVBottomNavigation extends StatelessWidget {
   final List<HIVNavItem> items;
 
   const HIVBottomNavigation({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onIndexChanged,
     required this.items,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +33,7 @@ class HIVBottomNavigation extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Container(
+        child: SizedBox(
           height: 64,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -194,11 +194,11 @@ class HIVTabNavigator extends StatelessWidget {
   final Map<String, WidgetBuilder> routes;
 
   const HIVTabNavigator({
-    Key? key,
+    super.key,
     required this.navigatorKey,
     required this.initialRoute,
     required this.routes,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -228,11 +228,11 @@ class HIVMainScaffold extends StatefulWidget {
   final int initialIndex;
 
   const HIVMainScaffold({
-    Key? key,
+    super.key,
     required this.screens,
     this.navItems,
     this.initialIndex = 0,
-  }) : super(key: key);
+  });
 
   @override
   State<HIVMainScaffold> createState() => _HIVMainScaffoldState();

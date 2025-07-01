@@ -4,15 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/domain/entities/match.dart';
-import 'package:go_router/go_router.dart';
 
 class ProfileDetailPage extends StatefulWidget {
   final DiscoveryProfile profile;
 
   const ProfileDetailPage({
-    Key? key,
+    super.key,
     required this.profile,
-  }) : super(key: key);
+  });
 
   @override
   State<ProfileDetailPage> createState() => _ProfileDetailPageState();
@@ -147,9 +146,12 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                                 Expanded(
                                   child: Text(
                                     '${widget.profile.displayName}, ${widget.profile.age}',
-                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                   ),
                                 ),
                                 if (widget.profile.isVerified)
@@ -195,9 +197,12 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                                 const SizedBox(width: AppSpacing.xs),
                                 Text(
                                   '${widget.profile.city}${widget.profile.distance != null ? ' • ${widget.profile.distance!.round()} km' : ''}',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppColors.slate,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        color: AppColors.slate,
+                                      ),
                                 ),
                               ],
                             ),
@@ -217,9 +222,12 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                                   const SizedBox(width: AppSpacing.xs),
                                   Text(
                                     'En ligne',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.success,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: AppColors.success,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -231,9 +239,12 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                             if (widget.profile.bio.isNotEmpty) ...[
                               Text(
                                 'À propos',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                               const SizedBox(height: AppSpacing.sm),
                               Text(
@@ -246,9 +257,12 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                             // Relationship type
                             Text(
                               'Recherche',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Container(
@@ -261,10 +275,14 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                _getRelationshipTypeLabel(widget.profile.relationshipType),
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.primaryPurple,
-                                ),
+                                _getRelationshipTypeLabel(
+                                    widget.profile.relationshipType),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: AppColors.primaryPurple,
+                                    ),
                               ),
                             ),
 
@@ -273,15 +291,19 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                               const SizedBox(height: AppSpacing.lg),
                               Text(
                                 'Centres d\'intérêt',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                               const SizedBox(height: AppSpacing.sm),
                               Wrap(
                                 spacing: AppSpacing.sm,
                                 runSpacing: AppSpacing.sm,
-                                children: widget.profile.interests.map((interest) {
+                                children:
+                                    widget.profile.interests.map((interest) {
                                   return Chip(
                                     label: Text(interest),
                                     backgroundColor: AppColors.platinum,

@@ -6,7 +6,7 @@ import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
 
 class PrivacyPage extends StatelessWidget {
-  const PrivacyPage({Key? key}) : super(key: key);
+  const PrivacyPage({super.key});
 
   @override
   Widget build(BuildContext context) {

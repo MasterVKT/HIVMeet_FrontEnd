@@ -16,7 +16,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final GetCurrentProfile _getCurrentProfile;
   final UpdateProfile _updateProfile;
   final ProfileRepository _profileRepository;
-  
+
   StreamSubscription<Profile?>? _profileSubscription;
 
   ProfileBloc({
@@ -28,7 +28,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         _profileRepository = profileRepository,
         super(ProfileInitial()) {
     on<LoadProfile>(_onLoadProfile);
-    on<UpdateProfile>(_onUpdateProfile);
+    on<UpdateProfileEvent>(_onUpdateProfile);
     on<UploadPhoto>(_onUploadPhoto);
     on<DeletePhoto>(_onDeletePhoto);
     on<SetMainPhoto>(_onSetMainPhoto);
@@ -39,9 +39,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<UnblockUser>(_onUnblockUser);
 
     // Écouter les changements de profil
-    _profileSubscription = _profileRepository
-        .watchCurrentUserProfile()
-        .listen((profile) {
+    _profileSubscription =
+        _profileRepository.watchCurrentUserProfile().listen((profile) {
       if (profile != null && state is ProfileLoaded) {
         add(LoadProfile());
       }
@@ -53,9 +52,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     emit(ProfileLoading());
-    
+
     final result = await _getCurrentProfile(NoParams());
-    
+
     result.fold(
       (failure) => emit(ProfileError(message: failure.message)),
       (profile) => emit(ProfileLoaded(profile: profile)),
@@ -63,13 +62,13 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   }
 
   Future<void> _onUpdateProfile(
-    UpdateProfile event,
+    UpdateProfileEvent event,
     Emitter<ProfileState> emit,
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
       emit(ProfileUpdating(profile: currentState.profile));
-      
+
       final result = await _updateProfile(
         UpdateProfileParams(
           displayName: event.displayName,
@@ -84,7 +83,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           privacySettings: event.privacySettings,
         ),
       );
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -95,7 +94,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           profile: profile,
         )),
       );
-      
+
       // Retour à l'état loaded après succès
       await Future.delayed(const Duration(seconds: 2));
       if (state is ProfileActionSuccess) {
@@ -114,13 +113,13 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         profile: currentState.profile,
         progress: 0.0,
       ));
-      
+
       final result = await _profileRepository.uploadProfilePhoto(
         photo: event.photo,
         isMain: event.isMain,
         isPrivate: event.isPrivate,
       );
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -131,7 +130,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             message: 'Photo téléchargée avec succès',
             profile: currentState.profile,
           ));
-          
+
           // Recharger le profil pour obtenir la mise à jour
           add(LoadProfile());
         },
@@ -145,8 +144,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.deleteProfilePhoto(event.photoUrl);
-      
+      final result =
+          await _profileRepository.deleteProfilePhoto(event.photoUrl);
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -170,7 +170,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final currentState = state;
     if (currentState is ProfileLoaded) {
       final result = await _profileRepository.setMainPhoto(event.photoUrl);
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -194,7 +194,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final currentState = state;
     if (currentState is ProfileLoaded) {
       final result = await _profileRepository.reorderPhotos(event.photoUrls);
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -217,16 +217,17 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.toggleProfileVisibility(event.isHidden);
-      
+      final result =
+          await _profileRepository.toggleProfileVisibility(event.isHidden);
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
           profile: currentState.profile,
         )),
         (_) {
-          final message = event.isHidden 
-              ? 'Profil masqué de la découverte' 
+          final message = event.isHidden
+              ? 'Profil masqué de la découverte'
               : 'Profil visible dans la découverte';
           emit(ProfileActionSuccess(
             message: message,
@@ -250,7 +251,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         city: event.city,
         country: event.country,
       );
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -274,7 +275,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final currentState = state;
     if (currentState is ProfileLoaded) {
       final result = await _profileRepository.blockUser(event.userId);
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,
@@ -297,7 +298,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final currentState = state;
     if (currentState is ProfileLoaded) {
       final result = await _profileRepository.unblockUser(event.userId);
-      
+
       result.fold(
         (failure) => emit(ProfileError(
           message: failure.message,

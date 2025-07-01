@@ -17,10 +17,10 @@ class SelfieVerificationStep extends StatefulWidget {
   final VoidCallback onBack;
 
   const SelfieVerificationStep({
-    Key? key,
+    super.key,
     required this.onNext,
     required this.onBack,
-  }) : super(key: key);
+  });
 
   @override
   State<SelfieVerificationStep> createState() => _SelfieVerificationStepState();

@@ -25,29 +25,25 @@ class Validators {
 
   /// Valide un mot de passe
   static bool isValidPassword(String password) {
-    return password.length >= 8 &&
-        password.contains(RegExp(r'[A-Z]')) &&
-        password.contains(RegExp(r'[a-z]')) &&
-        password.contains(RegExp(r'[0-9]')) &&
-        password.contains(RegExp(r'[@$!%*?&]'));
+    return _passwordRegExp.hasMatch(password);
   }
 
   /// Calcule la force du mot de passe
   static PasswordStrength getPasswordStrength(String password) {
     if (password.isEmpty) return PasswordStrength.weak;
-    
+
     int strength = 0;
-    
+
     // Longueur
     if (password.length >= 8) strength++;
     if (password.length >= 12) strength++;
-    
+
     // Complexité
     if (password.contains(RegExp(r'[a-z]'))) strength++;
     if (password.contains(RegExp(r'[A-Z]'))) strength++;
     if (password.contains(RegExp(r'[0-9]'))) strength++;
     if (password.contains(RegExp(r'[@$!%*?&#]'))) strength++;
-    
+
     if (strength <= 3) return PasswordStrength.weak;
     if (strength <= 5) return PasswordStrength.medium;
     return PasswordStrength.strong;
@@ -64,7 +60,7 @@ class Validators {
     final age = now.year - birthDate.year;
     final monthDiff = now.month - birthDate.month;
     final dayDiff = now.day - birthDate.day;
-    
+
     if (monthDiff < 0 || (monthDiff == 0 && dayDiff < 0)) {
       return age - 1 >= 18;
     }

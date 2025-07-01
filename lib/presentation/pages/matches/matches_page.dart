@@ -13,21 +13,22 @@ import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 import 'package:go_router/go_router.dart';
 
 class MatchesPage extends StatefulWidget {
-  const MatchesPage({Key? key}) : super(key: key);
+  const MatchesPage({super.key});
 
   @override
   State<MatchesPage> createState() => _MatchesPageState();
 }
 
-class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStateMixin {
+class _MatchesPageState extends State<MatchesPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -54,7 +55,8 @@ class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStat
               Tab(
                 child: BlocBuilder<MatchesBloc, MatchesState>(
                   builder: (context, state) {
-                    final count = state is MatchesLoaded ? state.likesReceivedCount : 0;
+                    final count =
+                        state is MatchesLoaded ? state.likesReceivedCount : 0;
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -112,12 +114,12 @@ class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStat
         if (state is MatchesLoading) {
           return const Center(child: HIVLoader());
         }
-        
+
         if (state is MatchesLoaded) {
           if (state.matches.isEmpty) {
             return _buildEmptyState();
           }
-          
+
           return RefreshIndicator(
             onRefresh: () async {
               context.read<MatchesBloc>().add(const LoadMatches(refresh: true));
@@ -134,16 +136,18 @@ class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStat
                     child: Center(child: HIVLoader()),
                   );
                 }
-                
+
                 final match = state.matches[index];
                 return MatchCard(
-                  imageUrl: '', // TODO: Ajouter URL depuis profile
-                  name: 'Match ${index + 1}', // TODO: Nom réel
-                  lastMessage: match.lastMessageContent,
-                  lastMessageTime: match.lastMessageAt,
+                  imageUrl: match.profile.mainPhotoUrl,
+                  name: match.profile.displayName,
+                  lastMessage: match.lastMessage?.content ?? '',
+                  lastMessageTime: match.lastMessage?.createdAt,
                   hasUnreadMessage: match.hasUnreadMessages,
                   onTap: () {
-                    context.read<MatchesBloc>().add(MarkMatchAsSeen(matchId: match.id));
+                    context
+                        .read<MatchesBloc>()
+                        .add(MarkMatchAsSeen(matchId: match.id));
                     context.push('/chat/${match.id}');
                   },
                 );
@@ -151,7 +155,7 @@ class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStat
             ),
           );
         }
-        
+
         return const SizedBox.shrink();
       },
     );
@@ -181,15 +185,15 @@ class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStat
               Text(
                 'Voir qui vous a liké',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Passez à Premium pour voir les profils\nqui s\'intéressent à vous !',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.slate,
-                ),
+                      color: AppColors.slate,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -220,15 +224,15 @@ class _MatchesPageState extends State<MatchesPage> with SingleTickerProviderStat
             Text(
               'Pas encore de match',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Commencez à swiper pour rencontrer\ndes personnes qui vous correspondent',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.slate,
-              ),
+                    color: AppColors.slate,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),

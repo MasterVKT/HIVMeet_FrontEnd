@@ -2,6 +2,7 @@
 
 import 'dart:io';
 import 'package:equatable/equatable.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 
 abstract class ChatEvent extends Equatable {
   const ChatEvent();

@@ -1,0 +1,713 @@
+# Architecture Technique Frontend - HIVMeet
+
+## 1. Vue d'Ensemble
+
+Ce document détaille l'architecture technique frontend de l'application mobile HIVMeet, une plateforme de rencontres sécurisée pour personnes vivant avec le VIH. Il définit les principes architecturaux, l'organisation du code, les patterns de conception et les interactions avec le backend.
+
+### 1.1 Objectifs d'Architecture
+
+- **Sécurité et confidentialité** : Protection maximale des données sensibles des utilisateurs
+- **Expérience utilisateur fluide** : Interface cohérente et performante sur iOS et Android
+- **Maintenabilité** : Organisation claire du code permettant l'évolution continue
+- **Testabilité** : Architecture facilitant les tests automatisés
+- **Séparation des préoccupations** : Découplage clair des composants pour un développement isolé
+
+### 1.2 Stack Technologique Frontend
+
+- **Framework** : Flutter (dernière version stable)
+- **Langage** : Dart
+- **Architecture** : Clean Architecture avec séparation en couches
+- **Gestion d'État** : BLoC Pattern (Business Logic Component)
+- **Navigation** : GoRouter pour une navigation déclarative
+- **Injection de Dépendances** : GetIt
+- **Stockage Local** : 
+  - Hive pour le cache de données
+  - Secure Storage pour les données sensibles
+  - SharedPreferences pour les paramètres utilisateur
+- **Communication Réseau** : Client HTTP avec intercepteurs pour l'authentification
+- **Plateformes Ciblées** : 
+  - Android (version 8.0+)
+  - iOS (version 13.0+)
+
+## 2. Principes Architecturaux
+
+### 2.1 Clean Architecture
+
+L'application adopte les principes de Clean Architecture pour séparer les préoccupations et faciliter la testabilité. Cette architecture se compose de trois couches principales:
+
+#### 2.1.1 Couche Présentation
+- Contient les widgets Flutter, les pages et les blocs
+- Responsable de l'affichage des données et de la capture des interactions utilisateur
+- Ne contient aucune logique métier
+
+#### 2.1.2 Couche Domaine
+- Contient les entités métier, les cas d'utilisation et les interfaces de repository
+- Totalement indépendante des frameworks et des technologies
+- Définit le comportement métier de l'application
+
+#### 2.1.3 Couche Données
+- Implémente les repositories définis dans la couche domaine
+- Gère les sources de données (locales et distantes)
+- S'occupe de la conversion des modèles de données
+
+### 2.2 Principes de Conception
+
+#### 2.2.1 SOLID
+- **Single Responsibility** : Chaque classe a une seule responsabilité
+- **Open/Closed** : Les entités sont ouvertes à l'extension mais fermées à la modification
+- **Liskov Substitution** : Les sous-types sont substituables à leurs types de base
+- **Interface Segregation** : Les interfaces sont spécifiques aux clients
+- **Dependency Inversion** : Les modules de haut niveau ne dépendent pas des modules de bas niveau
+
+#### 2.2.2 Flux de Données Unidirectionnel
+- Les données circulent dans une seule direction (UI → Events → BLoC → States → UI)
+- Simplifie le suivi des changements d'état
+- Réduit les bugs liés aux états incohérents
+
+## 3. Structure du Projet
+
+### 3.1 Organisation des Dossiers
+
+```
+hivmeet/
+├── android/                   # Configuration native Android
+├── ios/                       # Configuration native iOS
+├── assets/                    # Ressources statiques
+├── lib/                       # Code source Dart
+│   ├── main.dart              # Point d'entrée de l'application
+│   ├── core/                  # Composants fondamentaux
+│   ├── data/                  # Couche de données
+│   ├── domain/                # Couche domaine (business logic)
+│   ├── presentation/          # Couche présentation (UI)
+│   └── injection.dart         # Configuration d'injection de dépendances
+└── test/                      # Tests automatisés
+```
+
+### 3.2 Détail des Couches
+
+#### 3.2.1 Couche Core (`/lib/core`)
+
+Cette couche contient les éléments fondamentaux et les utilitaires utilisés dans toute l'application:
+
+- **Configuration** : Constantes, thèmes, routes et paramètres globaux
+- **Gestion d'erreurs** : Exceptions personnalisées et handlers
+- **Réseau** : Client HTTP, intercepteurs et gestion des API
+- **Utilitaires** : Validateurs, formatters, helpers de localisation, etc.
+- **Extensions** : Extensions Dart pour les types communs
+
+#### 3.2.2 Couche Données (`/lib/data`)
+
+Cette couche implémente les repositories définis dans la couche domaine:
+
+- **Modèles** : Classes de données qui représentent les objets du backend
+- **Repositories** : Implémentations concrètes des repositories
+- **Sources de données** : 
+  - **Locales** : Secure Storage, Hive, SharedPreferences
+  - **Distantes** : API clients pour les endpoints backend
+
+#### 3.2.3 Couche Domaine (`/lib/domain`)
+
+Cette couche contient la logique métier indépendante de toute implémentation:
+
+- **Entités** : Objets de domaine purs sans dépendance externe
+- **Repositories** : Interfaces définissant les contrats pour l'accès aux données
+- **Cas d'utilisation** : Opérations métier spécifiques indépendantes de l'UI
+
+#### 3.2.4 Couche Présentation (`/lib/presentation`)
+
+Cette couche gère l'interface utilisateur et les interactions:
+
+- **Blocs** : Composants de gestion d'état (BLoC pattern)
+- **Pages** : Écrans principaux de l'application
+- **Widgets** : Composants d'interface réutilisables
+- **Navigation** : Configuration des routes et transitions
+
+## 4. Gestion d'État avec BLoC
+
+### 4.1 Principe du Pattern BLoC
+
+Le pattern BLoC (Business Logic Component) est utilisé pour séparer la logique métier de l'interface utilisateur:
+
+1. L'interface utilisateur émet des **Events** en réponse aux actions de l'utilisateur
+2. Le **BLoC** reçoit ces Events et exécute la logique métier appropriée
+3. Le BLoC émet des **States** qui représentent l'état actuel de l'interface
+4. L'interface se reconstruit en fonction des States reçus
+
+Ce flux de données unidirectionnel rend l'application plus prévisible et testable.
+
+### 4.2 Architecture d'un BLoC
+
+Chaque fonctionnalité majeure possède son propre BLoC avec trois composants:
+
+1. **Events** : Classes représentant les actions déclenchées par l'utilisateur
+2. **States** : Classes représentant les différents états de l'interface
+3. **BLoC** : Classe qui transforme les Events en States
+
+Exemple de structure pour la fonctionnalité d'authentification:
+
+```dart
+// Événements d'authentification
+abstract class AuthEvent {}
+
+class SignInRequested extends AuthEvent {
+  final String email;
+  final String password;
+  
+  SignInRequested({required this.email, required this.password});
+}
+
+class SignOutRequested extends AuthEvent {}
+
+// États d'authentification
+abstract class AuthState {}
+
+class AuthInitial extends AuthState {}
+class AuthLoading extends AuthState {}
+class Authenticated extends AuthState {
+  final UserEntity user;
+  Authenticated({required this.user});
+}
+class Unauthenticated extends AuthState {}
+class AuthError extends AuthState {
+  final String message;
+  AuthError({required this.message});
+}
+
+// BLoC d'authentification
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  final SignIn signInUseCase;
+  final SignOut signOutUseCase;
+  
+  AuthBloc({
+    required this.signInUseCase,
+    required this.signOutUseCase
+  }) : super(AuthInitial()) {
+    on<SignInRequested>(_onSignInRequested);
+    on<SignOutRequested>(_onSignOutRequested);
+  }
+  
+  // Handlers d'événements
+  Future<void> _onSignInRequested(
+    SignInRequested event,
+    Emitter<AuthState> emit
+  ) async {
+    // Implémentation...
+  }
+  
+  Future<void> _onSignOutRequested(
+    SignOutRequested event,
+    Emitter<AuthState> emit
+  ) async {
+    // Implémentation...
+  }
+}
+```
+
+### 4.3 Injection de Dépendances pour les BLoCs
+
+L'application utilise GetIt comme injecteur de dépendances pour fournir les instances de BLoC et leurs dépendances. Cette approche permet:
+
+- Une création paresseuse des objets (uniquement quand nécessaire)
+- La réutilisation des instances (singletons, factory, etc.)
+- Le découplage des composants
+- La facilitation des tests en permettant le remplacement des dépendances
+
+La configuration de l'injection de dépendances est centralisée dans le fichier `injection.dart` à la racine du projet.
+
+## 5. Fonctionnalités Principales du Frontend
+
+### 5.1 Authentification et Gestion de Profil
+
+#### 5.1.1 Flux d'Authentification
+
+Le processus d'authentification comprend plusieurs étapes:
+
+1. **Inscription**:
+   - Validation du formulaire (email, mot de passe, date de naissance)
+   - Création du compte via l'API backend
+   - Envoi d'email de vérification
+   - Transition vers la création de profil après confirmation d'email
+
+2. **Connexion**:
+   - Authentification via l'API
+   - Stockage sécurisé du token JWT
+   - Récupération des informations utilisateur
+   - Redirection vers l'écran principal ou complétion de profil
+
+3. **Gestion de Session**:
+   - Rafraîchissement automatique du token
+   - Détection d'expiration de session
+   - Déconnexion automatique après inactivité
+
+#### 5.1.2 Création et Gestion de Profil
+
+La gestion de profil comprend:
+
+1. **Création initiale**:
+   - Formulaire multi-étapes avec indicateur de progression
+   - Upload et recadrage de photo
+   - Sélection d'intérêts et préférences
+   - Gestion de la localisation
+
+2. **Vérification de compte**:
+   - Interface sécurisée pour l'upload de documents (identité, médical)
+   - Processus de selfie avec code unique
+   - Suivi de l'état de vérification
+
+3. **Édition de profil**:
+   - Mise à jour des informations personnelles
+   - Gestion des photos (ajout, suppression, réorganisation)
+   - Prévisualisation du profil tel que vu par les autres
+
+### 5.2 Découverte et Matching
+
+#### 5.2.1 Interface de Swipe
+
+L'interface de découverte principale s'inspire du modèle Tinder:
+
+1. **Affichage des profils**:
+   - Carte principale avec photo, nom, âge
+   - Indicateurs de statut (vérifié, en ligne)
+   - Animation fluide entre profils
+   - Préchargement pour expérience fluide
+
+2. **Interactions**:
+   - Swipe gauche (dislike), droit (like)
+   - Actions alternatives via boutons
+   - Animation de feedback après action
+   - Gestion des limites quotidiennes (utilisateurs gratuits)
+
+3. **Filtres de recherche**:
+   - Filtrage par âge, distance, type de relation
+   - Interface intuitive avec curseurs et sélecteurs
+   - Sauvegarde des préférences
+
+#### 5.2.2 Système de Match
+
+Le système de match gère la connexion entre utilisateurs:
+
+1. **Détection de match**:
+   - Animation spéciale lors d'un match mutuel
+   - Option de message immédiat ou continuation
+   - Notification push aux deux utilisateurs
+
+2. **Gestion des matches**:
+   - Liste organisée par récence ou activité
+   - Statut des conversations (nouveaux messages)
+   - Actions rapides (message, supprimer)
+
+### 5.3 Messagerie
+
+#### 5.3.1 Liste des Conversations
+
+L'interface de messagerie affiche:
+
+1. **Conversations actives**:
+   - Photo de profil et nom
+   - Aperçu du dernier message
+   - Indicateur de non-lus
+   - Statut en ligne
+   - Horodatage relatif
+
+2. **Actions rapides**:
+   - Swipe pour options (archiver, supprimer)
+   - Tap pour ouvrir la conversation
+   - Pull-to-refresh pour actualiser
+
+#### 5.3.2 Conversation Détaillée
+
+L'interface de conversation comprend:
+
+1. **Affichage des messages**:
+   - Bulles distinctes (envoyés/reçus)
+   - Indicateurs de statut (envoyé, lu)
+   - Support pour texte et emoji (gratuit)
+   - Support pour médias (premium)
+
+2. **Saisie de message**:
+   - Zone de texte expansible
+   - Sélecteur d'emoji
+   - Attachement de médias (premium)
+   - Indicateur de limite de caractères
+
+3. **Appels (premium)**:
+   - Boutons d'appel audio/vidéo
+   - Interface d'appel en cours
+   - Contrôles (muet, caméra, haut-parleur)
+   - Timer pour limite de 30 minutes
+
+### 5.4 Contenu Informatif
+
+#### 5.4.1 Ressources et Articles
+
+L'application inclut une section de contenu éducatif:
+
+1. **Organisation du contenu**:
+   - Catégorisation thématique
+   - Liste avec prévisualisations
+   - Recherche par mots-clés
+   - Filtrage par type
+
+2. **Consultation**:
+   - Mise en page responsive
+   - Options de partage
+   - Sauvegarde en favoris
+   - Mode hors-ligne (premium)
+
+#### 5.4.2 Fil d'Actualité
+
+Le fil d'actualité communautaire comprend:
+
+1. **Publications**:
+   - Texte formaté (500 caractères max)
+   - Une image par publication
+   - Système de like et commentaires
+   - Modération avant publication
+
+2. **Interaction**:
+   - Tri chronologique
+   - Filtrage par thème
+   - Commentaires limités (200 caractères)
+   - Actions rapides (like, signaler)
+
+## 6. Communication avec le Backend
+
+### 6.1 Architecture de Communication
+
+#### 6.1.1 Principes
+
+La communication avec le backend suit ces principes:
+
+1. **Séparation des préoccupations**:
+   - Les UI ne communiquent jamais directement avec les API
+   - Les appels réseau sont isolés dans la couche de données
+   - Les réponses sont transformées en entités du domaine
+
+2. **Gestion d'erreurs robuste**:
+   - Catégorisation des erreurs (réseau, serveur, validation)
+   - Transformation en échecs métier compréhensibles
+   - Stratégies de retry pour les erreurs temporaires
+
+3. **Sécurité des communications**:
+   - TLS pour toutes les communications
+   - Authentification par token JWT
+   - Rafraîchissement automatique des tokens
+
+#### 6.1.2 Implémentation
+
+L'architecture de communication est structurée en plusieurs couches:
+
+1. **Client HTTP**:
+   - Client de base avec configuration globale
+   - Intercepteurs pour authentification et logging
+   - Gestion des timeouts et retries
+
+2. **Sources de données distantes**:
+   - Classes spécifiques à chaque domaine fonctionnel
+   - Méthodes correspondant aux endpoints API
+   - Transformation des réponses JSON en modèles
+
+3. **Repositories**:
+   - Implémentent les interfaces du domaine
+   - Orchestrent les appels aux sources de données
+   - Gèrent le cache et les stratégies de récupération
+
+### 6.2 Stratégies de Mise en Cache
+
+L'application implémente plusieurs stratégies de mise en cache pour optimiser les performances et permettre l'utilisation hors-ligne:
+
+1. **Cache de données**:
+   - Stockage local des données fréquemment accédées
+   - Stratégie de péremption adaptée par type de données
+   - Synchronisation bidirectionnelle avec le backend
+
+2. **Cache d'images**:
+   - Mise en cache des photos de profil et médias
+   - Gestion de l'espace de stockage (limite configurable)
+   - Préchargement intelligent des ressources probables
+
+3. **Mode hors-ligne**:
+   - Détection de l'état de connectivité
+   - File d'attente des actions à synchroniser
+   - Résolution des conflits à la reconnexion
+
+## 7. Sécurité Frontend
+
+### 7.1 Protection des Données Sensibles
+
+La sécurité des données est primordiale dans une application traitant d'informations médicales sensibles:
+
+1. **Stockage sécurisé**:
+   - Utilisation de Secure Storage pour les tokens et informations sensibles
+   - Chiffrement AES-256 pour les données locales sensibles
+   - Isolation des données entre utilisateurs
+
+2. **Protection en transit**:
+   - TLS 1.3 pour toutes les communications réseau
+   - Certificate pinning pour prévenir les attaques MitM
+   - Validation des certificats SSL
+
+3. **Obfuscation du code**:
+   - Obfuscation du code compilé pour limiter la rétro-ingénierie
+   - Protection des chaînes sensibles
+   - Détection des environnements compromis (rooting/jailbreak)
+
+### 7.2 Gestion des Permissions
+
+L'application suit le principe du moindre privilège pour les permissions système:
+
+1. **Permissions requises**:
+   - Caméra (photos de profil, vérification)
+   - Localisation (matchmaking basé sur la proximité)
+   - Stockage (médias, cache)
+   - Notifications (messages, matches)
+
+2. **Demande contextuelle**:
+   - Explication claire de la nécessité de chaque permission
+   - Demande uniquement au moment de l'utilisation
+   - Fonctionnement dégradé si permission refusée
+
+3. **Revue périodique**:
+   - Audit des permissions utilisées
+   - Suppression des permissions non essentielles
+   - Documentation claire des usages
+
+## 8. Tests et Qualité
+
+### 8.1 Stratégies de Test
+
+#### 8.1.1 Tests Unitaires
+
+Les tests unitaires ciblent les composants individuels:
+
+1. **Tests de BLoC**:
+   - Vérification des transitions d'états
+   - Tests des cas d'erreur
+   - Mocking des dépendances
+
+2. **Tests de Repository**:
+   - Vérification des transformations de données
+   - Comportement avec différentes sources de données
+   - Gestion des erreurs
+
+3. **Tests de Use Case**:
+   - Validité de la logique métier
+   - Interactions avec les repositories
+   - Comportement dans des scénarios complexes
+
+#### 8.1.2 Tests de Widget
+
+Les tests de widgets vérifient le comportement de l'interface:
+
+1. **Tests de composants**:
+   - Rendu correct des widgets
+   - Interaction avec les événements utilisateur
+   - États visuels différents (loading, error, success)
+
+2. **Tests de pages**:
+   - Intégration des widgets
+   - Navigation et transitions
+   - Interactions avec les BLoCs
+
+#### 8.1.3 Tests d'Intégration
+
+Les tests d'intégration vérifient les flux complets:
+
+1. **Tests de flux utilisateur**:
+   - Parcours d'inscription/connexion
+   - Création et édition de profil
+   - Processus de matching et messagerie
+
+2. **Tests de performances**:
+   - Temps de chargement des écrans
+   - Fluidité des animations
+   - Utilisation de la mémoire
+
+### 8.2 Analyse Statique et Linting
+
+L'application utilise plusieurs outils pour garantir la qualité du code:
+
+1. **Dart Analyzer**:
+   - Détection des erreurs potentielles
+   - Vérification des types
+   - Identification du code mort
+
+2. **Flutter Lints**:
+   - Application des conventions de style
+   - Vérification des bonnes pratiques
+   - Uniformité du code
+
+3. **Custom Rules**:
+   - Règles spécifiques au projet
+   - Contraintes d'architecture (dépendances entre couches)
+   - Naming conventions
+
+## 9. Accessibilité
+
+### 9.1 Conformité aux Standards
+
+L'application est conçue pour être accessible selon les principes WCAG:
+
+1. **Navigation par clavier et lecteurs d'écran**:
+   - Support complet de TalkBack (Android) et VoiceOver (iOS)
+   - Descriptions alternatives pour les images
+   - Structure sémantique et ordre de focus logique
+
+2. **Design inclusif**:
+   - Ratios de contraste conformes (minimum 4.5:1)
+   - Tailles de texte ajustables
+   - Éléments interactifs dimensionnés adéquatement (min 44x44dp)
+
+3. **Adaptations spécifiques**:
+   - Mode contraste élevé
+   - Réduction des animations
+   - Support des paramètres d'accessibilité du système
+
+### 9.2 Multi-langue
+
+L'application supporte plusieurs langues:
+
+1. **Internationalisation**:
+   - Structure de localisation Flutter
+   - Ressources textuelles externalisées
+   - Support de formats spécifiques (dates, nombres)
+
+2. **Langues supportées**:
+   - Français (principal)
+   - Anglais
+   - Structure extensible pour l'ajout de langues
+
+## 10. Processus de Développement et Déploiement
+
+### 10.1 Environnements
+
+L'application supporte trois environnements distincts:
+
+1. **Développement**:
+   - Connecté aux API de développement
+   - Logging détaillé
+   - Outils de débogage activés
+
+2. **Staging**:
+   - Configuration miroir de production
+   - Données de test contrôlées
+   - Utilisé pour les tests de recette
+
+3. **Production**:
+   - Optimisations de performance activées
+   - Logging minimal
+   - Configurations sécurisées
+
+### 10.2 Process de Déploiement
+
+Le déploiement suit un processus automatisé:
+
+1. **Build et Signing**:
+   - Compilation spécifique par environnement
+   - Signing automatique des packages
+   - Génération des assets optimisés
+
+2. **Distribution**:
+   - Déploiement sur TestFlight et Google Play Beta
+   - Canaux de déploiement par environnement
+   - Déploiement progressif en production
+
+3. **Monitoring**:
+   - Suivi des métriques post-déploiement
+   - Détection des problèmes précoces
+   - Capacité de rollback rapide
+
+## 11. Performance et Optimisations
+
+### 11.1 Métriques de Performance
+
+L'application cible les métriques de performance suivantes:
+
+1. **Temps de démarrage**:
+   - Cold start < 2 secondes
+   - Warm start < 1 seconde
+   - Chargement des données critiques en parallèle
+
+2. **Fluidité d'interface**:
+   - 60 FPS pour toutes les animations
+   - Pas de jank lors des transitions
+   - Réponse immédiate aux interactions utilisateur
+
+3. **Utilisation des ressources**:
+   - Empreinte mémoire < 100 MB en usage normal
+   - Optimisation des assets graphiques
+   - Chargement paresseux des ressources
+
+### 11.2 Stratégies d'Optimisation
+
+Plusieurs stratégies sont implémentées pour garantir les performances:
+
+1. **Optimisation du rendu**:
+   - Utilisation de `const` widgets quand possible
+   - Minimisation des reconstructions avec `RepaintBoundary`
+   - Pagination et virtualisation des listes longues
+
+2. **Gestion des ressources**:
+   - Compression et redimensionnement des images
+   - Purge intelligente du cache
+   - Libération proactive des ressources
+
+3. **Background Processing**:
+   - Isolation compute pour les tâches lourdes
+   - Throttling des opérations coûteuses
+   - Priorisation des tâches critiques
+
+## 12. Analytics et Monitoring
+
+### 12.1 Suivi des Événements Utilisateur
+
+L'application implémente un système complet d'analytics:
+
+1. **Événements tracés**:
+   - Actions utilisateur principales
+   - Erreurs et exceptions
+   - Métriques de performance
+   - Conversion et engagement
+
+2. **Métriques business**:
+   - Taux de conversion
+   - Rétention utilisateur
+   - Engagement quotidien/hebdomadaire
+   - Adoption des fonctionnalités premium
+
+3. **Privacy-first Analytics**:
+   - Anonymisation des données personnelles
+   - Respect des préférences de tracking
+   - Conformité RGPD/CCPA
+
+### 12.2 Crash Reporting
+
+Un système robuste de reporting d'erreurs est implémenté:
+
+1. **Capture d'exceptions**:
+   - Exceptions non gérées
+   - Erreurs asynchrones
+   - Problèmes de rendu Flutter
+
+2. **Contexte enrichi**:
+   - État de l'application au moment du crash
+   - Chemin de navigation
+   - Informations de device
+   - Logs précédant l'erreur
+
+3. **Analyse et résolution**:
+   - Groupement des erreurs similaires
+   - Priorisation par impact
+   - Workflow de résolution
+
+## 13. Conclusion
+
+L'architecture frontend de HIVMeet est conçue pour répondre aux défis spécifiques d'une application de rencontre traitant des données sensibles:
+
+1. **Sécurité et confidentialité** comme priorités absolues
+2. **Architecture évolutive** permettant l'ajout de fonctionnalités
+3. **Expérience utilisateur fluide** sur toutes les plateformes
+4. **Performances optimisées** même sur les appareils moins puissants
+5. **Développement modulaire** facilitant la collaboration en équipe
+
+Cette architecture établit une base solide pour le développement et l'évolution future de l'application, tout en garantissant une expérience utilisateur de qualité.

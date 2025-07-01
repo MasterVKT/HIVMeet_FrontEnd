@@ -2,6 +2,8 @@
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:dartz/dartz.dart';
+import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
 import 'discovery_event.dart';
@@ -10,7 +12,7 @@ import 'discovery_state.dart';
 @injectable
 class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
   final MatchRepository _matchRepository;
-  
+
   List<DiscoveryProfile> _profiles = [];
   int _currentIndex = 0;
   DailyLikeLimit? _dailyLimit;
@@ -31,24 +33,24 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     emit(DiscoveryLoading());
-    
+
     final profilesResult = await _matchRepository.getDiscoveryProfiles(
       limit: event.limit,
     );
-    
+
     final limitResult = await _matchRepository.getDailyLikeLimit();
-    
+
     profilesResult.fold(
       (failure) => emit(DiscoveryError(message: failure.message)),
       (profiles) {
         _profiles = profiles;
         _currentIndex = 0;
-        
+
         limitResult.fold(
           (failure) => _dailyLimit = null,
           (limit) => _dailyLimit = limit,
         );
-        
+
         _emitLoaded(emit);
       },
     );
@@ -59,11 +61,11 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     if (_profiles.isEmpty || _currentIndex >= _profiles.length) return;
-    
+
     final currentProfile = _profiles[_currentIndex];
-    
-    if (event.direction == SwipeDirection.right && 
-        _dailyLimit != null && 
+
+    if (event.direction == SwipeDirection.right &&
+        _dailyLimit != null &&
         _dailyLimit!.hasReachedLimit) {
       emit(DailyLimitReached(
         previousState: state as DiscoveryLoaded,
@@ -71,21 +73,26 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       ));
       return;
     }
-    
+
     emit(ProfileSwiping(
       previousState: state as DiscoveryLoaded,
       profile: currentProfile,
       direction: event.direction,
     ));
-    
-    final Either<Failure, dynamic> result;
-    
+
+    final Either<Failure, SwipeResult> result;
+
     switch (event.direction) {
       case SwipeDirection.right:
         result = await _matchRepository.likeProfile(currentProfile.id);
         break;
       case SwipeDirection.left:
-        result = await _matchRepository.dislikeProfile(currentProfile.id);
+        final dislikeResult =
+            await _matchRepository.dislikeProfile(currentProfile.id);
+        result = dislikeResult.fold(
+          (failure) => Left(failure),
+          (_) => const Right(SwipeResult(isMatch: false)),
+        );
         break;
       case SwipeDirection.up:
         result = await _matchRepository.superLikeProfile(currentProfile.id);
@@ -93,7 +100,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       default:
         return;
     }
-    
+
     result.fold(
       (failure) {
         emit(DiscoveryError(
@@ -102,21 +109,21 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         ));
       },
       (swipeResult) async {
-        if (swipeResult is SwipeResult && swipeResult.isMatch) {
+        if (swipeResult.isMatch) {
           emit(MatchFound(
             matchedProfile: currentProfile,
             matchId: swipeResult.matchId!,
           ));
-          
+
           await Future.delayed(const Duration(seconds: 3));
         }
-        
+
         _currentIndex++;
-        
+
         if (_currentIndex >= _profiles.length - 2) {
           _loadMoreProfiles();
         }
-        
+
         // Update daily limit
         if (event.direction == SwipeDirection.right) {
           final limitResult = await _matchRepository.getDailyLikeLimit();
@@ -125,7 +132,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
             (limit) => _dailyLimit = limit,
           );
         }
-        
+
         _emitLoaded(emit);
       },
     );
@@ -137,7 +144,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
   ) async {
     if (_currentIndex > 0) {
       final result = await _matchRepository.rewindLastSwipe();
-      
+
       result.fold(
         (failure) => emit(DiscoveryError(
           message: failure.message,
@@ -156,7 +163,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     final result = await _matchRepository.updateSearchFilters(event.filters);
-    
+
     result.fold(
       (failure) => emit(DiscoveryError(message: failure.message)),
       (_) {
@@ -170,7 +177,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     final result = await _matchRepository.getDailyLikeLimit();
-    
+
     result.fold(
       (_) => {},
       (limit) {
@@ -187,7 +194,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       emit(NoMoreProfiles());
       return;
     }
-    
+
     emit(DiscoveryLoaded(
       currentProfile: _profiles[_currentIndex],
       nextProfiles: _profiles.sublist(
@@ -204,7 +211,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     final result = await _matchRepository.getDiscoveryProfiles(
       lastProfileId: lastId,
     );
-    
+
     result.fold(
       (_) => {},
       (newProfiles) => _profiles.addAll(newProfiles),

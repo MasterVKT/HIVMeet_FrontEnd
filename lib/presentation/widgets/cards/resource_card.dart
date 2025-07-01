@@ -12,11 +12,11 @@ class ResourceCard extends StatelessWidget {
   final VoidCallback onFavoriteToggle;
 
   const ResourceCard({
-    Key? key,
+    super.key,
     required this.resource,
     required this.onTap,
     required this.onFavoriteToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

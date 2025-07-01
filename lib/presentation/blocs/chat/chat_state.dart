@@ -34,6 +34,8 @@ class ChatLoaded extends ChatState {
     this.sendingMessageIds = const [],
   });
 
+  bool get isTyping => typingStatus.values.any((typing) => typing);
+
   ChatLoaded copyWith({
     Conversation? conversation,
     List<Message>? messages,

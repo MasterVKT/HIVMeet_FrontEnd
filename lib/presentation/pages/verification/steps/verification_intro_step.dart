@@ -9,9 +9,9 @@ class VerificationIntroStep extends StatelessWidget {
   final VoidCallback onStart;
 
   const VerificationIntroStep({
-    Key? key,
+    super.key,
     required this.onStart,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -13,7 +13,7 @@ import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 import 'package:go_router/go_router.dart';
 
 class FeedPage extends StatelessWidget {
-  const FeedPage({Key? key}) : super(key: key);
+  const FeedPage({super.key});
 
   @override
   Widget build(BuildContext context) {

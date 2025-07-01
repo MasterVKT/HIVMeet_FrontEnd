@@ -1,0 +1,726 @@
+# Charte Graphique Détaillée - HIVMeet
+
+## 1. Identité Visuelle et Concept
+
+### 1.1 Concept Global
+
+HIVMeet est une application de rencontre spécialisée et sécurisée pour les personnes vivant avec le VIH. L'identité visuelle doit refléter les valeurs fondamentales du service:
+
+- **Connexion authentique**: Mettre l'accent sur les relations sincères
+- **Sécurité et confiance**: Inspirer un sentiment de sécurité et de confidentialité
+- **Positivité et espoir**: Véhiculer une atmosphère optimiste et bienveillante
+- **Inclusivité**: Représenter la diversité de la communauté
+- **Modernité**: Adopter une esthétique contemporaine et élégante
+
+### 1.2 Logo et Symbolique
+
+![Logo HIVMeet](https://i.imgur.com/placeholder.jpg)
+
+Le logo HIVMeet combine:
+- Un symbole de connexion (deux formes qui se rejoignent)
+- Une palette violette distinctive (couleur principale #8C2DDB)
+- Une typographie moderne et amicale
+
+**Variantes du logo**:
+- Logo principal (complet avec texte)
+- Icône d'application (symbole seul)
+- Version monochrome pour fonds sombres
+- Version minimaliste pour petites tailles
+
+## 2. Palette de Couleurs
+
+### 2.1 Couleurs Principales
+
+- **Violet principal** (Amethyst): #8C2DDB
+  - Symbole de créativité, sagesse et tranquillité
+  - Utilisé pour les éléments d'action principaux et l'identité de marque
+
+- **Blanc** (Snow): #F5F5F5
+  - Fond principal de l'application
+  - Apporte légèreté et clarté
+
+### 2.2 Couleurs Secondaires
+
+- **Violet clair** (Lavender): #B76AE8
+  - Version plus claire du violet principal
+  - Utilisé pour les accents et variations
+
+- **Violet foncé** (Deep Purple): #6211A8
+  - Version plus foncée du violet principal
+  - Utilisé pour le contraste et les éléments de profondeur
+
+- **Turquoise** (Aqua): #0CCAD8
+  - Couleur complémentaire pour les accents
+  - Apporte fraîcheur et dynamisme
+
+- **Corail doux** (Coral): #FF6B6B
+  - Accent chaud pour les notifications et alertes
+  - Symbolise l'énergie et la passion
+
+### 2.3 Couleurs Neutres
+
+- **Gris très clair** (Platinum): #E8E8E8
+  - Arrière-plans secondaires et séparateurs
+  - Délimitation subtile des éléments
+
+- **Gris clair** (Silver): #C5C5C5
+  - Texte désactivé et icônes secondaires
+  - Éléments d'interface non-actifs
+
+- **Gris moyen** (Slate): #7A7A7A
+  - Texte secondaire et informations complémentaires
+  - Balance entre lisibilité et hiérarchie visuelle
+
+- **Gris foncé** (Charcoal): #393939
+  - Texte principal pour une lisibilité optimale
+  - Contraste important sur fond clair
+
+### 2.4 Couleurs Fonctionnelles
+
+- **Succès** (Mint): #2BD9A1
+  - Validations, confirmations et statuts positifs
+  - Symbole de réussite et progression
+
+- **Alerte** (Amber): #FFB039
+  - Avertissements et attentions
+  - Pour les éléments nécessitant vigilance
+
+- **Erreur** (Ruby): #E53E3E
+  - Erreurs et actions destructives
+  - Messages critiques nécessitant action
+
+- **Information** (Sky): #4299E1
+  - Messages informatifs et conseils
+  - Indications neutres pour guider l'utilisateur
+
+### 2.5 Gradients
+
+- **Gradient principal**: #8C2DDB → #B76AE8
+  - Utilisé pour les CTA principaux et éléments d'accent
+  - Direction: 135° (haut-gauche vers bas-droite)
+
+- **Gradient secondaire**: #0CCAD8 → #2BD9A1
+  - Utilisé pour les éléments premium et badges spéciaux
+  - Direction: 45° (bas-gauche vers haut-droite)
+
+## 3. Typographie
+
+### 3.1 Police Principale
+
+**Open Sans** - Police principale pour tout le contenu textuel
+- Familles: Regular, Medium, SemiBold, Bold
+- Excellente lisibilité sur écrans mobiles
+- Style contemporain et amical
+
+### 3.2 Hiérarchie Typographique
+
+- **Titres principaux (H1)**
+  - Open Sans Bold, 28px/32px
+  - Tracking: -0.5px
+  - Couleur: #393939 ou #F5F5F5 (selon fond)
+
+- **Titres secondaires (H2)**
+  - Open Sans SemiBold, 22px/28px
+  - Tracking: -0.3px
+  - Couleur: #393939 ou #F5F5F5 (selon fond)
+
+- **Titres tertiaires (H3)**
+  - Open Sans SemiBold, 18px/24px
+  - Tracking: -0.2px
+  - Couleur: #393939 ou #F5F5F5 (selon fond)
+
+- **Sous-titres (H4)**
+  - Open Sans Medium, 16px/22px
+  - Tracking: -0.1px
+  - Couleur: #393939 ou #F5F5F5 (selon fond)
+
+- **Corps de texte**
+  - Open Sans Regular, 15px/21px
+  - Tracking: 0
+  - Couleur: #393939 ou #F5F5F5 (selon fond)
+
+- **Texte secondaire**
+  - Open Sans Regular, 14px/20px
+  - Tracking: 0
+  - Couleur: #7A7A7A
+
+- **Petits textes / Légendes**
+  - Open Sans Regular, 12px/16px
+  - Tracking: 0.2px
+  - Couleur: #7A7A7A
+
+- **Boutons et CTA**
+  - Open Sans SemiBold, 16px/20px
+  - Tracking: 0.1px
+  - Transformation: Première lettre en majuscule
+
+### 3.3 Utilisation Spécifique
+
+- **Badges et étiquettes**
+  - Open Sans SemiBold, 12px/16px
+  - Tracking: 0.2px
+  - Texte en majuscules
+
+- **Texte de navigation**
+  - Open Sans Medium, 14px/18px
+  - Tracking: 0.1px
+
+## 4. Iconographie et Éléments Graphiques
+
+### 4.1 Style d'Icônes
+
+- Style linéaire avec épaisseur de trait constante (2px)
+- Extrémités arrondies pour un aspect convivial
+- Taille cohérente (24x24px pour la navigation, 20x20px pour les actions contextuelles)
+- Palette cohérente avec les couleurs de l'application
+
+### 4.2 Jeu d'Icônes Principal
+
+- **Navigation**
+  - Accueil/Découverte: Carte de profil
+  - Matches: Cœur / Double cœur
+  - Messages: Bulle de discussion
+  - Profil: Silhouette utilisateur
+  - Ressources: Livre ouvert
+
+- **Actions**
+  - Like: Cœur
+  - Dislike: X
+  - Message: Bulle de discussion
+  - Retour: Flèche gauche
+  - Paramètres: Engrenage
+  - Vérification: Badge check
+  - Premium: Étoile/Diamant
+  - Ajouter: Plus dans cercle
+  - Recherche: Loupe
+  - Filtres: Entonnoir
+  - Notification: Cloche
+
+### 4.3 Illustrations et Pictogrammes
+
+- **Style d'illustration**
+  - Style minimaliste avec lignes fluides
+  - Palette limitée aux couleurs de l'application
+  - Personnages diversifiés et inclusifs
+  - Focus sur les connexions humaines positives
+
+- **Catégories d'illustrations**
+  - Onboarding et bienvenue
+  - États vides (aucun match, aucun message)
+  - Succès (match, vérification complétée)
+  - Processus en cours (chargement, vérification)
+  - Fonctionnalités premium
+
+## 5. Composants UI
+
+### 5.1 Boutons
+
+- **Bouton Primaire**
+  - Gradient principal (#8C2DDB → #B76AE8)
+  - Coins arrondis (radius: 12px)
+  - Padding vertical: 16px, horizontal: 24px
+  - Texte blanc (#F5F5F5)
+  - Animation légère au survol/tap
+  - Ombre légère pour effet de profondeur
+
+- **Bouton Secondaire**
+  - Contour violet (#8C2DDB), fond transparent
+  - Coins arrondis (radius: 12px)
+  - Padding vertical: 14px, horizontal: 24px
+  - Texte violet principal (#8C2DDB)
+  - Animation légère au survol/tap
+
+- **Bouton Tertiaire**
+  - Fond transparent, sans contour
+  - Texte violet principal (#8C2DDB)
+  - Padding vertical: 12px, horizontal: 16px
+  - Animation légère au survol/tap
+
+- **Bouton Icône**
+  - Cercle avec fond violet translucide (10% opacité)
+  - Icône en couleur primaire
+  - Taille: 48px (grand), 40px (moyen), 32px (petit)
+  - Animation de scale au tap
+
+- **Bouton Like/Dislike**
+  - Forme circulaire
+  - Like: fond blanc, icône cœur corail (#FF6B6B)
+  - Dislike: fond blanc, icône X gris (#7A7A7A)
+  - Taille: 64px
+  - Ombre douce pour effet de profondeur
+  - Animation de rebond au tap
+
+### 5.2 Cartes et Conteneurs
+
+- **Carte de Profil**
+  - Fond blanc (#FFFFFF)
+  - Coins fortement arrondis (radius: 24px)
+  - Ombre douce pour effet de profondeur
+  - Bord inférieur avec gradient subtil pour transition
+  - Photo occupant 70% de la hauteur
+  - Informations utilisateur en overlay partiel sur le bas
+
+- **Carte de Match**
+  - Fond blanc (#FFFFFF)
+  - Coins arrondis (radius: 16px)
+  - Photo de profil ronde à gauche
+  - Nom et statut au centre
+  - Action (message) à droite
+  - Indicateur de nouveau match (petit point violet)
+
+- **Carte de Message**
+  - Fond blanc (#FFFFFF)
+  - Coins arrondis (radius: 16px)
+  - Photo de profil ronde à gauche
+  - Nom, aperçu de message et horodatage
+  - Indicateur de messages non lus (badge numérique violet)
+
+- **Bulle de Chat (Envoyé)**
+  - Fond violet principal (#8C2DDB)
+  - Coins arrondis (radius: 18px)
+  - Coin inférieur droit pointu
+  - Texte blanc (#F5F5F5)
+  - Indicateur de lecture en dessous
+  - Maximum 70% de largeur d'écran
+
+- **Bulle de Chat (Reçu)**
+  - Fond gris très clair (#E8E8E8)
+  - Coins arrondis (radius: 18px)
+  - Coin inférieur gauche pointu
+  - Texte gris foncé (#393939)
+  - Maximum 70% de largeur d'écran
+
+### 5.3 Champs de Formulaire
+
+- **Champ de Texte**
+  - Fond blanc (#FFFFFF)
+  - Contour gris clair (#C5C5C5)
+  - Coins arrondis (radius: 12px)
+  - Padding vertical: 14px, horizontal: 16px
+  - Étiquette au-dessus du champ, gris moyen (#7A7A7A)
+  - Texte de saisie en gris foncé (#393939)
+  - Focus: contour violet (#8C2DDB)
+  - Erreur: contour rouge (#E53E3E)
+
+- **Sélecteurs**
+  - Style cohérent avec les champs de texte
+  - Icône flèche bas à droite pour indiquer le dropdown
+  - Options en liste déroulante avec fond blanc
+
+- **Curseurs (Sliders)**
+  - Track: gris clair (#C5C5C5)
+  - Thumb: cercle violet principal (#8C2DDB)
+  - Animation fluide au déplacement
+  - Valeurs min/max aux extrémités en gris moyen
+
+- **Switches**
+  - Track: gris clair désactivé, violet clair activé
+  - Thumb: blanc désactivé, blanc activé
+  - Animation fluide de transition
+  - Taille: 52px x 32px
+
+### 5.4 Éléments de Navigation
+
+- **Barre de Navigation Inférieure**
+  - Fond blanc (#FFFFFF)
+  - Ombre légère vers le haut
+  - 5 icônes principales (découverte, matches, messages, ressources, profil)
+  - Icône active: violette avec texte
+  - Icône inactive: grise sans texte
+  - Animation de transition fluide
+
+- **Barre Supérieure**
+  - Fond blanc ou transparent selon contexte
+  - Titre de section au centre
+  - Actions contextuelles à droite
+  - Retour à gauche si nécessaire
+
+- **Menu Latéral (Paramètres)**
+  - Slide depuis la droite
+  - Fond blanc (#FFFFFF)
+  - Liste d'options avec icônes à gauche et flèches à droite
+  - Séparateurs gris très clair entre sections
+
+### 5.5 Badges et Indicateurs
+
+- **Badge Vérifié**
+  - Cercle violet (#8C2DDB) avec icône check blanche
+  - Taille: 24px
+  - Position en superposition sur photo de profil
+
+- **Badge Premium**
+  - Étoile/Diamant avec gradient secondaire
+  - Taille: 24px
+  - Position en superposition sur photo de profil
+
+- **Indicateur de Notification**
+  - Petit cercle rouge (#E53E3E)
+  - Nombre blanc pour notifications multiples
+  - Position en coin supérieur droit des icônes
+
+- **Indicateur En ligne**
+  - Petit cercle vert (#2BD9A1)
+  - Taille: 12px
+  - Position en bas à droite des photos de profil
+
+## 6. Principes de Mise en Page
+
+### 6.1 Grille et Espacement
+
+- **Grille de base**
+  - 4px comme unité de base
+  - Multiples de 4 pour tous les espacements et dimensions
+
+- **Marges latérales**
+  - Mobile: 16px de chaque côté
+  - Tablette: 24px de chaque côté
+
+- **Espacement vertical**
+  - Entre sections: 32px
+  - Entre éléments connexes: 16px
+  - Entre sous-éléments: 8px
+
+- **Cartes et Listes**
+  - Écart entre cartes: 16px
+  - Padding interne des cartes: 16px
+
+### 6.2 Hiérarchie et Organisation
+
+- **Priorités visuelles**
+  - Élément principal (photo/action) en position dominante
+  - Informations critiques toujours visibles sans défilement
+  - Actions secondaires accessibles mais non intrusives
+
+- **Organisation des écrans**
+  - En-tête avec titre et actions globales
+  - Corps avec contenu principal
+  - Pied avec actions contextuelles ou navigation
+
+### 6.3 Techniques de Composition
+
+- **Alignement**
+  - Alignement gauche pour les textes longs
+  - Centrage pour les titres et actions principales
+  - Cohérence des alignements entre sections similaires
+
+- **Contraste et Lisibilité**
+  - Ratio de contraste minimum de 4.5:1 pour le texte principal
+  - Distinction claire entre sections par espacement ou séparateurs
+  - Hiérarchie visuelle renforcée par taille et poids typographique
+
+## 7. Animations et Transitions
+
+### 7.1 Micro-interactions
+
+- **Boutons et Contrôles**
+  - Scale léger au tap (110%)
+  - Retour haptique subtil
+  - Durée: 150ms, courbe d'accélération: ease-out
+
+- **Switches et Toggles**
+  - Animation fluide entre états
+  - Légère anticipation au changement d'état
+  - Durée: 300ms, courbe: ease-in-out
+
+- **Feedback de validité**
+  - Animation de succès (check avec mouvement circulaire)
+  - Animation d'erreur (shake horizontal subtil)
+  - Apparition/disparition progressive des messages d'erreur
+
+### 7.2 Transitions entre Écrans
+
+- **Navigation standard**
+  - Slide horizontal entre niveaux de hiérarchie
+  - Fade pour les changements d'onglet
+  - Durée: 300ms, courbe: ease-in-out
+
+- **Ouverture/Fermeture Modales**
+  - Scale up depuis le centre avec fade
+  - Overlay avec opacité progressive
+  - Durée: 250ms, courbe: ease-out
+
+- **Interactions de Matching**
+  - Animation spéciale lors d'un match (confettis, pulsation)
+  - Transition élaborée avec échelle et rotation pour les likes/dislikes
+  - Durée: 500ms, courbe: spring(tension: 40, friction: 7)
+
+### 7.3 Animations de Contenu
+
+- **Chargement (Loaders)**
+  - Loader principal: animation pulsante avec gradient
+  - Placeholder cards avec shimmer effect (skeleton screens)
+  - Durée cycle: 1.5s, courbe: linear (répétition)
+
+- **Listes et Collections**
+  - Apparition séquentielle des éléments
+  - Animation subtilement différée pour chaque élément
+  - Durée base: 200ms + 50ms par élément
+
+## 8. Iconographie et Illustrations Détaillées
+
+### 8.1 Illustrations Personnalisées
+
+- **Onboarding**
+  - Série de 4 illustrations illustrant:
+    1. Découverte de profils compatibles
+    2. Processus de vérification sécurisée
+    3. Communication sécurisée et respectueuse
+    4. Ressources informatives et communauté
+
+- **État Vide**
+  - Illustrations pour:
+    - Aucun match encore
+    - Boîte de réception vide
+    - Recherche sans résultat
+    - En attente de vérification
+
+- **Succès et Réalisations**
+  - Illustrations pour:
+    - Match réussi (deux profils qui se connectent)
+    - Vérification complétée (badge avec check)
+    - Abonnement premium activé (étoile/diamant)
+
+### 8.2 Iconographie Extended
+
+- **Centres d'intérêt**
+  - Jeu d'icônes thématiques pour les intérêts:
+    - Sports et activités physiques
+    - Arts et culture
+    - Voyages et aventure
+    - Gastronomie et cuisine
+    - Technologie et sciences
+    - Nature et environnement
+    - etc.
+
+- **Paramètres et Fonctionnalités**
+  - Icônes cohérentes pour:
+    - Confidentialité et sécurité
+    - Notifications et alertes
+    - Langues et localisation
+    - Assistance et aide
+    - Paiements et abonnements
+
+## 9. Composants Spécifiques à l'Application
+
+### 9.1 Profil Utilisateur
+
+- **Visualisation de Profil**
+  - Carrousel de photos avec indicateurs de position
+  - Informations principales superposées en bas
+  - Badges (vérifié, premium) visibles sur photo principale
+  - Actions principales (like, message) en position fixe
+  - Bio et intérêts dans section dédiée sous les photos
+
+- **Édition de Profil**
+  - Interface drag & drop pour réorganiser les photos
+  - Éditeur de bio avec compteur de caractères
+  - Sélecteur d'intérêts avec icônes et recherche
+  - Prévisualisation en temps réel des modifications
+
+### 9.2 Interface de Matching
+
+- **Découverte de Profils**
+  - Carte swipable occupant 80% de l'écran
+  - Indicateurs de distance et activité
+  - Actions principales (like/dislike) en bas
+  - Filtre rapide accessible par glissement vers le bas
+  - Animation fluide entre profils
+
+- **Page de Matches**
+  - Grille de profils avec lesquels il y a eu match
+  - Badge pour nouveaux matches
+  - Statut en ligne visible
+  - Option de tri et filtrage en haut
+
+### 9.3 Messagerie
+
+- **Liste de Conversations**
+  - Liste verticale avec photos de profil rondes
+  - Preview du dernier message
+  - Horodatage et statut de lecture
+  - Swipe latéral pour options rapides (supprimer, bloquer)
+
+- **Vue Conversation**
+  - Bulles de message avec distinction claire envoyé/reçu
+  - Indicateurs de lecture et horodatage
+  - Zone de texte fixe en bas avec options media (premium)
+  - Photos de profil cliquables pour voir profil rapide
+
+### 9.4 Processus de Vérification
+
+- **Wizard multi-étapes**
+  - Indicateur de progression en haut
+  - Instructions claires à chaque étape
+  - Preview des documents avant envoi
+  - Animation de succès à la complétion
+  - Statut visible dans l'application pendant traitement
+
+### 9.5 Fonctionnalités Premium
+
+- **Badge et Indicateurs**
+  - Badge premium distinctif sur profil
+  - Indicateurs visuels des fonctionnalités premium
+  - Traitement visuel spécial (gradient, éclat subtil)
+
+- **Interface d'Abonnement**
+  - Comparaison claire des plans
+  - Mise en évidence visuelle du meilleur rapport qualité-prix
+  - Processus de paiement en étapes simples
+  - Confirmation animée après abonnement
+
+## 10. Responsive et Adaptations
+
+### 10.1 Adaptation Mobile
+
+- **Téléphones Compacts**
+  - Layout optimisé pour écrans <375px
+  - Réduction de la taille des éléments non essentiels
+  - Focus sur le contenu principal
+  - Navigation simplifiée
+
+- **Téléphones Standards**
+  - Layout de référence (375-428px)
+  - Équilibre optimal entre contenu et navigation
+  - Expérience complète
+
+- **Grands Téléphones**
+  - Layout enrichi pour écrans >428px
+  - Plus d'informations visibles simultanément
+  - Expérience améliorée avec moins de scrolling
+
+### 10.2 Adaptation Tablette
+
+- **Layout Tablette**
+  - Vue en colonnes pour certains écrans
+  - Navigation latérale au lieu de barre inférieure
+  - Profils et conversations côte à côte
+  - Utilisation optimisée de l'espace supplémentaire
+
+## 11. Accessibilité
+
+### 11.1 Principes d'Accessibilité
+
+- **Contraste et Lisibilité**
+  - Respect des ratios WCAG AA (4.5:1 minimum)
+  - Textes redimensionnables sans perte de fonctionnalité
+  - Mode sombre disponible
+
+- **Navigation et Interaction**
+  - Zones tactiles suffisamment grandes (min 44x44px)
+  - Labels explicites pour tous les contrôles
+  - Support de VoiceOver et TalkBack
+  - Navigation possible sans dépendre des couleurs seules
+
+### 11.2 Mode Sombre
+
+- **Palette Inversée**
+  - Fond: #212121
+  - Cartes et conteneurs: #2D2D2D
+  - Texte principal: #FFFFFF
+  - Texte secondaire: #B3B3B3
+  - Accents: mêmes couleurs primaires avec luminosité ajustée
+
+## 12. Voix et Ton de la Marque
+
+### 12.1 Principes de Communication
+
+- **Ton Général**
+  - Bienveillant et respectueux
+  - Positif sans être superficiel
+  - Direct mais jamais abrupt
+  - Inclusif et non-stigmatisant
+
+- **Formulations Clés**
+  - Utiliser "connecter" plutôt que "matcher"
+  - Privilégier "rencontre" sur "dating"
+  - Éviter le jargon technique pour la vérification
+  - Favoriser un langage accessible et chaleureux
+
+### 12.2 Messages Système
+
+- **Notifications**
+  - Ton amical mais non invasif
+  - Formulation positive pour encourager l'engagement
+  - Concision et clarté
+
+- **Messages d'Erreur**
+  - Ton rassurant
+  - Explication claire du problème
+  - Proposition de solution concrète
+  - Éviter la culpabilisation
+
+## 13. Exemples d'Écrans Clés
+
+### 13.1 Écran d'Accueil / Découverte
+
+![Écran d'Accueil](https://i.imgur.com/placeholder.jpg)
+
+- Carte de profil dominante avec photo
+- Informations essentielles visibles (nom, âge, distance)
+- Badges de statut bien visibles (vérifié, premium)
+- Boutons d'action principaux (dislike, like)
+- Navigation inférieure discrète mais accessible
+
+### 13.2 Profil Détaillé
+
+![Profil Détaillé](https://i.imgur.com/placeholder.jpg)
+
+- Carrousel de photos avec indicateurs
+- Informations complètes organisées en sections
+- Intérêts représentés visuellement avec icônes
+- Actions contextuelles (message, signaler)
+- Navigation intuitive pour retour
+
+### 13.3 Messagerie
+
+![Messagerie](https://i.imgur.com/placeholder.jpg)
+
+- Bulles de chat distinctives par expéditeur
+- Zone de saisie intuitive avec options
+- Indicateurs de statut (en ligne, vu)
+- Accès facile au profil depuis la conversation
+- Design épuré favorisant la lisibilité
+
+### 13.4 Écran de Matches
+
+![Écran de Matches](https://i.imgur.com/placeholder.jpg)
+
+- Grille visuelle des matches récents en haut
+- Liste des conversations actives en dessous
+- Indicateurs d'activité et de nouveaux messages
+- Filtres et recherche accessibles
+- Actions rapides par swipe latéral
+
+## 14. Documentation et Assets
+
+### 14.1 Organisation des Assets
+
+- Structure de dossiers:
+  - `/colors`: Variables de couleurs
+  - `/typography`: Définitions typographiques
+  - `/icons`: Bibliothèque d'icônes par catégorie
+  - `/illustrations`: Illustrations par contexte
+  - `/components`: Composants UI réutilisables
+  - `/templates`: Modèles d'écrans complets
+
+### 14.2 Bibliothèque de Composants
+
+- Documentation complète pour chaque composant:
+  - Spécifications visuelles
+  - États et variantes
+  - Comportement et interaction
+  - Accessibilité
+  - Exemples d'utilisation
+
+### 14.3 Guide d'Implémentation
+
+- Conseils techniques pour les développeurs
+- Best practices pour l'implémentation mobile
+- Considérations de performance
+- Tests de compatibilité et d'accessibilité
+
+## Conclusion
+
+Cette charte graphique détaillée établit un cadre complet pour créer une expérience utilisateur cohérente, attrayante et accessible pour HIVMeet. Elle allie les meilleures pratiques des applications de rencontre modernes tout en apportant une identité unique et en adressant les besoins spécifiques de sa communauté.
+
+La combinaison de couleurs vibrantes mais rassurantes, de typographie lisible, d'iconographie intuitive et d'animations subtiles crée une interface à la fois contemporaine et accueillante, favorisant les connexions authentiques dans un environnement sécurisé et respectueux.

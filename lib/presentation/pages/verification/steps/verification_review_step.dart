@@ -13,9 +13,9 @@ class VerificationReviewStep extends StatelessWidget {
   final VoidCallback onBack;
 
   const VerificationReviewStep({
-    Key? key,
+    super.key,
     required this.onBack,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

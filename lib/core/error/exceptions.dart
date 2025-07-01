@@ -24,8 +24,7 @@ class NetworkException implements Exception {
 
 // Auth Exceptions
 class AuthException extends ServerException {
-  AuthException({required String message, String? code})
-      : super(message: message, code: code);
+  AuthException({required super.message, super.code});
 }
 
 class EmailAlreadyInUseException extends AuthException {
@@ -94,8 +93,7 @@ class UnauthorizedException extends AuthException {
 
 // Profile Exceptions
 class ProfileException extends ServerException {
-  ProfileException({required String message, String? code})
-      : super(message: message, code: code);
+  ProfileException({required super.message, super.code});
 }
 
 class ProfileNotFoundException extends ProfileException {
@@ -116,8 +114,7 @@ class ProfileIncompleteException extends ProfileException {
 
 // Limit Exceptions
 class LimitException extends ServerException {
-  LimitException({required String message, String? code})
-      : super(message: message, code: code);
+  LimitException({required super.message, super.code});
 }
 
 class DailyLikeLimitException extends LimitException {

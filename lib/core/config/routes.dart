@@ -5,6 +5,9 @@ import 'package:hivmeet/presentation/pages/splash/splash_page.dart';
 import 'package:hivmeet/presentation/pages/onboarding/onboarding_page.dart';
 import 'package:hivmeet/presentation/pages/auth/login_page.dart';
 import 'package:hivmeet/presentation/pages/auth/register_page.dart';
+import 'package:hivmeet/presentation/pages/discovery/filters_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_detail_page.dart';
+import 'package:hivmeet/domain/entities/match.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -16,8 +19,8 @@ class AppRoutes {
   static const String profileCreate = '/profile/create';
   static const String verification = '/verification';
   static const String discovery = '/discovery';
-  static const String discovery_filters = '/discovery/filters';
-  static const String profile_id = '/profile/:id';
+  static const String discoveryFilters = '/discovery/filters';
+  static const String profileId = '/profile/:id';
 }
 
 class AppRouter {
@@ -41,18 +44,18 @@ class AppRouter {
         builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
-  path: AppRoutes.discovery_filters,
-  builder: (context, state) => const FiltersPage(),
-),
-GoRoute(
-  path: AppRoutes.profile_id,
-  builder: (context, state) {
-    // TODO: Récupérer le profil par ID
-    return ProfileDetailPage(
-      profile: state.extra as DiscoveryProfile,
-    );
-  },
-),
+        path: AppRoutes.discoveryFilters,
+        builder: (context, state) => const FiltersPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileId,
+        builder: (context, state) {
+          // TODO: Récupérer le profil par ID
+          return ProfileDetailPage(
+            profile: state.extra as DiscoveryProfile,
+          );
+        },
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(

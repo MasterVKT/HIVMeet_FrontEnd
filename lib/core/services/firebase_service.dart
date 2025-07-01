@@ -6,7 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:injectable/injectable.dart';
-import 'firebase_options.dart';
+import 'package:flutter/foundation.dart';
+import '../../firebase_options.dart';
 
 @singleton
 class FirebaseService {
@@ -26,21 +27,20 @@ class FirebaseService {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      
+
       _auth = FirebaseAuth.instance;
       _firestore = FirebaseFirestore.instance;
       _storage = FirebaseStorage.instance;
       _messaging = FirebaseMessaging.instance;
-      
+
       // Configure Firestore settings
       _firestore!.settings = const Settings(
         persistenceEnabled: true,
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
-      
+
       // Configure Firebase Auth settings
       await _auth!.setLanguageCode('fr');
-      
     } catch (e) {
       throw Exception('Failed to initialize Firebase: $e');
     }
@@ -52,11 +52,12 @@ class FirebaseService {
       badge: true,
       sound: true,
     );
-    
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       final token = await messaging.getToken();
       // Store token for later use
-      print('FCM Token: $token');
+      if (kDebugMode) {
+        print('FCM Token: $token');
+      }
     }
   }
 }

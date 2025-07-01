@@ -17,86 +17,87 @@ dependencies:
     sdk: flutter
 
   # State Management
-  flutter_bloc: ^8.1.6
+  flutter_bloc: ^8.1.3
   bloc: ^8.1.2
   equatable: ^2.0.5
 
   # Dependency Injection
-  get_it: ^8.0.0
-  injectable: ^2.4.4
+  get_it: ^7.6.4
+  injectable: ^2.3.2
 
   # Navigation
-  go_router: ^14.6.1
+  go_router: ^12.1.1
 
   # Networking
-  dio: ^5.7.0
+  dio: ^5.3.4
   retrofit: ^4.0.3
   json_annotation: ^4.8.1
-  internet_connection_checker: ^3.0.1
-  connectivity_plus: ^6.1.4
 
   # Firebase
-  firebase_core: ^3.8.0
-  firebase_auth: ^5.3.3
-  cloud_firestore: ^5.6.0
-  firebase_storage: ^12.3.5
-  firebase_messaging: ^15.1.4
-  firebase_analytics: ^11.3.4
-  firebase_crashlytics: ^4.1.4
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  firebase_messaging: ^14.7.9
+  firebase_analytics: ^10.7.4
+  firebase_crashlytics: ^3.4.8
 
   # Local Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  flutter_secure_storage: ^9.2.2
-  shared_preferences: ^2.3.2
-  path_provider: ^2.1.1
-  flutter_local_notifications: ^17.2.3
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
 
   # UI/UX
-  google_fonts: ^6.2.1
-  flutter_svg: ^2.0.10+1
-  cached_network_image: ^3.4.1
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.0
   shimmer: ^3.0.0
   photo_view: ^0.14.0
   smooth_page_indicator: ^1.1.0
   flutter_animate: ^4.3.0
 
-  # Images & Media
-  image_picker: ^1.1.2
-  image_cropper: ^5.0.1
-
   # Utilities
-  dartz: ^0.10.1
   intl: ^0.19.0
   collection: ^1.18.0
   rxdart: ^0.27.7
   freezed_annotation: ^2.4.1
-  permission_handler: ^11.3.1
-  geolocator: ^13.0.1
+  permission_handler: ^11.1.0
+  image_picker: ^1.0.5
+  image_cropper: ^5.0.1
+  geolocator: ^10.1.0
   geocoding: ^2.1.1
-  flutter_html: ^3.0.0-beta.2
-  share_plus: ^11.0.0
-  url_launcher: ^6.3.1
-  uuid: ^4.5.1
-  flutter_dotenv: ^5.1.0
-  logger: ^2.4.0
+  url_launcher: ^6.2.2
+  path_provider: ^2.1.1
+  connectivity_plus: ^5.0.2
 
-  # Real-time Communication
+  # WebRTC for calls
   flutter_webrtc: ^0.9.47
-  webview_flutter: ^4.8.0
-  package_info_plus: ^8.0.0
+  
+  # Payments
+  # Add payment SDK when ready
+  
+  # Analytics & Monitoring
+  flutter_dotenv: ^5.1.0
+  logger: ^2.0.2+1
+  dartz: ^0.10.1
+  share_plus: ^11.0.0
+  provider: ^6.1.5
+  package_info_plus: ^8.3.0
+  flutter_local_notifications: ^19.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  build_runner: ^2.4.13
-  injectable_generator: ^2.6.2
+  
+  # Code Generation
+  build_runner: ^2.4.7
+  injectable_generator: ^2.4.1
+  retrofit_generator: ^8.0.6
+  json_serializable: ^6.7.1
   hive_generator: ^2.0.1
-  flutter_launcher_icons: ^0.14.1
-  flutter_native_splash: ^2.4.1
-  mockito: ^5.4.4
-  bloc_test: ^9.1.7
+  flutter_html: ^3.0.0
   mocktail: ^1.0.4
 
 flutter:
@@ -105,20 +106,3 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/translations/
-    - .env.dev
-    - .env.staging
-    - .env.prod
-
-flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
-  image_path: "assets/icons/app_icon.png"
-  adaptive_icon_background: "#8C2DDB"
-  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
-
-flutter_native_splash:
-  color: "#8C2DDB"
-  image: "assets/images/splash_logo.png"
-  android_12:
-    image: "assets/images/splash_logo.png"
-    color: "#8C2DDB"

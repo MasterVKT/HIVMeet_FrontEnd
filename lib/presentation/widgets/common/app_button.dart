@@ -13,6 +13,7 @@ class AppButton extends StatelessWidget {
   final double width;
   final double height;
   final bool fullWidth;
+  final Gradient? gradient;
 
   const AppButton({
     super.key,
@@ -24,6 +25,7 @@ class AppButton extends StatelessWidget {
     this.width = double.infinity,
     this.height = 48.0,
     this.fullWidth = true,
+    this.gradient,
   });
 
   @override
@@ -46,38 +48,64 @@ class AppButton extends StatelessWidget {
     return SizedBox(
       width: fullWidth ? width : null,
       height: height,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryPurple,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+      child: gradient != null
+          ? Container(
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton(
+                onPressed: isLoading ? null : onPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                 ),
-              )
-            : (icon != null)
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, size: 20),
-                      if (text != null) const SizedBox(width: 8),
-                      if (text != null) Text(text!),
-                    ],
-                  )
-                : Text(text ?? ''),
-      ),
+                child: _buildButtonChild(),
+              ),
+            )
+          : ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryPurple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              ),
+              child: _buildButtonChild(),
+            ),
     );
+  }
+
+  Widget _buildButtonChild() {
+    return isLoading
+        ? const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2,
+            ),
+          )
+        : (icon != null)
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 20),
+                  if (text != null) const SizedBox(width: 8),
+                  if (text != null) Text(text!),
+                ],
+              )
+            : Text(text ?? '');
   }
 
   Widget _buildSecondaryButton(BuildContext context) {

@@ -51,13 +51,15 @@ class UpdateNotificationSetting extends SettingsEvent {
   List<Object> get props => [type, enabled];
 }
 
-class UpdateLanguage extends SettingsEvent {
+class ChangeLanguage extends SettingsEvent {
   final String language;
 
-  const UpdateLanguage({required this.language});
+  const ChangeLanguage({required this.language});
 
   @override
   List<Object> get props => [language];
 }
+
+class DeleteAccount extends SettingsEvent {}
 
 enum NotificationType { newMatches, messages, likes, news }

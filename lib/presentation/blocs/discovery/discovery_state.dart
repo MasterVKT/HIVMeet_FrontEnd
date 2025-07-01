@@ -28,7 +28,8 @@ class DiscoveryLoaded extends DiscoveryState {
   });
 
   @override
-  List<Object?> get props => [currentProfile, nextProfiles, canRewind, dailyLimit];
+  List<Object?> get props =>
+      [currentProfile, nextProfiles, canRewind, dailyLimit];
 }
 
 class ProfileSwiping extends DiscoveryState {

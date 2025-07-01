@@ -27,6 +27,9 @@ class Message extends Equatable {
     required this.status,
   });
 
+  // Propriété de compatibilité pour résoudre les erreurs
+  DateTime get sentAt => createdAt;
+
   Message copyWith({
     String? id,
     String? conversationId,

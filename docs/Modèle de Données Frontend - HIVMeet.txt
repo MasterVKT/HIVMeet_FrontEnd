@@ -1,0 +1,853 @@
+# Modèle de Données Frontend - HIVMeet
+
+## 1. Vue d'Ensemble
+
+Le modèle de données frontend de HIVMeet définit comment les données sont structurées, transformées et utilisées dans l'application mobile. Il s'agit d'une adaptation des modèles backend (Firestore) optimisée pour les besoins de l'interface utilisateur.
+
+### 1.1 Principes Directeurs
+
+- **Orientation UI**: Modèles conçus pour faciliter le rendu et les interactions
+- **Minimalisme**: Ne contenir que les données nécessaires à l'interface
+- **Cohérence**: Structure uniforme à travers l'application
+- **Performance**: Optimisation pour un rendu fluide et réactif
+- **Résilience**: Capacité à fonctionner avec des données partielles ou en mode hors ligne
+
+### 1.2 Relation avec le Modèle Backend
+
+Les modèles frontend ne sont pas une simple copie des modèles Firestore, mais une transformation adaptée aux besoins spécifiques de l'interface:
+
+1. **Transformation**: Conversion des données brutes Firestore en objets Dart typés
+2. **Enrichissement**: Ajout de propriétés calculées et d'états UI
+3. **Simplification**: Élimination des champs non nécessaires à l'affichage
+4. **Combinaison**: Fusion de données provenant de plusieurs collections
+5. **Localisation**: Adaptation aux paramètres régionaux de l'utilisateur
+
+## 2. Entités Principales
+
+### 2.1 Entité User
+
+Représente l'utilisateur connecté et ses informations de compte.
+
+#### 2.1.1 Structure
+
+```dart
+class User {
+  final String id;
+  final String email;
+  final String displayName;
+  final bool isVerified;
+  final bool isPremium;
+  final DateTime premiumUntil;
+  final DateTime lastActive;
+  final bool isEmailVerified;
+  final NotificationSettings notificationSettings;
+  final List<String> blockedUserIds;
+  
+  // Propriétés calculées
+  bool get isOnline => DateTime.now().difference(lastActive).inMinutes < 10;
+  bool get isPremiumActive => isPremium && premiumUntil.isAfter(DateTime.now());
+  
+  // États UI locaux (non persistés)
+  bool isLoading = false;
+  String? errorMessage;
+}
+```
+
+#### 2.1.2 Cas d'Utilisation
+
+- Affichage des informations de profil
+- Contrôle d'accès aux fonctionnalités premium
+- Gestion des notifications
+- Configuration de l'application
+
+### 2.2 Entité Profile
+
+Représente un profil utilisateur tel qu'affiché dans l'application.
+
+#### 2.2.1 Structure
+
+```dart
+class Profile {
+  final String id;
+  final String displayName;
+  final int age;
+  final String bio;
+  final Location location;
+  final String city;
+  final String country;
+  final List<String> interests;
+  final String relationshipType;
+  final PhotoCollection photos;
+  final SearchPreferences preferences;
+  final DateTime lastActive;
+  final bool isHidden;
+  
+  // Propriétés calculées
+  String get mainPhotoUrl => photos.main;
+  bool get isOnline => DateTime.now().difference(lastActive).inMinutes < 10;
+  String get displayLocation => location.showExact ? city : country;
+  String get displayLastActive => _formatLastActive(lastActive);
+  bool get hasMultiplePhotos => photos.others.isNotEmpty;
+  
+  // États UI locaux
+  bool isLiked = false;
+  bool isSuperLiked = false;
+  int currentPhotoIndex = 0;
+  double matchPercentage = 0.0;
+  
+  // Méthodes d'aide pour l'UI
+  String distanceFromUser(GeoPoint userLocation) {
+    return _calculateDistance(location.coordinates, userLocation);
+  }
+}
+
+class PhotoCollection {
+  final String main;
+  final List<String> others;
+  final List<String> private;
+  
+  int get totalCount => 1 + others.length + private.length;
+  bool get hasPrivatePhotos => private.isNotEmpty;
+}
+
+class Location {
+  final GeoPoint coordinates;
+  final bool showExact;
+  
+  String formatDistance(int distanceInKm) {
+    if (distanceInKm < 1) return "Moins d'1 km";
+    return "$distanceInKm km";
+  }
+}
+
+class SearchPreferences {
+  final AgeRange ageRange;
+  final int maxDistance;
+  final String relationshipType;
+  final List<String> genders;
+}
+
+class AgeRange {
+  final int min;
+  final int max;
+}
+```
+
+#### 2.2.2 Cas d'Utilisation
+
+- Affichage dans l'interface de swipe
+- Affichage détaillé du profil
+- Calcul de distance et compatibilité
+- Gestion des photos et de la galerie
+
+### 2.3 Entité Match
+
+Représente une relation établie entre deux utilisateurs.
+
+#### 2.3.1 Structure
+
+```dart
+class Match {
+  final String id;
+  final String matchedUserId;
+  final MatchedUserInfo matchedUser;
+  final DateTime createdAt;
+  final String status;
+  final DateTime? lastMessageAt;
+  final MessagePreview? lastMessage;
+  final int unreadCount;
+  
+  // Propriétés calculées
+  bool get isActive => status == 'active';
+  bool get hasMessages => lastMessage != null;
+  bool get hasUnreadMessages => unreadCount > 0;
+  
+  // États UI locaux
+  bool isExpanded = false;
+  bool isTyping = false;
+}
+
+class MatchedUserInfo {
+  final String id;
+  final String displayName;
+  final String photoUrl;
+  final DateTime lastActive;
+  final int age;
+  
+  // Propriétés calculées
+  bool get isOnline => DateTime.now().difference(lastActive).inMinutes < 10;
+  String get displayLastActive => _formatLastActive(lastActive);
+}
+
+class MessagePreview {
+  final String content;
+  final String senderId;
+  final DateTime timestamp;
+  final bool isRead;
+  
+  // Propriétés calculées
+  bool get isOwnMessage => senderId == currentUserId;
+  String get previewText => content.length > 40 ? '${content.substring(0, 37)}...' : content;
+}
+```
+
+#### 2.3.2 Cas d'Utilisation
+
+- Liste des matches dans l'onglet conversations
+- Affichage des aperçus de message
+- Indication de messages non lus
+- Filtrage par statut (actif, en attente)
+
+### 2.4 Entité Message
+
+Représente un message dans une conversation.
+
+#### 2.4.1 Structure
+
+```dart
+class Message {
+  final String id;
+  final String matchId;
+  final String senderId;
+  final String content;
+  final String type;
+  final String? mediaUrl;
+  final DateTime createdAt;
+  final bool isRead;
+  final Map<String, String>? reactions;
+  
+  // Propriétés calculées
+  bool get isOwnMessage => senderId == currentUserId;
+  bool get hasMedia => mediaUrl != null;
+  bool get isPendingRead => !isRead && !isOwnMessage;
+  String get formattedTime => _formatMessageTime(createdAt);
+  
+  // États UI locaux
+  bool isSending = false;
+  bool hasError = false;
+  String? errorMessage;
+  double uploadProgress = 0.0;
+}
+```
+
+#### 2.4.2 Cas d'Utilisation
+
+- Affichage dans la conversation
+- Gestion des états d'envoi et d'erreur
+- Affichage des médias (premium)
+- Indication de statut de lecture
+
+### 2.5 Entité Resource
+
+Représente une ressource informative ou éducative.
+
+#### 2.5.1 Structure
+
+```dart
+class Resource {
+  final String id;
+  final String title;
+  final String content;
+  final String type;
+  final String category;
+  final List<String> tags;
+  final String? imageUrl;
+  final String? externalLink;
+  final String authorName;
+  final bool isVerified;
+  final String language;
+  final DateTime publicationDate;
+  final bool isPremium;
+  
+  // Propriétés calculées
+  bool get hasImage => imageUrl != null;
+  bool get hasExternalLink => externalLink != null;
+  bool get isAccessible => !isPremium || currentUserIsPremium;
+  String get formattedDate => _formatDate(publicationDate);
+  
+  // États UI locaux
+  bool isFavorite = false;
+  bool isExpanded = false;
+  double readProgress = 0.0;
+}
+```
+
+#### 2.5.2 Cas d'Utilisation
+
+- Affichage dans la bibliothèque de ressources
+- Filtrage par catégorie et type
+- Lecture d'articles et visualisation de contenus
+- Gestion des favoris
+
+### 2.6 Entité Verification
+
+Représente le processus de vérification d'un utilisateur.
+
+#### 2.6.1 Structure
+
+```dart
+class Verification {
+  final String userId;
+  final VerificationStatus status;
+  final DateTime submittedAt;
+  final DateTime? reviewedAt;
+  final String? rejectionReason;
+  final DateTime? expiresAt;
+  final List<String> documentTypes;
+  
+  // Propriétés calculées
+  bool get isPending => status == VerificationStatus.pending;
+  bool get isApproved => status == VerificationStatus.approved;
+  bool get isRejected => status == VerificationStatus.rejected;
+  bool get isExpired => expiresAt != null && expiresAt!.isBefore(DateTime.now());
+  String get formattedSubmissionDate => _formatDate(submittedAt);
+  int get daysInQueue => DateTime.now().difference(submittedAt).inDays;
+  
+  // États UI locaux
+  Map<String, UploadStatus> documentUploadStatus = {};
+  bool isSubmitting = false;
+  String? currentVerificationCode;
+}
+
+enum VerificationStatus { pending, approved, rejected }
+
+class UploadStatus {
+  final bool isUploaded;
+  final double progress;
+  final String? error;
+}
+```
+
+#### 2.6.2 Cas d'Utilisation
+
+- Affichage du statut de vérification
+- Guide étape par étape du processus
+- Gestion des uploads de documents
+- Affichage des résultats de vérification
+
+### 2.7 Entité Subscription
+
+Représente l'abonnement premium d'un utilisateur.
+
+#### 2.7.1 Structure
+
+```dart
+class Subscription {
+  final String userId;
+  final bool isActive;
+  final String plan;
+  final DateTime startDate;
+  final DateTime endDate;
+  final bool autoRenew;
+  final String paymentMethod;
+  final List<Transaction> transactions;
+  final int boostsRemaining;
+  final int superLikesRemaining;
+  
+  // Propriétés calculées
+  bool get isExpiringSoon => endDate.difference(DateTime.now()).inDays < 7;
+  int get daysRemaining => endDate.difference(DateTime.now()).inDays;
+  double get daysUsedPercentage => DateTime.now().difference(startDate).inDays / startDate.difference(endDate).inDays.abs();
+  bool get canUseBoost => boostsRemaining > 0;
+  bool get canUseSuperLike => superLikesRemaining > 0;
+  
+  // États UI locaux
+  bool isProcessingRenewal = false;
+  bool isProcessingCancellation = false;
+  String? renewalError;
+  SubscriptionPlan? selectedUpgradePlan;
+}
+
+class Transaction {
+  final String id;
+  final DateTime date;
+  final double amount;
+  final String currency;
+  final String status;
+}
+
+class SubscriptionPlan {
+  final String id;
+  final String name;
+  final String duration;
+  final double price;
+  final String currency;
+  final List<String> features;
+  final double? discountPercentage;
+  
+  // Propriétés calculées
+  String get formattedPrice => _formatCurrency(price, currency);
+  double get monthlyPrice => duration == 'monthly' ? price : price / 12;
+  String get formattedMonthlyPrice => _formatCurrency(monthlyPrice, currency);
+  double get discountedPrice => discountPercentage != null ? price * (1 - discountPercentage! / 100) : price;
+}
+```
+
+#### 2.7.2 Cas d'Utilisation
+
+- Affichage du statut d'abonnement
+- Gestion du renouvellement et annulation
+- Sélection et upgrade de plan
+- Suivi des fonctionnalités premium disponibles
+
+## 3. États UI Globaux
+
+### 3.1 État d'Authentification
+
+```dart
+class AuthState {
+  final User? currentUser;
+  final AuthStatus status;
+  final String? errorMessage;
+  
+  bool get isAuthenticated => currentUser != null;
+  bool get isLoading => status == AuthStatus.loading;
+  bool get hasError => errorMessage != null;
+}
+
+enum AuthStatus {
+  initial,
+  loading,
+  authenticated,
+  unauthenticated,
+  error
+}
+```
+
+### 3.2 État de Recherche et Matching
+
+```dart
+class DiscoveryState {
+  final List<Profile> recommendedProfiles;
+  final bool isLoading;
+  final String? errorMessage;
+  final Map<String, bool> seenProfiles;
+  final SearchFilters activeFilters;
+  final int likesRemaining;
+  final bool canSuperLike;
+  
+  bool get hasMoreProfiles => recommendedProfiles.isNotEmpty;
+  bool get hasReachedDailyLimit => likesRemaining <= 0 && !currentUserIsPremium;
+}
+
+class SearchFilters {
+  final AgeRange ageRange;
+  final int maxDistance;
+  final String? relationshipType;
+  final List<String> genders;
+  final bool verifiedOnly;
+}
+```
+
+### 3.3 État de Messagerie
+
+```dart
+class MessagingState {
+  final List<Match> matches;
+  final Match? activeMatch;
+  final List<Message> messages;
+  final bool isLoadingMatches;
+  final bool isLoadingMessages;
+  final String? errorMessage;
+  final bool isTyping;
+  final int totalUnreadCount;
+  
+  bool get hasActiveConversation => activeMatch != null;
+  bool get hasMatches => matches.isNotEmpty;
+  bool get hasMessages => messages.isNotEmpty;
+  bool get hasUnreadMessages => totalUnreadCount > 0;
+}
+```
+
+## 4. Transformations de Données
+
+### 4.1 Mappers Firebase → Modèles Frontend
+
+Les mappers convertissent les données Firestore en modèles frontend structurés:
+
+```dart
+// Exemple de mapper pour Profile
+class ProfileMapper {
+  static Profile fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    
+    return Profile(
+      id: doc.id,
+      displayName: data['pseudonym'] ?? 'Utilisateur',
+      age: _calculateAge(data['birthDate']),
+      bio: data['bio'] ?? '',
+      location: Location(
+        coordinates: data['location'] ?? const GeoPoint(0, 0),
+        showExact: !(data['hideLocation'] ?? false),
+      ),
+      city: data['city'] ?? '',
+      country: data['country'] ?? '',
+      interests: List<String>.from(data['interests'] ?? []),
+      relationshipType: data['relationshipType'] ?? 'friendship',
+      photos: PhotoCollection(
+        main: data['photos']?['main'] ?? DEFAULT_PHOTO_URL,
+        others: List<String>.from(data['photos']?['others'] ?? []),
+        private: List<String>.from(data['photos']?['private'] ?? []),
+      ),
+      preferences: _mapSearchPreferences(data['searchPreferences']),
+      lastActive: (data['lastActive'] as Timestamp).toDate(),
+      isHidden: data['isHidden'] ?? false,
+    );
+  }
+  
+  static Map<String, dynamic> toFirestore(Profile profile) {
+    // Conversion inverse pour envoyer les données au backend
+    // ...
+  }
+}
+```
+
+### 4.2 Combinaisons et Agrégations
+
+Certains modèles frontend nécessitent des données provenant de plusieurs collections:
+
+```dart
+// Exemple de combinaison pour afficher un Match avec infos utilisateur
+class MatchWithUserMapper {
+  static Future<Match> fromFirestoreWithUserInfo(
+    DocumentSnapshot matchDoc,
+    FirebaseFirestore firestore
+  ) async {
+    final matchData = matchDoc.data() as Map<String, dynamic>;
+    final users = List<String>.from(matchData['users']);
+    final otherUserId = users.firstWhere((id) => id != currentUserId);
+    
+    // Récupérer les infos du profil correspondant
+    final userDoc = await firestore.collection('profiles').doc(otherUserId).get();
+    final userData = userDoc.data() ?? {};
+    
+    return Match(
+      id: matchDoc.id,
+      matchedUserId: otherUserId,
+      matchedUser: MatchedUserInfo(
+        id: otherUserId,
+        displayName: userData['pseudonym'] ?? 'Utilisateur',
+        photoUrl: userData['photos']?['main'] ?? DEFAULT_PHOTO_URL,
+        lastActive: (userData['lastActive'] as Timestamp).toDate(),
+        age: _calculateAge(userData['birthDate']),
+      ),
+      createdAt: (matchData['createdAt'] as Timestamp).toDate(),
+      status: matchData['status'] ?? 'active',
+      lastMessageAt: matchData['lastMessageAt'] != null 
+        ? (matchData['lastMessageAt'] as Timestamp).toDate()
+        : null,
+      lastMessage: matchData['lastMessagePreview'] != null
+        ? MessagePreview(
+            content: matchData['lastMessagePreview'] ?? '',
+            senderId: matchData['lastMessageSenderId'] ?? '',
+            timestamp: (matchData['lastMessageAt'] as Timestamp).toDate(),
+            isRead: _isMessageRead(matchData, currentUserId),
+          )
+        : null,
+      unreadCount: (matchData['unreadCount']?[currentUserId] ?? 0),
+    );
+  }
+}
+```
+
+## 5. Gestion d'État Local
+
+### 5.1 États de Formulaire
+
+```dart
+class ProfileEditState {
+  String? displayName;
+  String? bio;
+  List<String>? interests;
+  String? city;
+  String? country;
+  String? relationshipType;
+  List<String>? genders;
+  AgeRange? ageRange;
+  int? maxDistance;
+  File? newMainPhoto;
+  List<File> newPhotos = [];
+  
+  Map<String, bool> validationErrors = {};
+  bool hasChanges = false;
+  bool isSubmitting = false;
+}
+```
+
+### 5.2 États de Pagination
+
+```dart
+class PaginatedState<T> {
+  final List<T> items;
+  final bool isLoading;
+  final bool hasMoreItems;
+  final String? lastDocumentId;
+  final String? errorMessage;
+  
+  bool get isEmpty => items.isEmpty && !isLoading;
+  bool get canLoadMore => hasMoreItems && !isLoading;
+}
+```
+
+### 5.3 États de Cache
+
+```dart
+class CacheState<T> {
+  final Map<String, T> cachedItems;
+  final Map<String, DateTime> expirationTimes;
+  final Duration defaultTTL;
+  
+  bool isValid(String key) {
+    final expiration = expirationTimes[key];
+    return expiration != null && expiration.isAfter(DateTime.now());
+  }
+  
+  T? get(String key) {
+    return isValid(key) ? cachedItems[key] : null;
+  }
+  
+  void set(String key, T value, [Duration? customTTL]) {
+    cachedItems[key] = value;
+    expirationTimes[key] = DateTime.now().add(customTTL ?? defaultTTL);
+  }
+}
+```
+
+## 6. Stratégies d'Optimisation
+
+### 6.1 Mise en Cache Locale
+
+- Utilisation de **Hive** pour stocker localement les données fréquemment accédées:
+  - Profil utilisateur courant
+  - Matches récents
+  - Messages des conversations actives
+  - Ressources consultées
+
+```dart
+abstract class LocalCacheRepository<T> {
+  Future<void> saveToCache(String key, T data);
+  Future<T?> getFromCache(String key);
+  Future<bool> existsInCache(String key);
+  Future<void> removeFromCache(String key);
+  Future<void> clearCache();
+  Future<DateTime?> getLastUpdated(String key);
+}
+```
+
+### 6.2 Chargement Progressif
+
+- Implémentation de chargement progressif pour les listes longues:
+  - Matches
+  - Messages
+  - Ressources
+  - Profils recommandés
+
+```dart
+abstract class PaginatedRepository<T> {
+  Future<PaginationResult<T>> getItems({
+    required int limit,
+    String? startAfterId,
+    Map<String, dynamic>? filters,
+  });
+}
+
+class PaginationResult<T> {
+  final List<T> items;
+  final bool hasMore;
+  final String? lastId;
+}
+```
+
+### 6.3 Préchargement Intelligent
+
+- Préchargement des données susceptibles d'être consultées:
+  - Prochain lot de profils recommandés
+  - Photos de profil au premier niveau
+  - Informations de base des matches
+
+```dart
+class PreloadingService {
+  Future<void> preloadNextProfileBatch() async {
+    // Préchargement du prochain lot de profils en arrière-plan
+  }
+  
+  Future<void> preloadMatchDetails(List<String> matchIds) async {
+    // Préchargement des détails des matches récemment actifs
+  }
+  
+  Future<void> preloadProfilePhotos(Profile profile) async {
+    // Préchargement des photos d'un profil consulté
+  }
+}
+```
+
+## 7. Structure du Store (Gestion d'État)
+
+### 7.1 Architecture BLoC
+
+L'application utilise le pattern BLoC (Business Logic Component) pour la gestion d'état:
+
+```dart
+// Exemple de BLoC pour la gestion des profils
+abstract class ProfileEvent {}
+class LoadProfileEvent extends ProfileEvent {
+  final String profileId;
+  LoadProfileEvent(this.profileId);
+}
+class UpdateProfileEvent extends ProfileEvent {
+  final Map<String, dynamic> changes;
+  UpdateProfileEvent(this.changes);
+}
+
+abstract class ProfileState {}
+class ProfileInitial extends ProfileState {}
+class ProfileLoading extends ProfileState {}
+class ProfileLoaded extends ProfileState {
+  final Profile profile;
+  ProfileLoaded(this.profile);
+}
+class ProfileError extends ProfileState {
+  final String message;
+  ProfileError(this.message);
+}
+
+class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
+  final ProfileRepository repository;
+  
+  ProfileBloc(this.repository) : super(ProfileInitial()) {
+    on<LoadProfileEvent>(_onLoadProfile);
+    on<UpdateProfileEvent>(_onUpdateProfile);
+  }
+  
+  Future<void> _onLoadProfile(
+    LoadProfileEvent event,
+    Emitter<ProfileState> emit
+  ) async {
+    emit(ProfileLoading());
+    try {
+      final profile = await repository.getProfile(event.profileId);
+      emit(ProfileLoaded(profile));
+    } catch (e) {
+      emit(ProfileError(e.toString()));
+    }
+  }
+  
+  Future<void> _onUpdateProfile(
+    UpdateProfileEvent event,
+    Emitter<ProfileState> emit
+  ) async {
+    // Implémentation de la mise à jour
+  }
+}
+```
+
+### 7.2 Repositories
+
+Les repositories font le pont entre les BLoCs et les sources de données:
+
+```dart
+abstract class ProfileRepository {
+  Stream<Profile?> watchProfile(String id);
+  Future<Profile> getProfile(String id);
+  Future<void> updateProfile(String id, Map<String, dynamic> changes);
+  Future<List<Profile>> getRecommendedProfiles({int limit, String? lastProfileId});
+  Future<void> uploadProfilePhoto(String userId, File photo, bool isMain);
+}
+
+class FirebaseProfileRepository implements ProfileRepository {
+  final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
+  
+  FirebaseProfileRepository(this._firestore, this._storage);
+  
+  @override
+  Future<Profile> getProfile(String id) async {
+    final doc = await _firestore.collection('profiles').doc(id).get();
+    if (!doc.exists) {
+      throw NotFoundException('Profile not found');
+    }
+    return ProfileMapper.fromFirestore(doc);
+  }
+  
+  // Autres implémentations...
+}
+```
+
+## 8. Navigation et Routage
+
+### 8.1 Structure de Route
+
+```dart
+class AppRoute {
+  final String name;
+  final String path;
+  final Map<String, dynamic> parameters;
+  final Widget Function(BuildContext, Map<String, dynamic>) builder;
+  final List<RouteGuard> guards;
+  
+  bool get hasParameters => parameters.isNotEmpty;
+  String buildPath({Map<String, dynamic>? params}) {
+    // Construction du chemin avec paramètres
+  }
+}
+
+class RouteGuard {
+  final bool Function(BuildContext) canActivate;
+  final String redirectTo;
+}
+```
+
+### 8.2 Routes Principales
+
+```dart
+final routes = [
+  AppRoute(
+    name: 'splash',
+    path: '/',
+    builder: (context, params) => SplashScreen(),
+  ),
+  AppRoute(
+    name: 'login',
+    path: '/auth/login',
+    builder: (context, params) => LoginScreen(),
+  ),
+  AppRoute(
+    name: 'register',
+    path: '/auth/register',
+    builder: (context, params) => RegisterScreen(),
+  ),
+  AppRoute(
+    name: 'home',
+    path: '/home',
+    builder: (context, params) => HomeScreen(),
+    guards: [AuthGuard()],
+  ),
+  AppRoute(
+    name: 'profile_detail',
+    path: '/profile/:id',
+    parameters: {'id': ''},
+    builder: (context, params) => ProfileDetailScreen(profileId: params['id']),
+    guards: [AuthGuard()],
+  ),
+  AppRoute(
+    name: 'chat',
+    path: '/chat/:matchId',
+    parameters: {'matchId': ''},
+    builder: (context, params) => ChatScreen(matchId: params['matchId']),
+    guards: [AuthGuard()],
+  ),
+  // Autres routes...
+];
+```
+
+## 9. Conclusion
+
+Le modèle de données frontend de HIVMeet est conçu pour optimiser l'expérience utilisateur tout en maintenant une séparation claire avec le backend. Ses caractéristiques principales sont:
+
+1. **Modèles adaptés à l'UI**: Structurés pour faciliter le rendu et les interactions
+2. **États locaux**: Gestion des états temporaires et de l'expérience utilisateur
+3. **Transformations intelligentes**: Conversion des données Firestore en objets Dart typés
+4. **Optimisations de performance**: Stratégies de cache et de chargement progressif
+5. **Architecture BLoC**: Séparation claire entre UI, logique et données
+
+Cette organisation permet un développement frontend indépendant du backend, tout en maintenant une cohérence globale avec les structures de données Firestore sous-jacentes.

@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 
 class MediaPicker extends StatelessWidget {
   final Function(File, MessageType) onMediaSelected;
 
   const MediaPicker({
-    Key? key,
+    super.key,
     required this.onMediaSelected,
-  }) : super(key: key);
+  });
 
   static Future<void> show({
     required BuildContext context,
@@ -104,7 +105,7 @@ class MediaPicker extends StatelessWidget {
   Future<void> _pickImage(ImageSource source, BuildContext context) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
-    
+
     if (pickedFile != null) {
       Navigator.of(context).pop();
       onMediaSelected(File(pickedFile.path), MessageType.image);
@@ -114,7 +115,7 @@ class MediaPicker extends StatelessWidget {
   Future<void> _pickVideo(BuildContext context) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
-    
+
     if (pickedFile != null) {
       Navigator.of(context).pop();
       onMediaSelected(File(pickedFile.path), MessageType.video);

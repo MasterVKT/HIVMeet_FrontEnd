@@ -41,3 +41,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Additional Android build files
+/android/app/build/
+/android/.gradle/
+/android/.kotlin/
+android/app/build/
+android/.gradle/
+android/.kotlin/
+*.apk
+*.aab
+
+# Gradle files
+.gradle/
+gradle.properties
+local.properties

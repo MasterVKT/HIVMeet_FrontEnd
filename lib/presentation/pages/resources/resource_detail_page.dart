@@ -20,9 +20,9 @@ class ResourceDetailPage extends StatelessWidget {
   final String resourceId;
 
   const ResourceDetailPage({
-    Key? key,
+    super.key,
     required this.resourceId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

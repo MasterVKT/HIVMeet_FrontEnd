@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:hivmeet/presentation/pages/settings/settings_page.dart';
 import 'package:hivmeet/presentation/blocs/settings/settings_bloc.dart';
+import 'package:hivmeet/presentation/blocs/settings/settings_event.dart';
 import 'package:hivmeet/presentation/blocs/settings/settings_state.dart';
 
 class MockSettingsBloc extends Mock implements SettingsBloc {}
@@ -76,7 +77,7 @@ void main() {
     await tester.pump();
 
     verify(() => mockSettingsBloc.add(
-      const UpdateProfileVisibility(isVisible: false),
-    )).called(1);
+          const UpdateProfileVisibility(isVisible: false),
+        )).called(1);
   });
 }

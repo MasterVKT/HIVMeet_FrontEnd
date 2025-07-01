@@ -10,7 +10,7 @@ import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({Key? key}) : super(key: key);
+  const OnboardingPage({super.key});
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -23,13 +23,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final List<OnboardingContent> _contents = [
     OnboardingContent(
       title: 'Bienvenue sur HIVMeet',
-      description: 'Trouvez des connexions authentiques dans un espace sécurisé et bienveillant.',
+      description:
+          'Trouvez des connexions authentiques dans un espace sécurisé et bienveillant.',
       imagePath: 'assets/images/onboarding1.png',
       icon: Icons.favorite,
     ),
     OnboardingContent(
       title: 'Sécurité et Confidentialité',
-      description: 'Vos données sont protégées. Profils vérifiés pour une expérience sûre.',
+      description:
+          'Vos données sont protégées. Profils vérifiés pour une expérience sûre.',
       imagePath: 'assets/images/onboarding2.png',
       icon: Icons.verified_user,
     ),
@@ -41,7 +43,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
     OnboardingContent(
       title: 'Ressources et Support',
-      description: 'Accédez à des informations utiles et une communauté de soutien.',
+      description:
+          'Accédez à des informations utiles et une communauté de soutien.',
       imagePath: 'assets/images/onboarding4.png',
       icon: Icons.support,
     ),
@@ -77,13 +80,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   child: Text(
                     'Ignorer',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.primaryPurple,
-                    ),
+                          color: AppColors.primaryPurple,
+                        ),
                   ),
                 ),
               ),
             ),
-            
+
             // Content
             Expanded(
               child: PageView.builder(
@@ -99,7 +102,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 },
               ),
             ),
-            
+
             // Indicators and buttons
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -118,7 +121,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  
+
                   // Action buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -138,7 +141,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         )
                       else
                         const SizedBox(width: 100),
-                      
+
                       // Next/Start button
                       AppButton(
                         onPressed: () {
@@ -151,7 +154,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             _completeOnboarding();
                           }
                         },
-                        text: _currentPage < _contents.length - 1 ? 'Suivant' : 'Commencer',
+                        text: _currentPage < _contents.length - 1
+                            ? 'Suivant'
+                            : 'Commencer',
                         type: ButtonType.primary,
                         fullWidth: false,
                       ),
@@ -171,9 +176,8 @@ class _OnboardingPageContent extends StatelessWidget {
   final OnboardingContent content;
 
   const _OnboardingPageContent({
-    Key? key,
     required this.content,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -186,9 +190,10 @@ class _OnboardingPageContent extends StatelessWidget {
           Container(
             width: 200,
             height: 200,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primaryPurple.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: AppColors.primaryPurple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               content.icon,
@@ -197,23 +202,23 @@ class _OnboardingPageContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xxl),
-          
+
           // Title
           Text(
             content.title,
             style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.lg),
-          
+
           // Description
           Text(
             content.description,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.slate,
-            ),
+                  color: AppColors.slate,
+                ),
             textAlign: TextAlign.center,
           ),
         ],

@@ -18,31 +18,38 @@ abstract class Failure extends Equatable {
 // Erreurs générales
 class ServerFailure extends Failure {
   const ServerFailure({
-    String message = 'Une erreur serveur est survenue',
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 class NetworkFailure extends Failure {
   const NetworkFailure({
-    String message = 'Erreur de connexion réseau',
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 class CacheFailure extends Failure {
   const CacheFailure({
-    String message = 'Erreur de cache',
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
+}
+
+class LocalFailure extends Failure {
+  const LocalFailure({
+    required super.message,
+    super.code,
+  });
 }
 
 // Erreurs d'authentification
 class AuthFailure extends Failure {
   const AuthFailure({
-    required String message,
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 class WrongCredentialsFailure extends AuthFailure {
@@ -104,17 +111,17 @@ class UserDisabledFailure extends AuthFailure {
 // Erreurs de validation
 class ValidationFailure extends Failure {
   const ValidationFailure({
-    required String message,
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 // Erreurs de permission
 class PermissionFailure extends Failure {
   const PermissionFailure({
-    required String message,
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 class UnauthorizedFailure extends PermissionFailure {
@@ -128,9 +135,9 @@ class UnauthorizedFailure extends PermissionFailure {
 // Erreurs liées au profil
 class ProfileFailure extends Failure {
   const ProfileFailure({
-    required String message,
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 class ProfileNotFoundFailure extends ProfileFailure {
@@ -152,9 +159,9 @@ class ProfileIncompleteFailure extends ProfileFailure {
 // Erreurs liées aux limites (utilisateurs gratuits)
 class LimitFailure extends Failure {
   const LimitFailure({
-    required String message,
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 class DailyLikeLimitFailure extends LimitFailure {
@@ -168,7 +175,8 @@ class DailyLikeLimitFailure extends LimitFailure {
 class MessageLimitFailure extends LimitFailure {
   const MessageLimitFailure()
       : super(
-          message: 'Limite de messages atteinte. Passez à Premium pour continuer',
+          message:
+              'Limite de messages atteinte. Passez à Premium pour continuer',
           code: 'message-limit',
         );
 }
@@ -176,7 +184,8 @@ class MessageLimitFailure extends LimitFailure {
 class PhotoLimitFailure extends LimitFailure {
   const PhotoLimitFailure()
       : super(
-          message: 'Limite de photos atteinte. Passez à Premium pour ajouter plus de photos',
+          message:
+              'Limite de photos atteinte. Passez à Premium pour ajouter plus de photos',
           code: 'photo-limit',
         );
 }
@@ -184,15 +193,15 @@ class PhotoLimitFailure extends LimitFailure {
 // Erreurs de paiement
 class PaymentFailure extends Failure {
   const PaymentFailure({
-    required String message,
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 // Erreur inconnue
 class UnknownFailure extends Failure {
   const UnknownFailure({
-    String message = 'Une erreur inconnue est survenue',
-    String? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }

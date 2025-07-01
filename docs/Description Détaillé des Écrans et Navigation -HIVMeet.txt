@@ -1,0 +1,1266 @@
+Document Détaillé des Écrans et de la Navigation - HIVMeet
+1. Architecture de Navigation Globale
+1.1 Structure Principale
+L'application HIVMeet est organisée autour d'une structure de navigation à deux niveaux:
+
+Premier niveau: Barre de navigation inférieure avec 5 sections principales
+Second niveau: Navigation hiérarchique au sein de chaque section
+
+1.2 Barre de Navigation Principale
+La barre de navigation inférieure est toujours présente et comporte 5 onglets:
+
+Découverte - Interface de swipe et recherche de profils
+Matches - Liste des correspondances et likes reçus
+Messages - Conversations actives
+Ressources - Contenu informatif et éducatif
+Profil - Profil personnel et paramètres
+
+1.3 Système de Navigation Secondaire
+
+Navigation par pile: Navigation hiérarchique avec retour en arrière
+Navigation modale: Pour des actions spécifiques (filtres, options, etc.)
+Navigation par onglets: Pour sous-sections dans certains écrans
+
+1.4 Conventions de Navigation
+
+Geste de retour: Swipe depuis le bord gauche (iOS) ou bouton retour (Android)
+Croix de fermeture: Pour fermer les écrans modaux
+Tap sur la barre supérieure: Retour au sommet des listes défilantes
+Double tap sur onglet actif: Retour à la racine de cette section
+
+2. Écrans de l'Application
+2.1 Écrans de Démarrage et Authentification
+2.1.1 Splash Screen
+
+Fonctionnalités:
+
+Affichage du logo animé
+Vérification de l'authentification en arrière-plan
+Redirection automatique vers Home ou Login
+
+
+Éléments UI:
+
+Logo HIVMeet au centre avec animation de fade-in
+Fond dégradé violet (#8C2DDB → #B76AE8)
+Indicateur de chargement subtil
+
+
+États possibles:
+
+Chargement initial
+Transition vers écran d'authentification ou écran principal
+
+
+
+2.1.2 Onboarding
+
+Fonctionnalités:
+
+Présentation du concept de l'application
+Explication des mesures de sécurité et de confidentialité
+Présentation des fonctionnalités clés
+
+
+Éléments UI:
+
+Carrousel horizontal de 4 écrans avec illustrations personnalisées
+Progression visuelle (points en bas)
+Bouton "Suivant" et "Ignorer"
+Bouton "Démarrer" sur le dernier écran
+
+
+Contenus des écrans:
+
+Bienvenue: Présentation de la mission de HIVMeet
+Sécurité: Explication du processus de vérification
+Connexions: Présentation du système de matching
+Ressources: Informations sur le contenu éducatif
+
+
+
+2.1.3 Inscription
+
+Fonctionnalités:
+
+Création de compte par étapes
+Validation des informations
+Configuration initiale du profil
+
+
+Éléments UI:
+
+Indicateur de progression multi-étapes en haut
+Formulaires avec validation en temps réel
+Boutons primaires pour avancer/valider
+Texte de lien pour se connecter si déjà membre
+
+
+Étapes d'inscription:
+
+Email & Mot de passe:
+
+Champ email avec validation
+Champ mot de passe avec indicateur de force
+Confirmation de mot de passe
+Case à cocher pour les CGU et politique de confidentialité
+
+
+Informations personnelles:
+
+Nom d'affichage
+Date de naissance (avec vérification de majorité)
+Numéro de téléphone (optionnel)
+Localisation (détection automatique ou manuelle)
+
+
+Préférences de base:
+
+Type de relation recherchée
+Tranche d'âge préférée
+Distance maximale
+Genre(s) recherché(s)
+
+
+Création du profil:
+
+Upload de photo principale
+Rédaction de bio courte
+Sélection de centres d'intérêt (max 3)
+
+
+Vérification d'email:
+
+Écran explicatif avec instructions
+Lien vers boîte mail
+Option de renvoi du lien
+
+
+
+
+
+2.1.4 Connexion
+
+Fonctionnalités:
+
+Authentification par email/mot de passe
+Option de récupération de mot de passe
+Redirection vers inscription
+
+
+Éléments UI:
+
+Logo HIVMeet en haut
+Champs email et mot de passe
+Option "Se souvenir de moi"
+Bouton "Mot de passe oublié"
+Bouton primaire "Se connecter"
+Séparateur
+Lien "Créer un compte"
+
+
+États possibles:
+
+État normal
+État d'erreur (identifiants incorrects)
+État de chargement
+
+
+
+2.1.5 Récupération de Mot de Passe
+
+Fonctionnalités:
+
+Demande de réinitialisation par email
+Confirmation d'envoi
+Redirection vers connexion
+
+
+Éléments UI:
+
+Titre explicatif
+Champ email
+Bouton "Envoyer le lien"
+Lien "Retour à la connexion"
+
+
+États possibles:
+
+Saisie initiale
+Confirmation d'envoi
+Erreur (email non trouvé)
+
+
+
+2.2 Écrans Principaux
+2.2.1 Découverte (Swipe)
+
+Fonctionnalités:
+
+Découverte de profils par swipe
+Filtrage et recherche avancée
+Actions rapides sur les profils
+
+
+Éléments UI:
+
+Carte de profil centrale dominante (80% de l'écran)
+Photo principale avec navigation par tap (gauche/droite)
+Informations de base superposées en bas (nom, âge, distance)
+Badges de vérification et premium si applicable
+Boutons d'action en bas:
+
+Dislike (X) à gauche
+Like (Cœur) à droite
+Options supplémentaires premium (Super Like, Boost)
+
+
+Bouton de filtres en haut à droite
+Indicateur du nombre de likes restants (utilisateurs gratuits)
+
+
+Interactions:
+
+Swipe à droite pour like
+Swipe à gauche pour dislike
+Tap sur la photo pour voir plus d'informations/photos
+Swipe vers le bas pour voir la bio complète
+Tap sur badge pour explication
+
+
+États possibles:
+
+Affichage normal des profils
+Fin des profils disponibles
+Chargement de nouveaux profils
+Limite de likes atteinte (utilisateurs gratuits)
+
+
+
+2.2.2 Profil Détaillé (Découverte)
+
+Fonctionnalités:
+
+Affichage détaillé du profil
+Navigation entre les photos
+Lecture de la bio complète et intérêts
+
+
+Éléments UI:
+
+Carrousel de photos plein écran avec indicateurs
+Bouton de retour en haut à gauche
+Bouton de signalement en haut à droite
+Section d'informations sous les photos:
+
+Nom et âge en grand
+Distance et dernière activité
+Bio complète
+Badges (vérifié, premium)
+Intérêts avec icônes
+Type de relation recherchée
+
+
+Boutons d'action en bas:
+
+Dislike
+Like
+Super Like (premium)
+
+
+
+
+Interactions:
+
+Swipe horizontal pour naviguer entre photos
+Tap sur photo pour affichage plein écran
+Pinch pour zoom sur photos
+Scroll vertical pour voir toutes les informations
+
+
+
+2.2.3 Filtres de Recherche
+
+Fonctionnalités:
+
+Configuration des critères de recherche
+Filtres avancés pour utilisateurs premium
+Enregistrement des préférences
+
+
+Éléments UI:
+
+Modal avec fond semi-transparent
+Titre "Filtres" en haut
+Sections de filtres:
+
+Distance (slider 5-100km)
+Âge (double slider)
+Type de relation
+Intérêts communs (premium)
+Statut de vérification (toggle)
+
+
+Indicateur des filtres premium (verrouillés)
+Bouton "Réinitialiser" en bas à gauche
+Bouton "Appliquer" en bas à droite
+
+
+Interactions:
+
+Sliders pour sélections numériques
+Toggles pour options binaires
+Sélection multiple pour intérêts (premium)
+Tap en dehors pour annuler
+
+
+
+2.2.4 Matches
+
+Fonctionnalités:
+
+Visualisation des matchs récents
+Accès aux likes reçus (premium)
+Démarrage de conversations
+
+
+Éléments UI:
+
+Deux onglets en haut:
+
+"Matches" (actif par défaut)
+"Likes" (premium, verrouillé pour les utilisateurs gratuits)
+
+
+Onglet Matches:
+
+Grille de profils avec photos rondes
+Badge "Nouveau" sur les nouveaux matches
+Indicateur de statut en ligne
+Nom sous chaque photo
+Message d'état vide si aucun match
+
+
+Onglet Likes (premium):
+
+Grilles de profils qui ont liké l'utilisateur
+Photos légèrement floues pour utilisateurs gratuits
+Compteur du nombre de likes reçus
+CTA pour passer premium
+
+
+
+
+Interactions:
+
+Tap sur profil pour voir détails ou démarrer conversation
+Swipe entre onglets
+Pull to refresh pour actualiser
+
+
+États possibles:
+
+Liste de matches normaux
+État vide "Pas encore de match"
+État premium verrouillé (onglet likes)
+État de chargement
+
+
+
+2.2.5 Messages (Liste)
+
+Fonctionnalités:
+
+Liste des conversations actives
+Aperçu des derniers messages
+Indicateurs de nouveaux messages
+
+
+Éléments UI:
+
+Barre de recherche en haut
+Liste verticale de conversations:
+
+Photo de profil ronde à gauche
+Nom et statut en ligne
+Aperçu du dernier message
+Horodatage
+Badge pour messages non lus
+
+
+Indicateur de limite de messages (utilisateurs gratuits)
+Options de tri (récent, non lu)
+État vide personnalisé
+
+
+Interactions:
+
+Tap sur conversation pour ouvrir
+Swipe latéral sur conversation pour options (supprimer, bloquer)
+Pull to refresh
+Recherche par nom
+
+
+États possibles:
+
+Liste de conversations
+Recherche active
+Aucune conversation
+Conversations archivées
+
+
+
+2.2.6 Conversation
+
+Fonctionnalités:
+
+Échange de messages texte
+Partage de médias (premium)
+Accès rapide au profil
+
+
+Éléments UI:
+
+En-tête avec:
+
+Photo de profil
+Nom
+Statut en ligne
+Bouton d'options
+
+
+Corps de conversation:
+
+Bulles de message distinctes (envoyés/reçus)
+Horodatage des messages
+Indicateurs de lecture
+Images/médias intégrés (premium)
+
+
+Barre de saisie en bas:
+
+Champ de texte
+Bouton d'envoi
+Bouton de médias (premium)
+Compteur de caractères (1000 max)
+
+
+Indicateur de limite de messages stockés
+
+
+Interactions:
+
+Scroll vertical pour historique
+Tap sur média pour agrandir
+Tap sur profil pour voir détails
+Tap & hold sur message pour options (copier, supprimer)
+
+
+États possibles:
+
+Conversation active
+Chargement de l'historique
+Envoi de message en cours
+Erreur d'envoi
+Limite de messages atteinte (gratuit)
+
+
+
+2.2.7 Ressources
+
+Fonctionnalités:
+
+Accès au contenu informatif
+Catégorisation des ressources
+Sauvegarde de favoris
+
+
+Éléments UI:
+
+Barre de recherche en haut
+Onglets de catégories horizontaux:
+
+"Tous"
+"Articles"
+"Vidéos"
+"Contacts"
+"Favoris"
+
+
+Grille ou liste de ressources:
+
+Image d'illustration
+Titre
+Type de contenu (icône)
+Badge premium si applicable
+
+
+Filtre par langue
+
+
+Interactions:
+
+Tap sur ressource pour ouvrir
+Swipe entre catégories
+Recherche par mots-clés
+Marquer/démarquer favoris
+
+
+États possibles:
+
+Affichage normal des ressources
+Résultats de recherche
+Aucun résultat
+Chargement
+
+
+
+2.2.8 Détail de Ressource
+
+Fonctionnalités:
+
+Consultation du contenu complet
+Partage de la ressource
+Accès aux ressources liées
+
+
+Éléments UI:
+
+Image d'en-tête (si applicable)
+Titre et metadata (date, source)
+Corps de contenu formaté
+Boutons d'action:
+
+Favoris
+Partage
+
+
+Section "Ressources associées"
+Contrôles de lecture pour vidéos
+
+
+Interactions:
+
+Scroll vertical pour lecture
+Tap sur liens internes
+Contrôles média pour vidéos
+Partage externe (si autorisé)
+
+
+États possibles:
+
+Affichage normal
+Chargement
+Erreur de chargement
+Contenu premium verrouillé
+
+
+
+2.2.9 Profil Utilisateur
+
+Fonctionnalités:
+
+Visualisation de son propre profil
+Édition des informations
+Accès aux paramètres
+
+
+Éléments UI:
+
+Photos de profil en haut avec option d'édition
+Badges (vérifié, premium)
+Informations personnelles:
+
+Nom et âge
+Bio
+Intérêts
+Type de relation recherchée
+
+
+Bouton "Éditer le profil"
+Sections:
+
+"Statut Premium" avec détails d'abonnement
+"Paramètres" (accès aux options)
+"Aide et Support"
+"Se déconnecter"
+
+
+
+
+Interactions:
+
+Tap sur sections pour accéder
+Swipe sur photos pour naviguer
+Tap sur badge pour détails
+
+
+États possibles:
+
+Profil complet
+Profil incomplet (avec alertes)
+Vérification en attente
+Mode premium/gratuit
+
+
+
+2.2.10 Édition de Profil
+
+Fonctionnalités:
+
+Modification des informations personnelles
+Gestion des photos
+Mise à jour des préférences
+
+
+Éléments UI:
+
+Sections modifiables:
+
+Photos: Grille d'images avec options d'ajout/suppression
+Informations: Champs éditables (nom, bio, etc.)
+Intérêts: Sélection d'intérêts avec recherche
+Préférences de recherche: Filtres personnels
+
+
+Boutons d'enregistrement par section
+Indicateur de modification non sauvegardée
+
+
+Interactions:
+
+Tap sur champs pour éditer
+Drag & drop pour réorganiser photos
+Multi-sélection pour intérêts
+Validation en temps réel
+
+
+États possibles:
+
+Édition active
+Sauvegarde en cours
+Erreur de validation
+Succès de mise à jour
+
+
+
+2.3 Écrans Spécifiques et Fonctionnalités
+2.3.1 Processus de Vérification
+
+Fonctionnalités:
+
+Upload de documents d'identité
+Vérification du statut sérologique
+Selfie avec code unique
+
+
+Éléments UI:
+
+Indicateur de progression en étapes:
+
+Introduction: Explication du processus
+Document d'identité: Upload avec guide visuel
+Document médical: Upload avec confidentialité expliquée
+Selfie de vérification: Avec code unique affiché
+Confirmation: Résumé et soumission
+
+
+Instructions détaillées à chaque étape
+Zone de drop ou bouton d'upload
+Prévisualisation des documents
+Indicateurs de sécurité
+
+
+Interactions:
+
+Navigation entre étapes (suivant/précédent)
+Upload par sélection ou appareil photo
+Confirmation finale avec checkbox
+
+
+États possibles:
+
+Navigation entre étapes
+Upload en cours
+Validation des documents
+Erreur de format/taille
+Confirmation de soumission
+En attente de vérification
+
+
+
+2.3.2 Paramètres
+
+Fonctionnalités:
+
+Configuration de la vie privée
+Gestion des notifications
+Options de compte
+Support et aide
+
+
+Éléments UI:
+
+Liste de sections:
+
+Compte: Email, mot de passe, téléphone
+Confidentialité: Visibilité du profil, blocages
+Notifications: Configuration par type
+Abonnement: Gestion premium et paiements
+Langues: Sélection de langue d'interface
+Aide et Support: FAQ, contact
+À propos: Informations légales
+Supprimer le compte: Option de suppression
+
+
+
+
+Interactions:
+
+Tap sur sections pour accéder aux sous-menus
+Toggles pour options binaires
+Sélecteurs pour options multiples
+
+
+États possibles:
+
+Navigation normale
+Modification en cours
+Confirmation de changements
+
+
+
+2.3.3 Abonnement Premium
+
+Fonctionnalités:
+
+Présentation des avantages premium
+Sélection de formule
+Processus de paiement
+
+
+Éléments UI:
+
+En-tête avec titre accrocheur
+Liste d'avantages avec icônes
+Comparatif gratuit vs premium
+Options d'abonnement:
+
+Mensuel
+Annuel (économie mise en avant)
+
+
+Prix clairement indiqués
+Bouton "S'abonner" en CTA
+Mentions légales et conditions
+
+
+Interactions:
+
+Sélection de formule (mensuel/annuel)
+Expansion des détails par tap
+Processus de paiement en étapes
+
+
+États possibles:
+
+Présentation initiale
+Sélection de formule
+Processus de paiement
+Confirmation d'abonnement
+Erreur de paiement
+
+
+
+2.3.4 Notification de Match
+
+Fonctionnalités:
+
+Annonce d'un nouveau match
+Option de démarrer une conversation
+Visualisation rapide du profil
+
+
+Éléments UI:
+
+Overlay modal avec animation festive
+Photos des deux profils qui se rejoignent
+Message "C'est un match!"
+Nom et informations basiques du match
+Boutons:
+
+"Envoyer un message"
+"Continuer à swiper"
+
+
+
+
+Interactions:
+
+Tap sur "Envoyer un message" pour démarrer conversation
+Tap sur "Continuer" pour revenir au swipe
+Tap sur photo pour voir profil complet
+
+
+États possibles:
+
+Animation d'entrée
+État statique
+Transition vers conversation ou swipe
+
+
+
+3. Flux Utilisateurs Principaux
+3.1 Flux d'Inscription et Onboarding
+
+Entrée dans l'application
+
+Splash screen → Écran d'onboarding (première fois)
+
+
+Création de compte
+
+Écran d'onboarding → Écran d'inscription
+Étape 1: Email & Mot de passe
+Étape 2: Informations personnelles
+Étape 3: Préférences de base
+Étape 4: Création du profil
+Étape 5: Vérification d'email
+
+
+Premier accès
+
+Vérification d'email → Écran principal (Découverte)
+Tooltip explicatif du fonctionnement
+
+
+
+3.2 Flux de Vérification du Compte
+
+Initiation du processus
+
+Profil (badge non vérifié) → Section Vérification
+Écran explicatif → Acceptation du processus
+
+
+Soumission des documents
+
+Étape 1: Upload pièce d'identité
+Étape 2: Upload document médical
+Étape 3: Selfie avec code
+
+
+Finalisation et attente
+
+Confirmation de soumission
+État "En attente de vérification" sur le profil
+Notification à réception du résultat
+
+
+
+3.3 Flux de Matching et Communication
+
+Découverte de profils
+
+Écran Découverte → Swipe de profils
+Filtrage selon préférences
+
+
+Création d'un match
+
+Like mutuel → Notification de match
+Options: Message immédiat ou continuer swipe
+
+
+Communication
+
+Liste des matches → Sélection d'un match
+Démarrage conversation → Échange de messages
+Option de bloquer ou signaler si nécessaire
+
+
+
+3.4 Flux de Passage au Premium
+
+Points d'entrée multiples
+
+Limite de likes atteinte → CTA Premium
+Onglet "Likes" verrouillé → CTA Premium
+Profil → Section Premium
+
+
+Processus d'abonnement
+
+Présentation des avantages
+Sélection de formule (mensuelle/annuelle)
+Processus de paiement MyCoolPay
+Confirmation d'abonnement
+
+
+Activation des fonctionnalités
+
+Notification de succès
+Déblocage immédiat des fonctionnalités
+Badge premium ajouté au profil
+
+
+
+4. États Spécifiques et Gestion d'Erreurs
+4.1 États Vides
+
+Découverte sans profils
+
+Illustration personnalisée
+Message "Aucun profil pour le moment"
+Suggestion d'élargir les critères
+Bouton pour modifier les filtres
+
+
+Aucun match
+
+Illustration conviviale
+Message "Commencez à liker des profils"
+Bouton "Découvrir des profils"
+
+
+Messages vides
+
+Illustration conversation
+Message "Pas encore de conversations"
+Suggestion de démarrer à partir des matches
+
+
+
+4.2 États de Chargement
+
+Chargement initial
+
+Loader animé avec dégradé de couleur
+Message contextuel par écran
+
+
+Chargement de contenu
+
+Skeleton screens pour:
+
+Cartes de profil
+Liste de messages
+Détails de profil
+
+
+Animations subtiles de shimmer
+
+
+Actions en cours
+
+Indicateurs contextuels (spinner, barre de progression)
+Feedback visuel immédiat avant confirmation serveur
+
+
+
+4.3 Gestion d'Erreurs
+
+Erreurs de connexion
+
+Message explicatif
+Option de réessayer
+Alternative (mode hors ligne limité)
+
+
+Erreurs de formulaire
+
+Validation en temps réel
+Messages d'erreur contextuels sous chaque champ
+Boutons désactivés jusqu'à correction
+
+
+Erreurs serveur
+
+Message générique mais rassurant
+Option de réessayer ou contacter support
+Code d'erreur pour le support (discret)
+
+
+
+5. Différences Premium vs Gratuit
+5.1 Fonctionnalités Verrouillées (Visuellement identifiées)
+
+Découverte
+
+Likes illimités vs limité (20/jour)
+Boost de profil
+Super Likes (3/jour)
+Voir qui a liké son profil
+
+
+Profil
+
+6 photos vs 1 photo
+Album privé (2 photos)
+Mode incognito
+Contrôles de visibilité avancés
+
+
+Messages
+
+Envoi de médias
+200 vs 50 messages stockés
+Appels audio/vidéo
+
+
+
+5.2 Indication Visuelle Premium
+
+Badge premium sur profil (diamant/étoile)
+Contours spéciaux pour éléments premium
+Verrouillage visuel sur fonctionnalités premium
+CTA contextuel pour upgrade aux moments stratégiques
+
+6. Modalités et Pop-ups
+6.1 Modales Système
+
+Permissions
+
+Localisation
+Notifications
+Caméra/Galerie
+Contacts (optionnel)
+
+
+Alertes de connexion
+
+Nouvel appareil
+Tentatives multiples
+Session expirée
+
+
+
+6.2 Modales Applicatives
+
+Confirmation d'actions
+
+Suppression de compte
+Déconnexion
+Blocage d'utilisateur
+
+
+Feedbacks de succès
+
+Match créé
+Vérification approuvée
+Abonnement activé
+
+
+Tutoriels contextuels
+
+Première utilisation de fonctionnalités
+Astuces premium
+Nouvelles fonctionnalités
+
+
+
+7. Adaptation Responsive et Tablette
+7.1 Adaptations Mobile
+
+Petits écrans (<375px)
+
+Réduction de la taille des éléments non essentiels
+Simplification de certaines mises en page
+Focus sur le contenu principal
+
+
+Grands écrans (>428px)
+
+Utilisation optimisée de l'espace
+Plus d'informations visibles simultanément
+Grilles plus denses pour les listes
+
+
+
+7.2 Adaptations Tablette
+
+Navigation
+
+Barre de navigation latérale gauche (au lieu d'inférieure)
+Vue en colonnes sur certains écrans
+
+
+Découverte
+
+Split view avec détails de profil à droite
+Cartes plus grandes avec plus d'informations visibles
+
+
+Messages
+
+Liste de conversations à gauche (30%)
+Conversation active à droite (70%)
+Navigation persistante entre conversations
+
+
+
+8. Accessibilité et Interactions Spéciales
+8.1 Support d'Accessibilité
+
+VoiceOver / TalkBack
+
+Libellés descriptifs pour tous les contrôles
+Ordre de focus logique
+Annonces des changements d'état
+
+
+Mode Grand Texte
+
+Adaptation des layouts pour texte agrandi
+Maintien de la hiérarchie visuelle
+Redistribution des éléments si nécessaire
+
+
+Navigation au clavier
+
+Support complet du focus clavier
+Raccourcis clavier pour actions principales
+
+
+
+8.2 Interactions Spéciales
+
+Gestion du Mode Sombre
+
+Adaptation automatique selon préférences système
+Option manuelle dans paramètres
+Préservation des couleurs d'accent
+
+
+Retour Haptique
+
+Confirmation des actions importantes
+Différents patterns selon le type d'action
+Option de désactivation
+
+
+Transitions Entre Écrans
+
+Transitions contextuelles selon la hiérarchie
+Animation adaptée à la nature de la navigation
+Réduction possible dans paramètres d'accessibilité
+
+
+
+9. Diagramme de Navigation
+9.1 Structure Globale
+Application
+├── Authentification
+│   ├── Splash
+│   ├── Onboarding
+│   ├── Inscription
+│   ├── Connexion
+│   └── Récupération Mot de Passe
+│
+├── Navigation Principale
+│   ├── Découverte
+│   │   ├── Swipe de Profils
+│   │   ├── Profil Détaillé
+│   │   └── Filtres
+│   │
+│   ├── Matches
+│   │   ├── Liste des Matches
+│   │   └── Likes Reçus (Premium)
+│   │
+│   ├── Messages
+│   │   ├── Liste des Conversations
+│   │   └── Conversation Détaillée
+│   │
+│   ├── Ressources
+│   │   ├── Liste des Ressources
+│   │   └── Ressource Détaillée
+│   │
+│   └── Profil
+│       ├── Affichage du Profil
+│       ├── Édition du Profil
+│       ├── Vérification
+│       ├── Abonnement Premium
+│       └── Paramètres
+│
+└── Modales et Pop-ups
+    ├── Notifications
+    ├── Tutoriels
+    ├── Confirmations
+    └── Alertes
+9.2 Parcours Utilisateur Principal
+Inscription → Onboarding → Découverte → Match → Conversation
+10. Considérations pour l'Implémentation
+10.1 Priorités de Développement
+
+MVP Fonctionnel
+
+Authentification complète
+Profils de base
+Matching simplifié
+Messagerie texte
+Vérification de compte
+
+
+Améliorations Phase 2
+
+Fonctionnalités premium
+Médias dans messages
+Ressources éducatives
+Analytics avancés
+Optimisations UX
+
+
+
+10.2 Performances UI
+
+Optimisation des listes
+
+Recyclage des vues pour listes longues
+Chargement progressif (pagination)
+Préchargement intelligent des données
+
+
+Gestion des images
+
+Compression adaptative
+Caching efficace
+Chargement progressif
+Préchargement des images adjacentes dans les carrousels
+
+
+Transitions et animations
+
+Optimisation pour 60fps minimum
+Réduction en cas de batterie faible
+Option de désactivation complète
+
+
+
+10.3 Tests Spécifiques
+
+Tests de performance
+
+Temps de chargement sur différents appareils
+Fluidité des animations
+Consommation mémoire/batterie
+
+
+Tests d'accessibilité
+
+Contraste et lisibilité
+Navigation clavier/lecteur d'écran
+Redimensionnement du texte
+
+
+Tests utilisateurs
+
+Clarté du parcours d'inscription
+Facilité du processus de matching
+Compréhension des fonctionnalités premium
+
+
+
+Conclusion
+Ce document détaillé des écrans et de la navigation fournit un cadre complet pour l'implémentation de l'interface utilisateur de HIVMeet. Il couvre l'ensemble des écrans, interactions et flux utilisateurs nécessaires pour créer une expérience intuitive, engageante et sécurisée.
+La structure proposée équilibre les besoins des utilisateurs gratuits et premium, tout en mettant l'accent sur la sécurité, la confidentialité et l'accessibilité. L'architecture de navigation facilite les interactions naturelles et encourage l'engagement sans compromettre la simplicité d'utilisation.
+Ce document doit être utilisé en conjonction avec la charte graphique et l'architecture technique pour guider le développement du MVP et des phases ultérieures de l'application.

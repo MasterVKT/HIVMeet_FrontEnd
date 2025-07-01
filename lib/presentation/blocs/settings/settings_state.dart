@@ -92,3 +92,7 @@ class SettingsError extends SettingsState {
   @override
   List<Object> get props => [message];
 }
+
+class SettingsDeletingAccount extends SettingsState {}
+
+class SettingsAccountDeleted extends SettingsState {}

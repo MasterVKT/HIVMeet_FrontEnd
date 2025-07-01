@@ -1,74 +1,60 @@
 // lib/domain/entities/match.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 
 class Match extends Equatable {
   final String id;
-  final String currentUserId;
-  final String matchedUserId;
-  final DateTime createdAt;
-  final MatchStatus status;
-  final DateTime? lastMessageAt;
-  final String? lastMessageContent;
-  final String? lastMessageSenderId;
-  final Map<String, int> unreadCounts;
+  final Profile profile;
+  final DateTime matchedAt;
+  final Message? lastMessage;
   final bool isNew;
+  final Map<String, int> unreadCounts;
 
   const Match({
     required this.id,
-    required this.currentUserId,
-    required this.matchedUserId,
-    required this.createdAt,
-    required this.status,
-    this.lastMessageAt,
-    this.lastMessageContent,
-    this.lastMessageSenderId,
-    required this.unreadCounts,
-    required this.isNew,
+    required this.profile,
+    required this.matchedAt,
+    this.lastMessage,
+    this.isNew = false,
+    this.unreadCounts = const {},
   });
 
-  int get unreadCount => unreadCounts[currentUserId] ?? 0;
+  int get unreadCount => unreadCounts.values.fold(0, (a, b) => a + b);
   bool get hasUnreadMessages => unreadCount > 0;
-  bool get isActive => status == MatchStatus.active;
-  
+  bool get isActive => true;
+
+  // Propriétés de compatibilité pour résoudre les erreurs
+  String? get lastMessageContent => lastMessage?.content;
+  DateTime? get lastMessageAt => lastMessage?.createdAt;
+
   Match copyWith({
     String? id,
-    String? currentUserId,
-    String? matchedUserId,
-    DateTime? createdAt,
-    MatchStatus? status,
-    DateTime? lastMessageAt,
-    String? lastMessageContent,
-    String? lastMessageSenderId,
-    Map<String, int>? unreadCounts,
+    Profile? profile,
+    DateTime? matchedAt,
+    Message? lastMessage,
     bool? isNew,
+    Map<String, int>? unreadCounts,
   }) {
     return Match(
       id: id ?? this.id,
-      currentUserId: currentUserId ?? this.currentUserId,
-      matchedUserId: matchedUserId ?? this.matchedUserId,
-      createdAt: createdAt ?? this.createdAt,
-      status: status ?? this.status,
-      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
-      lastMessageContent: lastMessageContent ?? this.lastMessageContent,
-      lastMessageSenderId: lastMessageSenderId ?? this.lastMessageSenderId,
-      unreadCounts: unreadCounts ?? this.unreadCounts,
+      profile: profile ?? this.profile,
+      matchedAt: matchedAt ?? this.matchedAt,
+      lastMessage: lastMessage ?? this.lastMessage,
       isNew: isNew ?? this.isNew,
+      unreadCounts: unreadCounts ?? this.unreadCounts,
     );
   }
 
   @override
   List<Object?> get props => [
         id,
-        currentUserId,
-        matchedUserId,
-        createdAt,
-        status,
-        lastMessageAt,
-        lastMessageContent,
-        lastMessageSenderId,
-        unreadCounts,
+        profile,
+        matchedAt,
+        lastMessage,
         isNew,
+        unreadCounts,
       ];
 }
 
@@ -165,21 +151,30 @@ enum SwipeType {
   dislike,
 }
 
+enum SwipeDirection {
+  left,
+  right,
+  up,
+  down,
+}
+
 class DailyLikeLimit extends Equatable {
-  final int used;
-  final int limit;
+  final int remainingLikes;
+  final int totalLikes;
   final DateTime resetAt;
 
   const DailyLikeLimit({
-    required this.used,
-    required this.limit,
+    required this.remainingLikes,
+    required this.totalLikes,
     required this.resetAt,
   });
 
-  int get remaining => limit - used;
-  bool get hasReachedLimit => used >= limit;
-  bool get shouldReset => DateTime.now().isAfter(resetAt);
+  bool get hasReachedLimit => remainingLikes <= 0;
+
+  // Propriétés de compatibilité pour résoudre les erreurs
+  int get remaining => remainingLikes;
+  int get limit => totalLikes;
 
   @override
-  List<Object> get props => [used, limit, resetAt];
+  List<Object> get props => [remainingLikes, totalLikes, resetAt];
 }

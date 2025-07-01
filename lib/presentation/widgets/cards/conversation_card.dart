@@ -16,7 +16,7 @@ class ConversationCard extends StatelessWidget {
   final VoidCallback? onDelete;
 
   const ConversationCard({
-    Key? key,
+    super.key,
     required this.imageUrl,
     required this.name,
     required this.lastMessage,
@@ -25,7 +25,7 @@ class ConversationCard extends StatelessWidget {
     this.unreadCount = 0,
     required this.onTap,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

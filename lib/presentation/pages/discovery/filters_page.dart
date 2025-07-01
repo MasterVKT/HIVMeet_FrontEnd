@@ -11,7 +11,7 @@ import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 import 'package:go_router/go_router.dart';
 
 class FiltersPage extends StatefulWidget {
-  const FiltersPage({Key? key}) : super(key: key);
+  const FiltersPage({super.key});
 
   @override
   State<FiltersPage> createState() => _FiltersPageState();
@@ -73,8 +73,8 @@ class _FiltersPageState extends State<FiltersPage> {
             Text(
               'Tranche d\'âge',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Row(
@@ -102,8 +102,8 @@ class _FiltersPageState extends State<FiltersPage> {
             Text(
               'Distance maximale',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Row(
@@ -149,8 +149,8 @@ class _FiltersPageState extends State<FiltersPage> {
             Text(
               'Type de relation recherchée',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.md),
             _buildRelationshipOptions(),
@@ -161,8 +161,8 @@ class _FiltersPageState extends State<FiltersPage> {
             Text(
               'Je recherche',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.md),
             _buildGenderOptions(),
@@ -173,7 +173,8 @@ class _FiltersPageState extends State<FiltersPage> {
             Card(
               child: SwitchListTile(
                 title: const Text('Profils vérifiés uniquement'),
-                subtitle: const Text('Ne voir que les profils avec badge de vérification'),
+                subtitle: const Text(
+                    'Ne voir que les profils avec badge de vérification'),
                 secondary: Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: const BoxDecoration(
@@ -232,15 +233,21 @@ class _FiltersPageState extends State<FiltersPage> {
                             children: [
                               Text(
                                 'Filtres Premium',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                               Text(
                                 'Débloquez plus d\'options de filtrage',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.slate,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.slate,
+                                    ),
                               ),
                             ],
                           ),
@@ -360,13 +367,12 @@ class _FiltersPageState extends State<FiltersPage> {
 
   void _applyFilters() {
     final filters = SearchPreferences(
-      ageRange: AgeRange(
-        min: _ageRange.start.round(),
-        max: _ageRange.end.round(),
-      ),
-      maxDistanceKm: _maxDistance.round(),
-      relationshipType: _relationshipType,
-      gendersSought: _genders,
+      minAge: _ageRange.start.round(),
+      maxAge: _ageRange.end.round(),
+      maxDistance: _maxDistance,
+      interestedIn: _genders,
+      relationshipTypes: [_relationshipType],
+      showVerifiedOnly: _verifiedOnly,
     );
 
     context.read<DiscoveryBloc>().add(UpdateFilters(filters: filters));

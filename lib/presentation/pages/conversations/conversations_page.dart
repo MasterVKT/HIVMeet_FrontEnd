@@ -13,7 +13,7 @@ import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 import 'package:go_router/go_router.dart';
 
 class ConversationsPage extends StatelessWidget {
-  const ConversationsPage({Key? key}) : super(key: key);
+  const ConversationsPage({super.key});
 
   @override
   Widget build(BuildContext context) {

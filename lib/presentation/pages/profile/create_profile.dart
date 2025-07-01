@@ -13,15 +13,13 @@ import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
-import 'package:hivmeet/presentation/blocs/profile/profile_event.dart';
-import 'package:hivmeet/presentation/blocs/profile/profile_state.dart';
 import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 import 'package:hivmeet/presentation/widgets/common/app_text_field.dart';
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CreateProfilePage extends StatefulWidget {
-  const CreateProfilePage({Key? key}) : super(key: key);
+  const CreateProfilePage({super.key});
 
   @override
   State<CreateProfilePage> createState() => _CreateProfilePageState();
@@ -38,7 +36,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   
   // State
   File? _mainPhoto;
-  List<String> _selectedInterests = [];
+  final List<String> _selectedInterests = [];
   String _selectedRelationshipType = RelationshipType.friendship;
   final List<String> _selectedGenders = [];
   RangeValues _ageRange = const RangeValues(18, 50);

@@ -15,7 +15,7 @@ abstract class ProfileEvent extends Equatable {
 class LoadProfile extends ProfileEvent {}
 
 /// Événement pour mettre à jour le profil
-class UpdateProfile extends ProfileEvent {
+class UpdateProfileEvent extends ProfileEvent {
   final String? displayName;
   final String? bio;
   final String? city;
@@ -27,7 +27,7 @@ class UpdateProfile extends ProfileEvent {
   final SearchPreferences? searchPreferences;
   final PrivacySettings? privacySettings;
 
-  const UpdateProfile({
+  const UpdateProfileEvent({
     this.displayName,
     this.bio,
     this.city,

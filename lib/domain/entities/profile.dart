@@ -148,13 +148,13 @@ class Location extends Equatable {
     const double earthRadius = 6371; // km
     final double dLat = _toRadians(other.latitude - latitude);
     final double dLon = _toRadians(other.longitude - longitude);
-    
-    final double a = 
-      math.sin(dLat / 2) * math.sin(dLat / 2) +
-      math.cos(_toRadians(latitude)) * 
-      math.cos(_toRadians(other.latitude)) *
-      math.sin(dLon / 2) * math.sin(dLon / 2);
-    
+
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_toRadians(latitude)) *
+            math.cos(_toRadians(other.latitude)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
     final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return earthRadius * c;
   }
@@ -188,34 +188,61 @@ class PhotoCollection extends Equatable {
 }
 
 class SearchPreferences extends Equatable {
-  final AgeRange ageRange;
-  final int maxDistanceKm;
-  final String relationshipType;
-  final List<String> gendersSought;
+  final int minAge;
+  final int maxAge;
+  final double maxDistance;
+  final List<String> interestedIn;
+  final List<String> relationshipTypes;
+  final bool showVerifiedOnly;
+  final bool showOnlineOnly;
 
   const SearchPreferences({
-    required this.ageRange,
-    required this.maxDistanceKm,
-    required this.relationshipType,
-    required this.gendersSought,
+    required this.minAge,
+    required this.maxAge,
+    required this.maxDistance,
+    required this.interestedIn,
+    required this.relationshipTypes,
+    this.showVerifiedOnly = false,
+    this.showOnlineOnly = false,
   });
 
+  // Propriétés de compatibilité pour résoudre les erreurs
+  AgeRange get ageRange => AgeRange(min: minAge, max: maxAge);
+  double get maxDistanceKm => maxDistance;
+  String get relationshipType =>
+      relationshipTypes.isNotEmpty ? relationshipTypes.first : '';
+  List<String> get gendersSought => interestedIn;
+
   SearchPreferences copyWith({
-    AgeRange? ageRange,
-    int? maxDistanceKm,
-    String? relationshipType,
-    List<String>? gendersSought,
+    int? minAge,
+    int? maxAge,
+    double? maxDistance,
+    List<String>? interestedIn,
+    List<String>? relationshipTypes,
+    bool? showVerifiedOnly,
+    bool? showOnlineOnly,
   }) {
     return SearchPreferences(
-      ageRange: ageRange ?? this.ageRange,
-      maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
-      relationshipType: relationshipType ?? this.relationshipType,
-      gendersSought: gendersSought ?? this.gendersSought,
+      minAge: minAge ?? this.minAge,
+      maxAge: maxAge ?? this.maxAge,
+      maxDistance: maxDistance ?? this.maxDistance,
+      interestedIn: interestedIn ?? this.interestedIn,
+      relationshipTypes: relationshipTypes ?? this.relationshipTypes,
+      showVerifiedOnly: showVerifiedOnly ?? this.showVerifiedOnly,
+      showOnlineOnly: showOnlineOnly ?? this.showOnlineOnly,
     );
   }
 
   @override
-  List<Object> get props => [ageRange, maxDistanceKm, relationshipType, gendersSought];
+  List<Object> get props => [
+        minAge,
+        maxAge,
+        maxDistance,
+        interestedIn,
+        relationshipTypes,
+        showVerifiedOnly,
+        showOnlineOnly,
+      ];
 }
 
 class AgeRange extends Equatable {
@@ -232,7 +259,8 @@ class AgeRange extends Equatable {
 }
 
 class VerificationStatus extends Equatable {
-  final String status; // not_started, pending_id, pending_medical, pending_selfie, pending_review, verified, rejected, expired
+  final String
+      status; // not_started, pending_id, pending_medical, pending_selfie, pending_review, verified, rejected, expired
   final DateTime? submittedAt;
   final DateTime? reviewedAt;
   final String? rejectionReason;
@@ -251,7 +279,8 @@ class VerificationStatus extends Equatable {
   bool get isPending => status.contains('pending');
   bool get isVerified => status == 'verified';
   bool get isRejected => status == 'rejected';
-  bool get isExpired => status == 'expired' || (expiresAt?.isBefore(DateTime.now()) ?? false);
+  bool get isExpired =>
+      status == 'expired' || (expiresAt?.isBefore(DateTime.now()) ?? false);
 
   @override
   List<Object?> get props => [
@@ -278,7 +307,8 @@ class DocumentStatus extends Equatable {
 }
 
 class PrivacySettings extends Equatable {
-  final String profileVisibility; // visible_to_all, visible_to_matches_only, incognito
+  final String
+      profileVisibility; // visible_to_all, visible_to_matches_only, incognito
   final bool showOnlineStatus;
   final bool showDistance;
   final bool showExactLocation;
@@ -325,7 +355,7 @@ class RelationshipType {
   static const String shortTerm = 'short_term_relationship';
   static const String casualDating = 'casual_dating';
   static const String networking = 'networking';
-  
+
   static const List<String> all = [
     friendship,
     longTerm,
@@ -343,7 +373,7 @@ class Gender {
   static const String transFemale = 'trans_female';
   static const String other = 'other';
   static const String preferNotToSay = 'prefer_not_to_say';
-  
+
   static const List<String> all = [
     male,
     female,

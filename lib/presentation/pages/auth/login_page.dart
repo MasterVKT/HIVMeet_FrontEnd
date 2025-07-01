@@ -15,7 +15,7 @@ import 'package:hivmeet/presentation/widgets/common/app_text_field.dart';
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();

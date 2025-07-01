@@ -15,7 +15,7 @@ class HIVDialog extends StatelessWidget {
   final EdgeInsetsGeometry? contentPadding;
 
   const HIVDialog({
-    Key? key,
+    super.key,
     this.title,
     this.titleWidget,
     this.content,
@@ -23,7 +23,7 @@ class HIVDialog extends StatelessWidget {
     this.actions,
     this.showCloseButton = true,
     this.contentPadding,
-  }) : super(key: key);
+  });
 
   static Future<T?> show<T>({
     required BuildContext context,

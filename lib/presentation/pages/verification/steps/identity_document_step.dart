@@ -17,10 +17,10 @@ class IdentityDocumentStep extends StatefulWidget {
   final VoidCallback onBack;
 
   const IdentityDocumentStep({
-    Key? key,
+    super.key,
     required this.onNext,
     required this.onBack,
-  }) : super(key: key);
+  });
 
   @override
   State<IdentityDocumentStep> createState() => _IdentityDocumentStepState();

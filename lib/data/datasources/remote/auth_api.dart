@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/exceptions.dart';
 import 'package:hivmeet/data/models/user_model.dart';
+import 'package:hivmeet/core/network/api_client.dart';
 
 abstract class AuthRemoteDataSource {
   Future<UserModel> signUp({
@@ -22,26 +23,26 @@ abstract class AuthRemoteDataSource {
   });
 
   Future<void> signOut();
-  
+
   Future<UserModel?> getCurrentUser();
-  
+
   Stream<UserModel?> get authStateChanges;
-  
+
   Future<void> sendPasswordResetEmail({required String email});
-  
+
   Future<void> verifyEmail({required String verificationCode});
-  
+
   Future<void> resendVerificationEmail();
-  
+
   Future<void> updatePassword({
     required String currentPassword,
     required String newPassword,
   });
 
   Future<String> refreshToken();
-  
+
   Future<String?> getAuthToken();
-  
+
   Future<void> deleteAccount({required String password});
 }
 
@@ -50,11 +51,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
   final Dio _dio;
+  final ApiClient _apiClient;
 
   AuthRemoteDataSourceImpl(
     this._firebaseAuth,
     this._firestore,
     this._dio,
+    this._apiClient,
   );
 
   @override
@@ -131,10 +134,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       // Récupérer les données utilisateur depuis Firestore
-      final doc = await _firestore
-          .collection('users')
-          .doc(credential.user!.uid)
-          .get();
+      final doc =
+          await _firestore.collection('users').doc(credential.user!.uid).get();
 
       if (!doc.exists) {
         throw ServerException(message: 'Données utilisateur introuvables');
@@ -274,6 +275,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       final token = await user.getIdToken(true);
+      if (token == null) {
+        throw ServerException(message: 'Impossible de générer le token');
+      }
       return token;
     } catch (e) {
       throw ServerException(message: 'Impossible de rafraîchir le token');
@@ -323,7 +327,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  ServerException _handleFirebaseAuthException(firebase_auth.FirebaseAuthException e) {
+  ServerException _handleFirebaseAuthException(
+      firebase_auth.FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
         throw EmailAlreadyInUseException();
@@ -338,7 +343,210 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       case 'user-disabled':
         throw UserDisabledException();
       default:
-        throw ServerException(message: e.message ?? 'Erreur d\'authentification');
+        throw ServerException(
+            message: e.message ?? 'Erreur d\'authentification');
     }
+  }
+}
+
+@injectable
+class AuthApi {
+  final ApiClient _apiClient;
+
+  const AuthApi(this._apiClient);
+
+  /// Échange du token Firebase contre des tokens JWT
+  /// POST /auth/firebase-exchange
+  Future<Response<Map<String, dynamic>>> exchangeFirebaseToken({
+    required String firebaseIdToken,
+  }) async {
+    final data = {
+      'firebase_id_token': firebaseIdToken,
+    };
+
+    return await _apiClient.post('/auth/firebase-exchange', data: data);
+  }
+
+  /// Actualisation du token JWT
+  /// POST /auth/refresh
+  Future<Response<Map<String, dynamic>>> refreshToken({
+    required String refreshToken,
+  }) async {
+    final data = {
+      'refresh_token': refreshToken,
+    };
+
+    return await _apiClient.post('/auth/refresh', data: data);
+  }
+
+  /// Enregistrement du token FCM
+  /// POST /auth/fcm-token
+  Future<Response<Map<String, dynamic>>> registerFCMToken({
+    required String fcmToken,
+    required String deviceType, // "android|ios"
+    String? deviceId,
+  }) async {
+    final data = {
+      'fcm_token': fcmToken,
+      'device_type': deviceType,
+    };
+
+    if (deviceId != null) {
+      data['device_id'] = deviceId;
+    }
+
+    return await _apiClient.post('/auth/fcm-token', data: data);
+  }
+
+  /// Suppression du token FCM
+  /// DELETE /auth/fcm-token
+  Future<Response<Map<String, dynamic>>> removeFCMToken({
+    required String fcmToken,
+  }) async {
+    return await _apiClient.delete('/auth/fcm-token', queryParameters: {
+      'fcm_token': fcmToken,
+    });
+  }
+
+  /// Vérification de l'email
+  /// POST /auth/verify-email
+  Future<Response<Map<String, dynamic>>> verifyEmail({
+    required String verificationCode,
+  }) async {
+    final data = {
+      'verification_code': verificationCode,
+    };
+
+    return await _apiClient.post('/auth/verify-email', data: data);
+  }
+
+  /// Renvoyer l'email de vérification
+  /// POST /auth/resend-verification
+  Future<Response<Map<String, dynamic>>> resendVerificationEmail() async {
+    return await _apiClient.post('/auth/resend-verification');
+  }
+
+  /// Récupération des informations utilisateur
+  /// GET /auth/me
+  Future<Response<Map<String, dynamic>>> getCurrentUser() async {
+    return await _apiClient.get('/auth/me');
+  }
+
+  /// Mise à jour des informations utilisateur
+  /// PUT /auth/me
+  Future<Response<Map<String, dynamic>>> updateUserInfo({
+    String? displayName,
+    String? email,
+    String? phone,
+    DateTime? birthDate,
+  }) async {
+    final data = <String, dynamic>{};
+
+    if (displayName != null) data['display_name'] = displayName;
+    if (email != null) data['email'] = email;
+    if (phone != null) data['phone'] = phone;
+    if (birthDate != null) data['birth_date'] = birthDate.toIso8601String();
+
+    return await _apiClient.put('/auth/me', data: data);
+  }
+
+  /// Changement de mot de passe
+  /// POST /auth/change-password
+  Future<Response<Map<String, dynamic>>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final data = {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+    };
+
+    return await _apiClient.post('/auth/change-password', data: data);
+  }
+
+  /// Suppression de compte
+  /// DELETE /auth/delete-account
+  Future<Response<Map<String, dynamic>>> deleteAccount({
+    required String password,
+    required String reason,
+    String? feedback,
+  }) async {
+    final data = {
+      'password': password,
+      'reason': reason,
+    };
+
+    if (feedback != null) {
+      data['feedback'] = feedback;
+    }
+
+    return await _apiClient.delete('/auth/delete-account', data: data);
+  }
+
+  /// Déconnexion
+  /// POST /auth/logout
+  Future<Response<Map<String, dynamic>>> logout({
+    String? fcmToken,
+  }) async {
+    final data = <String, dynamic>{};
+
+    if (fcmToken != null) {
+      data['fcm_token'] = fcmToken;
+    }
+
+    return await _apiClient.post('/auth/logout', data: data);
+  }
+
+  /// Signaler un utilisateur
+  /// POST /auth/report-user
+  Future<Response<Map<String, dynamic>>> reportUser({
+    required String reportedUserId,
+    required String reason,
+    String? description,
+  }) async {
+    final data = {
+      'reported_user_id': reportedUserId,
+      'reason': reason,
+    };
+
+    if (description != null) {
+      data['description'] = description;
+    }
+
+    return await _apiClient.post('/auth/report-user', data: data);
+  }
+
+  /// Bloquer un utilisateur
+  /// POST /auth/block-user
+  Future<Response<Map<String, dynamic>>> blockUser({
+    required String blockedUserId,
+  }) async {
+    final data = {
+      'blocked_user_id': blockedUserId,
+    };
+
+    return await _apiClient.post('/auth/block-user', data: data);
+  }
+
+  /// Débloquer un utilisateur
+  /// DELETE /auth/block-user
+  Future<Response<Map<String, dynamic>>> unblockUser({
+    required String blockedUserId,
+  }) async {
+    return await _apiClient.delete('/auth/block-user', queryParameters: {
+      'blocked_user_id': blockedUserId,
+    });
+  }
+
+  /// Liste des utilisateurs bloqués
+  /// GET /auth/blocked-users
+  Future<Response<Map<String, dynamic>>> getBlockedUsers({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return await _apiClient.get('/auth/blocked-users', queryParameters: {
+      'page': page,
+      'per_page': perPage,
+    });
   }
 }

@@ -11,7 +11,7 @@ class ProfileModel {
   final String id;
   final String userId;
   final String displayName;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime birthDate;
   final String bio;
   final LocationModel location;
@@ -21,14 +21,14 @@ class ProfileModel {
   final String relationshipType;
   final PhotoCollectionModel photos;
   final SearchPreferencesModel searchPreferences;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime lastActive;
   final bool isHidden;
   final VerificationStatusModel verificationStatus;
   final PrivacySettingsModel privacySettings;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime createdAt;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime updatedAt;
 
   ProfileModel({
@@ -52,7 +52,8 @@ class ProfileModel {
     required this.updatedAt,
   });
 
-  factory ProfileModel.fromJson(Map<String, dynamic> json) => _$ProfileModelFromJson(json);
+  factory ProfileModel.fromJson(Map<String, dynamic> json) =>
+      _$ProfileModelFromJson(json);
   Map<String, dynamic> toJson() => _$ProfileModelToJson(this);
 
   factory ProfileModel.fromFirestore(DocumentSnapshot doc) {
@@ -82,10 +83,12 @@ class ProfileModel {
       interests: profile.interests,
       relationshipType: profile.relationshipType,
       photos: PhotoCollectionModel.fromEntity(profile.photos),
-      searchPreferences: SearchPreferencesModel.fromEntity(profile.searchPreferences),
+      searchPreferences:
+          SearchPreferencesModel.fromEntity(profile.searchPreferences),
       lastActive: profile.lastActive,
       isHidden: profile.isHidden,
-      verificationStatus: VerificationStatusModel.fromEntity(profile.verificationStatus),
+      verificationStatus:
+          VerificationStatusModel.fromEntity(profile.verificationStatus),
       privacySettings: PrivacySettingsModel.fromEntity(profile.privacySettings),
       createdAt: profile.createdAt,
       updatedAt: profile.updatedAt,
@@ -119,8 +122,18 @@ class ProfileModel {
     return dateTime != null ? Timestamp.fromDate(dateTime) : null;
   }
 
-  static DateTime? _timestampToDateTime(Timestamp? timestamp) {
-    return timestamp?.toDate();
+  static DateTime _timestampToDateTimeNonNull(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    }
+    return DateTime.now(); // fallback
+  }
+
+  static DateTime? _timestampToDateTime(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    }
+    return null;
   }
 }
 
@@ -136,7 +149,8 @@ class LocationModel {
     required this.geohash,
   });
 
-  factory LocationModel.fromJson(Map<String, dynamic> json) => _$LocationModelFromJson(json);
+  factory LocationModel.fromJson(Map<String, dynamic> json) =>
+      _$LocationModelFromJson(json);
   Map<String, dynamic> toJson() => _$LocationModelToJson(this);
 
   factory LocationModel.fromEntity(Location location) {
@@ -168,7 +182,8 @@ class PhotoCollectionModel {
     this.private = const [],
   });
 
-  factory PhotoCollectionModel.fromJson(Map<String, dynamic> json) => _$PhotoCollectionModelFromJson(json);
+  factory PhotoCollectionModel.fromJson(Map<String, dynamic> json) =>
+      _$PhotoCollectionModelFromJson(json);
   Map<String, dynamic> toJson() => _$PhotoCollectionModelToJson(this);
 
   factory PhotoCollectionModel.fromEntity(PhotoCollection photos) {
@@ -190,64 +205,49 @@ class PhotoCollectionModel {
 
 @JsonSerializable()
 class SearchPreferencesModel {
-  final AgeRangeModel ageRange;
-  final int maxDistanceKm;
-  final String relationshipType;
-  final List<String> gendersSought;
+  final int minAge;
+  final int maxAge;
+  final double maxDistance;
+  final List<String> interestedIn;
+  final List<String> relationshipTypes;
+  final bool showVerifiedOnly;
+  final bool showOnlineOnly;
 
   SearchPreferencesModel({
-    required this.ageRange,
-    required this.maxDistanceKm,
-    required this.relationshipType,
-    required this.gendersSought,
+    required this.minAge,
+    required this.maxAge,
+    required this.maxDistance,
+    required this.interestedIn,
+    required this.relationshipTypes,
+    this.showVerifiedOnly = false,
+    this.showOnlineOnly = false,
   });
 
-  factory SearchPreferencesModel.fromJson(Map<String, dynamic> json) => _$SearchPreferencesModelFromJson(json);
+  factory SearchPreferencesModel.fromJson(Map<String, dynamic> json) =>
+      _$SearchPreferencesModelFromJson(json);
   Map<String, dynamic> toJson() => _$SearchPreferencesModelToJson(this);
 
   factory SearchPreferencesModel.fromEntity(SearchPreferences prefs) {
     return SearchPreferencesModel(
-      ageRange: AgeRangeModel.fromEntity(prefs.ageRange),
-      maxDistanceKm: prefs.maxDistanceKm,
-      relationshipType: prefs.relationshipType,
-      gendersSought: prefs.gendersSought,
+      minAge: prefs.minAge,
+      maxAge: prefs.maxAge,
+      maxDistance: prefs.maxDistance,
+      interestedIn: prefs.interestedIn,
+      relationshipTypes: prefs.relationshipTypes,
+      showVerifiedOnly: prefs.showVerifiedOnly,
+      showOnlineOnly: prefs.showOnlineOnly,
     );
   }
 
   SearchPreferences toEntity() {
     return SearchPreferences(
-      ageRange: ageRange.toEntity(),
-      maxDistanceKm: maxDistanceKm,
-      relationshipType: relationshipType,
-      gendersSought: gendersSought,
-    );
-  }
-}
-
-@JsonSerializable()
-class AgeRangeModel {
-  final int min;
-  final int max;
-
-  AgeRangeModel({
-    required this.min,
-    required this.max,
-  });
-
-  factory AgeRangeModel.fromJson(Map<String, dynamic> json) => _$AgeRangeModelFromJson(json);
-  Map<String, dynamic> toJson() => _$AgeRangeModelToJson(this);
-
-  factory AgeRangeModel.fromEntity(AgeRange range) {
-    return AgeRangeModel(
-      min: range.min,
-      max: range.max,
-    );
-  }
-
-  AgeRange toEntity() {
-    return AgeRange(
-      min: min,
-      max: max,
+      minAge: minAge,
+      maxAge: maxAge,
+      maxDistance: maxDistance,
+      interestedIn: interestedIn,
+      relationshipTypes: relationshipTypes,
+      showVerifiedOnly: showVerifiedOnly,
+      showOnlineOnly: showOnlineOnly,
     );
   }
 }
@@ -273,7 +273,8 @@ class VerificationStatusModel {
     required this.documents,
   });
 
-  factory VerificationStatusModel.fromJson(Map<String, dynamic> json) => _$VerificationStatusModelFromJson(json);
+  factory VerificationStatusModel.fromJson(Map<String, dynamic> json) =>
+      _$VerificationStatusModelFromJson(json);
   Map<String, dynamic> toJson() => _$VerificationStatusModelToJson(this);
 
   factory VerificationStatusModel.fromEntity(VerificationStatus status) {
@@ -306,8 +307,11 @@ class VerificationStatusModel {
     return dateTime != null ? Timestamp.fromDate(dateTime) : null;
   }
 
-  static DateTime? _timestampToDateTime(Timestamp? timestamp) {
-    return timestamp?.toDate();
+  static DateTime? _timestampToDateTime(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    }
+    return null;
   }
 }
 
@@ -321,7 +325,8 @@ class DocumentStatusModel {
     required this.status,
   });
 
-  factory DocumentStatusModel.fromJson(Map<String, dynamic> json) => _$DocumentStatusModelFromJson(json);
+  factory DocumentStatusModel.fromJson(Map<String, dynamic> json) =>
+      _$DocumentStatusModelFromJson(json);
   Map<String, dynamic> toJson() => _$DocumentStatusModelToJson(this);
 
   factory DocumentStatusModel.fromEntity(DocumentStatus status) {
@@ -355,7 +360,8 @@ class PrivacySettingsModel {
     this.profileDiscoverable = true,
   });
 
-  factory PrivacySettingsModel.fromJson(Map<String, dynamic> json) => _$PrivacySettingsModelFromJson(json);
+  factory PrivacySettingsModel.fromJson(Map<String, dynamic> json) =>
+      _$PrivacySettingsModelFromJson(json);
   Map<String, dynamic> toJson() => _$PrivacySettingsModelToJson(this);
 
   factory PrivacySettingsModel.fromEntity(PrivacySettings settings) {

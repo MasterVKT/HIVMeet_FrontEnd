@@ -10,15 +10,15 @@ class HIVLoader extends StatelessWidget {
   final double strokeWidth;
 
   const HIVLoader({
-    Key? key,
+    super.key,
     this.size = 40,
     this.color,
     this.strokeWidth = 4,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
       child: CircularProgressIndicator(
@@ -37,10 +37,10 @@ class HIVFullScreenLoader extends StatelessWidget {
   final bool showBackground;
 
   const HIVFullScreenLoader({
-    Key? key,
+    super.key,
     this.message,
     this.showBackground = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,11 +83,11 @@ class HIVShimmer extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const HIVShimmer({
-    Key? key,
+    super.key,
     required this.width,
     required this.height,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   State<HIVShimmer> createState() => _HIVShimmerState();
@@ -168,11 +168,11 @@ class _HIVShimmerState extends State<HIVShimmer>
 
 // Profile card skeleton loader
 class ProfileCardSkeleton extends StatelessWidget {
-  const ProfileCardSkeleton({Key? key}) : super(key: key);
+  const ProfileCardSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 600,
       child: Stack(
         children: [
@@ -213,7 +213,7 @@ class ProfileCardSkeleton extends StatelessWidget {
 
 // Match list item skeleton
 class MatchCardSkeleton extends StatelessWidget {
-  const MatchCardSkeleton({Key? key}) : super(key: key);
+  const MatchCardSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -267,10 +267,10 @@ class HIVPulseLoader extends StatefulWidget {
   final bool isLoading;
 
   const HIVPulseLoader({
-    Key? key,
+    super.key,
     required this.child,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   State<HIVPulseLoader> createState() => _HIVPulseLoaderState();

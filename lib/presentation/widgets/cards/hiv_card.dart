@@ -15,7 +15,7 @@ class HIVCard extends StatelessWidget {
   final Border? border;
 
   const HIVCard({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.margin,
@@ -24,13 +24,13 @@ class HIVCard extends StatelessWidget {
     this.borderRadius,
     this.onTap,
     this.border,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final defaultRadius = borderRadius ?? BorderRadius.circular(16);
-    
+
     return Container(
       margin: margin,
       child: Material(
@@ -67,7 +67,7 @@ class ProfileCard extends StatelessWidget {
   final double? width;
 
   const ProfileCard({
-    Key? key,
+    super.key,
     required this.imageUrl,
     required this.name,
     required this.age,
@@ -77,17 +77,17 @@ class ProfileCard extends StatelessWidget {
     this.onTap,
     this.height,
     this.width,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return HIVCard(
       onTap: onTap,
       padding: EdgeInsets.zero,
       borderRadius: BorderRadius.circular(24),
-      child: Container(
+      child: SizedBox(
         height: height ?? 600,
         width: width ?? double.infinity,
         child: Stack(
@@ -125,7 +125,7 @@ class ProfileCard extends StatelessWidget {
                 },
               ),
             ),
-            
+
             // Gradient overlay
             Positioned(
               bottom: 0,
@@ -149,7 +149,7 @@ class ProfileCard extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // User info
             Positioned(
               bottom: AppSpacing.lg,
@@ -256,7 +256,7 @@ class MatchCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const MatchCard({
-    Key? key,
+    super.key,
     required this.imageUrl,
     required this.name,
     this.lastMessage,
@@ -264,12 +264,12 @@ class MatchCard extends StatelessWidget {
     this.isOnline = false,
     this.hasUnreadMessage = false,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return HIVCard(
       onTap: onTap,
       margin: EdgeInsets.symmetric(
@@ -306,7 +306,7 @@ class MatchCard extends StatelessWidget {
             ],
           ),
           const SizedBox(width: AppSpacing.md),
-          
+
           // Message info
           Expanded(
             child: Column(
@@ -315,9 +315,8 @@ class MatchCard extends StatelessWidget {
                 Text(
                   name,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: hasUnreadMessage
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                    fontWeight:
+                        hasUnreadMessage ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
                 if (lastMessage != null) ...[
@@ -327,7 +326,7 @@ class MatchCard extends StatelessWidget {
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: hasUnreadMessage
                           ? theme.colorScheme.onSurface
-                          : AppColors.greyMedium,
+                          : AppColors.slate,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -336,7 +335,7 @@ class MatchCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Time and unread indicator
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -345,15 +344,15 @@ class MatchCard extends StatelessWidget {
                 Text(
                   _formatTime(lastMessageTime!),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.greyMedium,
+                    color: AppColors.slate,
                   ),
                 ),
               if (hasUnreadMessage) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Container(
                   padding: EdgeInsets.all(AppSpacing.xs),
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryPurple,
                     shape: BoxShape.circle,
                   ),
                   constraints: const BoxConstraints(
@@ -372,7 +371,7 @@ class MatchCard extends StatelessWidget {
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays}j';
     } else if (difference.inHours > 0) {

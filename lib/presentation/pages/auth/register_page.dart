@@ -15,7 +15,7 @@ import 'package:hivmeet/presentation/widgets/common/app_text_field.dart';
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key}) : super(key: key);
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -395,9 +395,8 @@ class _PasswordStrengthIndicator extends StatelessWidget {
   final PasswordStrength strength;
 
   const _PasswordStrengthIndicator({
-    Key? key,
     required this.strength,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

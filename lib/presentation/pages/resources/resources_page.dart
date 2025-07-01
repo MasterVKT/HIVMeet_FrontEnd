@@ -13,7 +13,7 @@ import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 import 'package:go_router/go_router.dart';
 
 class ResourcesPage extends StatefulWidget {
-  const ResourcesPage({Key? key}) : super(key: key);
+  const ResourcesPage({super.key});
 
   @override
   State<ResourcesPage> createState() => _ResourcesPageState();

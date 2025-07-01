@@ -2,6 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/match.dart';
 
 abstract class DiscoveryEvent extends Equatable {
   const DiscoveryEvent();
@@ -40,10 +41,3 @@ class UpdateFilters extends DiscoveryEvent {
 }
 
 class LoadDailyLimit extends DiscoveryEvent {}
-
-enum SwipeDirection {
-  left,
-  right,
-  up,
-  down,
-}

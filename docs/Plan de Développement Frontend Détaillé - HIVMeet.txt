@@ -1,0 +1,706 @@
+# Plan de Développement Frontend Détaillé - HIVMeet
+
+## 1. Vue d'Ensemble
+
+Ce document présente le plan de développement détaillé pour le frontend de l'application HIVMeet. Il décrit les phases séquentielles, les tâches spécifiques, et les objectifs à atteindre pour construire l'interface utilisateur complète de l'application. Le développement suivra une approche incrémentale, permettant des tests et des révisions à chaque étape.
+
+### 1.1 Approche Générale
+
+- **Méthodologie**: Développement Agile avec cycles d'itération de 1-2 semaines
+- **Framework**: Flutter pour applications iOS et Android
+- **Architecture**: Clean Architecture avec pattern BLoC pour la gestion d'état
+- **Stratégie de test**: Tests unitaires, de widget et d'intégration à chaque phase
+
+### 1.2 Dépendances Critiques
+
+- Configuration complète de Firebase avant le début du développement
+- Définition finalisée de l'architecture de données
+- Maquettes et designs UI validés dans Figma
+- Configuration des environnements de développement, staging et production
+
+## 2. Phase 1: Configuration et Architecture (2 semaines)
+
+Cette phase établit les fondations techniques du projet et met en place l'infrastructure de développement.
+
+### 2.1 Configuration de l'Environnement Flutter (3 jours)
+
+#### 2.1.1 Mise en place du projet
+
+- Initialisation du projet Flutter avec la dernière version stable
+- Configuration du système de versionnage Git
+- Structure de branches (main, develop, feature/*)
+- Configuration du CI/CD avec GitHub Actions
+
+#### 2.1.2 Configuration multi-environnement
+
+- Mise en place des environnements (dev, staging, prod)
+- Configuration des variables d'environnement
+- Configuration des flavors Flutter pour iOS et Android
+- Scripts de build pour chaque environnement
+
+#### 2.1.3 Dépendances et packages
+
+- Installation et configuration des packages essentiels:
+  - `flutter_bloc` pour la gestion d'état
+  - `get_it` pour l'injection de dépendances
+  - `go_router` pour la navigation
+  - `dio` pour les requêtes HTTP
+  - `hive` et `flutter_secure_storage` pour le stockage local
+  - `firebase_core`, `firebase_auth`, `cloud_firestore` etc.
+
+**Livrable**: Projet Flutter configuré avec environnements, dépendances et intégration CI/CD.
+
+### 2.2 Architecture et Structure du Projet (4 jours)
+
+#### 2.2.1 Organisation des dossiers
+
+- Mise en place de la structure du projet selon Clean Architecture:
+  - `/core` pour les composants fondamentaux
+  - `/data` pour la couche de données
+  - `/domain` pour la logique métier
+  - `/presentation` pour les interfaces utilisateur
+
+#### 2.2.2 Configuration de l'injection de dépendances
+
+- Implémentation du système d'injection de dépendances avec GetIt
+- Configuration des singletons et factories
+- Mise en place du pattern repository
+
+#### 2.2.3 Configuration de la navigation
+
+- Définition des routes principales de l'application
+- Implémentation du routeur avec GoRouter
+- Configuration des redirections et guards de route
+
+**Livrable**: Structure du projet établie avec architecture, navigation et injection de dépendances.
+
+### 2.3 Configuration Firebase (3 jours)
+
+#### 2.3.1 Intégration SDK Firebase 
+
+- Ajout des packages Firebase requis
+- Configuration de Firebase pour chaque environnement
+- Intégration de Firebase Analytics
+- Configuration de Firebase Crashlytics
+
+#### 2.3.2 Configuration de l'authentification
+
+- Mise en place de FirebaseAuth
+- Configuration des méthodes d'authentification (email/password)
+- Implémentation des repositories d'authentification
+- Test des flux de connexion/déconnexion
+
+#### 2.3.3 Configuration de Firestore et Storage
+
+- Initialisation des clients Firestore et Storage
+- Mise en place des repositories de données
+- Configuration du cache Firestore
+- Tests de connexion et d'accès aux données
+
+**Livrable**: Intégration complète de Firebase fonctionnelle dans l'application.
+
+### 2.4 Configuration des Thèmes et Design System (4 jours)
+
+#### 2.4.1 Implémentation du design system
+
+- Création des tokens de design (couleurs, typographie, espacement)
+- Implémentation des thèmes Flutter (clair/sombre)
+- Configuration des dimensions et contraintes responsives
+
+#### 2.4.2 Création des composants de base
+
+- Développement des widgets de base réutilisables:
+  - Boutons (primaire, secondaire, tertiaire)
+  - Champs de texte et formulaires
+  - Cartes et conteneurs
+  - Barres de navigation
+  - Indicateurs de chargement
+  - Dialogues et alertes
+
+#### 2.4.3 Tests des composants
+
+- Écriture des tests unitaires pour le thème
+- Tests de widgets pour les composants
+- Tests de responsivité pour différentes tailles d'écran
+
+**Livrable**: Système de design complet avec composants de base testés.
+
+## 3. Phase 2: Authentification et Profil Utilisateur (3 semaines)
+
+Cette phase implémente le système d'authentification et la gestion des profils utilisateurs.
+
+### 3.1 Modèles et Repositories (4 jours)
+
+#### 3.1.1 Modèles de données
+
+- Implémentation des modèles User et UserProfile
+- Transformation des données JSON/Firestore
+- Validation et règles métier
+- Tests unitaires des modèles
+
+#### 3.1.2 Repositories d'authentification
+
+- Implémentation des interfaces de repository
+- Méthodes pour inscription, connexion, récupération de mot de passe
+- Gestion des tokens et sessions
+- Tests unitaires des repositories
+
+#### 3.1.3 Repositories de profil
+
+- Méthodes CRUD pour les profils utilisateurs
+- Gestion des photos de profil
+- Services de géolocalisation
+- Tests unitaires des repositories
+
+**Livrable**: Couche de données complète pour authentification et profils.
+
+### 3.2 Logique Métier - BLoCs (5 jours)
+
+#### 3.2.1 AuthBloc
+
+- Implémentation des états d'authentification (initial, loading, authenticated, error)
+- Événements d'authentification (signIn, signUp, signOut, etc.)
+- Intégration avec le repository d'authentification
+- Gestion des erreurs et exceptions
+- Tests unitaires du bloc
+
+#### 3.2.2 RegisterBloc
+
+- Gestion du processus d'inscription multi-étapes
+- Validation des formulaires en temps réel
+- Intégration avec le repository d'authentification
+- Tests unitaires du bloc
+
+#### 3.2.3 ProfileBloc
+
+- Gestion du profil utilisateur (chargement, mise à jour)
+- Gestion des téléchargements de photos
+- Intégration avec les repositories de profil
+- Tests unitaires du bloc
+
+**Livrable**: BLoCs fonctionnels avec tests unitaires pour l'authentification et les profils.
+
+### 3.3 Interfaces Utilisateur - Écrans (6 jours)
+
+#### 3.3.1 Écran de Démarrage (Splash)
+
+- Conception de l'écran de démarrage avec logo
+- Animation d'entrée fluide
+- Vérification de l'état d'authentification
+- Redirection automatique
+
+#### 3.3.2 Écrans d'Authentification
+
+- Écran de connexion avec validation des champs
+- Écran d'inscription multi-étapes
+- Écran de récupération de mot de passe
+- Écran de validation d'email
+- Gestion des erreurs avec messages contextuels
+- Transitions et animations
+
+#### 3.3.3 Écrans de Profil
+
+- Conception de l'écran de visualisation de profil
+- Écran d'édition de profil
+- Interface de téléchargement et recadrage de photos
+- Sélecteur de centres d'intérêt
+- Configurations de préférences de matching
+- Tests de widgets pour tous les écrans
+
+**Livrable**: Écrans complets d'authentification et de profil avec navigation fonctionnelle.
+
+### 3.4 Processus de Vérification (5 jours)
+
+#### 3.4.1 Interface de vérification
+
+- Écran d'explication du processus de vérification
+- Interface de téléchargement de document d'identité
+- Interface de téléchargement de document médical
+- Écran de prise de selfie avec code
+- Indicateurs de progression du processus
+
+#### 3.4.2 Logique de vérification
+
+- BLoC pour le processus de vérification
+- Gestion sécurisée des téléchargements
+- Suivi de l'état de vérification
+- Notifications de changement de statut
+
+#### 3.4.3 Tests d'intégration
+
+- Tests de bout en bout du processus de vérification
+- Tests de sécurité des téléchargements
+- Validation des flux d'erreurs
+
+**Livrable**: Processus de vérification complet avec interface utilisateur et gestion sécurisée.
+
+## 4. Phase 3: Système de Matching et Découverte (3 semaines)
+
+Cette phase implémente les fonctionnalités de découverte de profils et de matching.
+
+### 4.1 Modèles et Repositories (3 jours)
+
+#### 4.1.1 Modèles de matching
+
+- Implémentation des modèles pour les suggestions de profils
+- Modèles pour les likes et matches
+- Transformations des données Firestore
+- Tests unitaires des modèles
+
+#### 4.1.2 Repository de découverte
+
+- Méthodes pour récupérer des profils recommandés
+- Implémentation de la pagination des résultats
+- Filtrage selon préférences utilisateur
+- Tests unitaires du repository
+
+#### 4.1.3 Repository de matching
+
+- Gestion des actions like/dislike
+- Suivi des matches
+- Gestion des super-likes (premium)
+- Tests unitaires du repository
+
+**Livrable**: Couche de données complète pour le système de matching.
+
+### 4.2 Logique Métier - BLoCs (4 jours)
+
+#### 4.2.1 DiscoveryBloc
+
+- États pour le chargement des profils suggérés
+- Événements pour charger plus de profils, appliquer des filtres
+- Logique de préchargement pour expérience fluide
+- Tests unitaires du bloc
+
+#### 4.2.2 SwipeBloc
+
+- Gestion des actions de swipe (gauche/droite)
+- Tracking des limites de likes quotidiens
+- Gestion des fonctionnalités premium
+- Tests unitaires du bloc
+
+#### 4.2.3 MatchesBloc
+
+- Chargement et gestion de la liste des matches
+- Filtrage et tri des matches
+- États pour nouveaux matches
+- Tests unitaires du bloc
+
+**Livrable**: BLoCs fonctionnels avec tests pour le système de matching.
+
+### 4.3 Interfaces Utilisateur - Écrans (6 jours)
+
+#### 4.3.1 Écran principal de découverte
+
+- Interface de swipe style carte
+- Animations fluides de swipe
+- Affichage des informations de profil
+- Actions de like/dislike avec boutons et gestes
+- Indicateurs de limite quotidienne
+
+#### 4.3.2 Écran de détail de profil
+
+- Vue détaillée d'un profil
+- Galerie de photos avec navigation
+- Affichage des informations complètes
+- Actions disponibles contextuelles
+- Animation de transition
+
+#### 4.3.3 Écran de matches
+
+- Liste des matches actifs
+- Indicateurs de nouveaux matches
+- Aperçu des conversations récentes
+- Actions rapides (message, voir profil)
+- Animation de nouveaux matches
+
+#### 4.3.4 Filtres et préférences
+
+- Interface de filtres avancés
+- Sélecteurs de plage d'âge et distance
+- Options de type de relation
+- Sauvegarde des préférences
+- Distinction fonctionnalités premium/gratuites
+
+**Livrable**: Écrans complets de découverte et matching avec expérience utilisateur fluide.
+
+### 4.4 Fonctionnalités Premium (4 jours)
+
+#### 4.4.1 Super-likes et Boost
+
+- Implémentation des super-likes
+- Système de boost de profil temporaire
+- Interface de compteurs et recharges
+- Animations et retours visuels distinctifs
+
+#### 4.4.2 Voir qui m'a liké
+
+- Interface de visualisation des likes reçus (premium)
+- Actions rapides sur ces profils
+- Indicateurs de compatibilité
+- Statistiques personnelles
+
+#### 4.4.3 Options avancées de filtre
+
+- Filtres supplémentaires pour premium
+- Interface de recherche avancée
+- Sauvegarde de filtres favoris
+- Tests des fonctionnalités premium
+
+**Livrable**: Fonctionnalités premium de matching complètes et intégrées.
+
+### 4.5 Système de Notifications (3 jours)
+
+#### 4.5.1 Notifications push
+
+- Intégration de Firebase Cloud Messaging
+- Configuration des canaux de notification
+- Gestion des tokens d'appareil
+- Tests des notifications
+
+#### 4.5.2 Notifications in-app
+
+- Système de notifications internes
+- Badges pour nouveaux matches/messages
+- Centre de notifications
+- Préférences de notification
+
+**Livrable**: Système de notifications complet pour le matching et les interactions.
+
+## 5. Phase 4: Messagerie et Communication (3 semaines)
+
+Cette phase implémente le système de messagerie et les fonctionnalités de communication.
+
+### 5.1 Modèles et Repositories (3 jours)
+
+#### 5.1.1 Modèles de messages
+
+- Structure des messages texte et médias
+- États des messages (envoyé, délivré, lu)
+- Modèles pour les conversations
+- Tests unitaires des modèles
+
+#### 5.1.2 Repository de messagerie
+
+- Méthodes pour récupérer les conversations
+- Chargement paginé des messages
+- Envoi et réception de messages
+- Gestion des indicateurs de lecture
+- Tests unitaires du repository
+
+#### 5.1.3 Repository de médias
+
+- Gestion des téléchargements de médias
+- Compression et optimisation d'images
+- Stockage et récupération des fichiers
+- Tests unitaires du repository
+
+**Livrable**: Couche de données complète pour la messagerie.
+
+### 5.2 Logique Métier - BLoCs (4 jours)
+
+#### 5.2.1 ConversationsBloc
+
+- Chargement de la liste des conversations
+- Tri par activité récente
+- Gestion des compteurs de messages non lus
+- Tests unitaires du bloc
+
+#### 5.2.2 ChatBloc
+
+- Chargement des messages d'une conversation
+- Envoi de nouveaux messages
+- Gestion des médias (premium)
+- Indicateurs de lecture et d'écriture
+- Tests unitaires du bloc
+
+#### 5.2.3 MediaBloc
+
+- Gestion des téléchargements de médias
+- Suivi de progression des uploads
+- Gestion des erreurs de téléchargement
+- Tests unitaires du bloc
+
+**Livrable**: BLoCs fonctionnels avec tests pour le système de messagerie.
+
+### 5.3 Interfaces Utilisateur - Écrans (7 jours)
+
+#### 5.3.1 Liste des conversations
+
+- Interface de liste des conversations
+- Aperçu du dernier message
+- Indicateurs de statut (en ligne, dernier vu)
+- Badges de messages non lus
+- Actions de swipe (archiver, supprimer)
+
+#### 5.3.2 Écran de conversation
+
+- Interface de chat avec bulles de message
+- Indicateurs de statut des messages
+- Barre de saisie extensible
+- Support des emojis
+- Chargement paginé des messages
+- Pull-to-refresh pour nouveaux messages
+
+#### 5.3.3 Fonctionnalités médias (Premium)
+
+- Interface d'envoi de photos
+- Prévisualisation des médias
+- Galerie de médias partagés
+- Options de compression
+- Distinctions fonctionnalités premium/gratuites
+
+**Livrable**: Écrans de messagerie complets avec expérience utilisateur fluide.
+
+### 5.4 Appels Audio/Vidéo (Premium) (6 jours)
+
+#### 5.4.1 Interface d'appel
+
+- Écran d'appel entrant/sortant
+- Interface d'appel en cours
+- Contrôles (muet, caméra, haut-parleur)
+- Minuteur de durée (limite 30 min)
+- Transitions et animations
+
+#### 5.4.2 Logique d'appel
+
+- Intégration d'une solution WebRTC
+- Gestion des états d'appel
+- Contrôle de qualité adaptative
+- Gestion des erreurs et reconnexions
+
+#### 5.4.3 Tests d'appel
+
+- Tests d'intégration du système d'appel
+- Tests de qualité réseau
+- Validation des limites temporelles
+
+**Livrable**: Fonctionnalité d'appels audio/vidéo complète pour utilisateurs premium.
+
+## 6. Phase 5: Contenu Informatif et Ressources (2 semaines)
+
+Cette phase implémente les fonctionnalités liées au contenu éducatif et informatif.
+
+### 6.1 Modèles et Repositories (3 jours)
+
+#### 6.1.1 Modèles de ressources
+
+- Structure pour différents types de contenu
+- Catégorisation et système de tags
+- Modèles pour favoris utilisateur
+- Tests unitaires des modèles
+
+#### 6.1.2 Repository de ressources
+
+- Méthodes pour récupérer le contenu catégorisé
+- Recherche par mots-clés
+- Gestion des favoris
+- Tests unitaires du repository
+
+**Livrable**: Couche de données complète pour les ressources informatives.
+
+### 6.2 Logique Métier - BLoCs (3 jours)
+
+#### 6.2.1 ResourcesBloc
+
+- Chargement du contenu par catégorie
+- Gestion des filtres et recherche
+- Pagination des résultats
+- Tests unitaires du bloc
+
+#### 6.2.2 FavoritesBloc
+
+- Gestion des favoris utilisateur
+- Synchronisation avec Firestore
+- Disponibilité hors-ligne
+- Tests unitaires du bloc
+
+**Livrable**: BLoCs fonctionnels avec tests pour le système de ressources.
+
+### 6.3 Interfaces Utilisateur - Écrans (4 jours)
+
+#### 6.3.1 Catalogue de ressources
+
+- Interface de navigation par catégorie
+- Recherche et filtrage
+- Liste des ressources avec aperçu
+- Indicateurs de contenu premium
+
+#### 6.3.2 Visualisation de contenu
+
+- Lecteur d'articles formatés
+- Lecteur vidéo pour contenu multimédia
+- Actions (partager, sauvegarder)
+- Mode hors-ligne pour contenus sauvegardés
+
+#### 6.3.3 Gestion des favoris
+
+- Interface de favoris organisés
+- Options de tri et filtrage
+- Synchronisation état en ligne/hors ligne
+- Gestion de l'espace de stockage
+
+**Livrable**: Écrans de ressources complets avec expérience utilisateur fluide.
+
+### 6.4 Fil d'Actualités (4 jours)
+
+#### 6.4.1 Interface du fil d'actualités
+
+- Liste des publications communautaires
+- Affichage des médias et texte formaté
+- Actions (like, commentaire)
+- Indicateurs de modération
+
+#### 6.4.2 Publication (si applicable)
+
+- Interface de création de publication
+- Sélection de média
+- Prévisualisation avant soumission
+- Indicateur de modération en attente
+
+**Livrable**: Fonctionnalité de fil d'actualités complète.
+
+## 7. Phase 6: Paramètres, Premium et Finalisation (2 semaines)
+
+Cette phase finalise l'application avec les paramètres utilisateur et le système d'abonnement premium.
+
+### 7.1 Paramètres Utilisateur (3 jours)
+
+#### 7.1.1 Interface des paramètres
+
+- Écran de paramètres structuré
+- Options de confidentialité et sécurité
+- Préférences de notification
+- Paramètres de compte
+- Aide et support
+
+#### 7.1.2 Logique des paramètres
+
+- Sauvegarde des préférences utilisateur
+- Synchronisation avec le backend
+- Application des changements en temps réel
+- Tests des paramètres
+
+**Livrable**: Système de paramètres complet avec sauvegarde des préférences.
+
+### 7.2 Système d'Abonnement Premium (4 jours)
+
+#### 7.2.1 Interface d'abonnement
+
+- Écran de présentation des avantages premium
+- Comparaison des plans
+- Interface de paiement sécurisée
+- Confirmation et reçu
+
+#### 7.2.2 Intégration paiement
+
+- Intégration avec MyCoolPay
+- Gestion des transactions
+- Vérification du statut d'abonnement
+- Gestion des erreurs de paiement
+
+#### 7.2.3 Gestion des abonnements
+
+- Visualisation de l'abonnement actif
+- Options de renouvellement/annulation
+- Historique des paiements
+- Support pour problèmes de facturation
+
+**Livrable**: Système d'abonnement premium complet et fonctionnel.
+
+### 7.3 Tests d'Intégration Globaux (3 jours)
+
+#### 7.3.1 Tests de flux principaux
+
+- Parcours complet d'inscription et matching
+- Test du cycle de vie d'une conversation
+- Scénarios d'utilisation premium
+- Validation sur différents appareils
+
+#### 7.3.2 Tests de performance
+
+- Tests de charge et réactivité
+- Optimisation des performances critiques
+- Validation de l'utilisation mémoire
+- Optimisation de la consommation batterie
+
+**Livrable**: Rapport de tests d'intégration et optimisations finales.
+
+### 7.4 Préparation au Lancement (4 jours)
+
+#### 7.4.1 Finalisation des assets
+
+- Vérification de tous les assets graphiques
+- Optimisation des ressources
+- Validation des traductions
+- Préparation des screenshots pour stores
+
+#### 7.4.2 Configuration des stores
+
+- Préparation des fiches App Store et Google Play
+- Configuration des métadonnées
+- Mise en place des versions bêta
+- Organisation des tests utilisateurs
+
+#### 7.4.3 Documentation finale
+
+- Guide d'utilisation
+- Documentation développeur
+- Plan de maintenance
+- Documentation de sécurité
+
+**Livrable**: Application prête au lancement avec documentation complète.
+
+## 8. Stratégie de Tests et Qualité
+
+### 8.1 Approche de Test
+
+- **Tests unitaires**: Couverture minimale de 80% pour les blocs et repositories
+- **Tests de widgets**: Validation des composants UI isolés
+- **Tests d'intégration**: Validation des flux utilisateur complets
+- **Tests de performance**: Benchmark des écrans et fonctionnalités critiques
+- **Tests de sécurité**: Validation de la protection des données sensibles
+
+### 8.2 Méthodologie d'Assurance Qualité
+
+- Revue de code systématique avant merge
+- Intégration continue avec vérification automatique de qualité
+- Sessions quotidiennes de test manuel
+- Validation multiplateforme (iOS, Android, différentes tailles d'écran)
+- Tests par des utilisateurs réels pour les fonctionnalités critiques
+
+## 9. Dépendances et Risques
+
+### 9.1 Dépendances Externes
+
+- Disponibilité des API Firebase
+- Validation des règles de sécurité Firestore
+- Intégration avec le système de paiement MyCoolPay
+- Validation des politiques d'App Store et Google Play (contenu sensible)
+
+### 9.2 Risques Identifiés
+
+- Complexité du système de vérification d'identité
+- Performance des requêtes géospatiales à grande échelle
+- Conformité RGPD pour les données médicales sensibles
+- Approbation App Store pour contenu lié au VIH
+
+### 9.3 Stratégies d'Atténuation
+
+- Prototypes précoces des fonctionnalités à risque
+- Tests de charge pour les requêtes critiques
+- Consultation juridique pour conformité réglementaire
+- Communication préventive avec les équipes de révision des stores
+
+## 10. Conclusion
+
+Ce plan de développement frontend fournit une feuille de route structurée pour l'implémentation de l'application HIVMeet. Le développement progressif par phases permet de construire, tester et valider les fonctionnalités de manière incrémentale, assurant une qualité constante et la possibilité d'ajustements en cours de route.
+
+La méthodologie proposée met l'accent sur:
+- Une architecture solide et évolutive
+- Une expérience utilisateur fluide et intuitive
+- La sécurité et la confidentialité des données sensibles
+- Des tests rigoureux à chaque étape
+- Une préparation minutieuse au lancement
+
+En suivant ce plan, l'équipe de développement frontend pourra livrer une application robuste, performante et répondant aux besoins spécifiques des utilisateurs, tout en respectant les délais et les exigences de qualité.

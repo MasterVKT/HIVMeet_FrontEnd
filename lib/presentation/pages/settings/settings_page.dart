@@ -13,7 +13,7 @@ import 'package:hivmeet/presentation/blocs/auth/auth_event.dart';
 import 'package:go_router/go_router.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +44,8 @@ class SettingsPage extends StatelessWidget {
                         _buildTile(
                           icon: Icons.lock_outline,
                           title: 'Changer le mot de passe',
-                          onTap: () => context.push('/settings/change-password'),
+                          onTap: () =>
+                              context.push('/settings/change-password'),
                         ),
                         _buildTile(
                           icon: Icons.email_outlined,
@@ -54,7 +55,6 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
                     _buildSection(
                       context,
                       'Confidentialité',
@@ -66,8 +66,8 @@ class SettingsPage extends StatelessWidget {
                           value: state.isProfileVisible,
                           onChanged: (value) {
                             context.read<SettingsBloc>().add(
-                              UpdateProfileVisibility(isVisible: value),
-                            );
+                                  UpdateProfileVisibility(isVisible: value),
+                                );
                           },
                         ),
                         _buildSwitchTile(
@@ -77,8 +77,8 @@ class SettingsPage extends StatelessWidget {
                           value: state.shareLocation,
                           onChanged: (value) {
                             context.read<SettingsBloc>().add(
-                              UpdateLocationSharing(shareLocation: value),
-                            );
+                                  UpdateLocationSharing(shareLocation: value),
+                                );
                           },
                         ),
                         _buildSwitchTile(
@@ -88,8 +88,9 @@ class SettingsPage extends StatelessWidget {
                           value: state.showOnlineStatus,
                           onChanged: (value) {
                             context.read<SettingsBloc>().add(
-                              UpdateOnlineStatusVisibility(showStatus: value),
-                            );
+                                  UpdateOnlineStatusVisibility(
+                                      showStatus: value),
+                                );
                           },
                         ),
                         _buildTile(
@@ -99,7 +100,6 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
                     _buildSection(
                       context,
                       'Notifications',
@@ -110,11 +110,11 @@ class SettingsPage extends StatelessWidget {
                           value: state.notifyNewMatches,
                           onChanged: (value) {
                             context.read<SettingsBloc>().add(
-                              UpdateNotificationSetting(
-                                type: NotificationType.newMatches,
-                                enabled: value,
-                              ),
-                            );
+                                  UpdateNotificationSetting(
+                                    type: NotificationType.newMatches,
+                                    enabled: value,
+                                  ),
+                                );
                           },
                         ),
                         _buildSwitchTile(
@@ -123,11 +123,11 @@ class SettingsPage extends StatelessWidget {
                           value: state.notifyMessages,
                           onChanged: (value) {
                             context.read<SettingsBloc>().add(
-                              UpdateNotificationSetting(
-                                type: NotificationType.messages,
-                                enabled: value,
-                              ),
-                            );
+                                  UpdateNotificationSetting(
+                                    type: NotificationType.messages,
+                                    enabled: value,
+                                  ),
+                                );
                           },
                         ),
                         _buildSwitchTile(
@@ -135,14 +135,16 @@ class SettingsPage extends StatelessWidget {
                           title: 'Likes reçus',
                           subtitle: 'Premium uniquement',
                           value: state.notifyLikes,
-                          onChanged: state.isPremium ? (value) {
-                            context.read<SettingsBloc>().add(
-                              UpdateNotificationSetting(
-                                type: NotificationType.likes,
-                                enabled: value,
-                              ),
-                            );
-                          } : null,
+                          onChanged: state.isPremium
+                              ? (value) {
+                                  context.read<SettingsBloc>().add(
+                                        UpdateNotificationSetting(
+                                          type: NotificationType.likes,
+                                          enabled: value,
+                                        ),
+                                      );
+                                }
+                              : null,
                         ),
                         _buildSwitchTile(
                           icon: Icons.campaign_outlined,
@@ -150,16 +152,15 @@ class SettingsPage extends StatelessWidget {
                           value: state.notifyNews,
                           onChanged: (value) {
                             context.read<SettingsBloc>().add(
-                              UpdateNotificationSetting(
-                                type: NotificationType.news,
-                                enabled: value,
-                              ),
-                            );
+                                  UpdateNotificationSetting(
+                                    type: NotificationType.news,
+                                    enabled: value,
+                                  ),
+                                );
                           },
                         ),
                       ],
                     ),
-                    
                     _buildSection(
                       context,
                       'Langue et région',
@@ -167,7 +168,8 @@ class SettingsPage extends StatelessWidget {
                         _buildTile(
                           icon: Icons.language,
                           title: 'Langue',
-                          subtitle: state.language == 'fr' ? 'Français' : 'English',
+                          subtitle:
+                              state.language == 'fr' ? 'Français' : 'English',
                           onTap: () => _showLanguageDialog(context),
                         ),
                         _buildTile(
@@ -178,7 +180,6 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
                     _buildSection(
                       context,
                       'Support',
@@ -210,7 +211,6 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
                     _buildSection(
                       context,
                       'Compte',
@@ -229,13 +229,12 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
                     const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
               );
             }
-            
+
             return const Center(child: CircularProgressIndicator());
           },
         ),
@@ -243,7 +242,8 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, List<Widget> children) {
+  Widget _buildSection(
+      BuildContext context, String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -255,9 +255,9 @@ class SettingsPage extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.slate,
-            ),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.slate,
+                ),
           ),
         ),
         Card(
@@ -319,8 +319,8 @@ class SettingsPage extends StatelessWidget {
               onChanged: (value) {
                 Navigator.pop(dialogContext);
                 context.read<SettingsBloc>().add(
-                  UpdateLanguage(language: value!),
-                );
+                      ChangeLanguage(language: value!),
+                    );
               },
             ),
             RadioListTile<String>(
@@ -330,8 +330,8 @@ class SettingsPage extends StatelessWidget {
               onChanged: (value) {
                 Navigator.pop(dialogContext);
                 context.read<SettingsBloc>().add(
-                  UpdateLanguage(language: value!),
-                );
+                      ChangeLanguage(language: value!),
+                    );
               },
             ),
           ],
@@ -354,7 +354,7 @@ class SettingsPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              context.read<AuthBloc>().add(SignOutRequested());
+              context.read<AuthBloc>().add(LoggedOut());
               context.go('/');
             },
             style: ElevatedButton.styleFrom(

@@ -1,1 +1,45 @@
-
+{
+  "app": {
+    "name": "HIVMeet",
+    "tagline": "Rencontres authentiques, communauté bienveillante"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirm_password": "Confirmer le mot de passe",
+    "forgot_password": "Mot de passe oublié ?",
+    "remember_me": "Se souvenir de moi",
+    "sign_in": "Se connecter",
+    "sign_up": "S'inscrire",
+    "welcome_back": "Bon retour !",
+    "connect_to_continue": "Connectez-vous pour continuer",
+    "email_required": "L'email est requis",
+    "email_invalid": "Email invalide",
+    "password_required": "Le mot de passe est requis"
+  },
+  "profile": {
+    "profile": "Profil",
+    "my_profile": "Mon profil",
+    "edit_profile": "Modifier le profil",
+    "display_name": "Nom d'affichage",
+    "age": "Âge",
+    "bio": "À propos de moi",
+    "interests": "Centres d'intérêt"
+  },
+  "discovery": {
+    "discovery": "Découverte",
+    "like": "J'aime",
+    "dislike": "Passer",
+    "super_like": "Super Like",
+    "its_a_match": "C'est un match !"
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "save": "Sauvegarder",
+    "loading": "Chargement...",
+    "error": "Erreur"
+  }
+}

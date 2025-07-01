@@ -15,14 +15,14 @@ class UserModel {
   final bool isPremium;
   @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
   final DateTime? premiumUntil;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime lastActive;
   final bool isEmailVerified;
   final NotificationSettingsModel notificationSettings;
   final List<String> blockedUserIds;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime createdAt;
-  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTime)
+  @JsonKey(toJson: _dateTimeToTimestamp, fromJson: _timestampToDateTimeNonNull)
   final DateTime updatedAt;
 
   UserModel({
@@ -40,7 +40,8 @@ class UserModel {
     required this.updatedAt,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      _$UserModelFromJson(json);
   Map<String, dynamic> toJson() => _$UserModelToJson(this);
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -67,7 +68,8 @@ class UserModel {
       premiumUntil: user.premiumUntil,
       lastActive: user.lastActive,
       isEmailVerified: user.isEmailVerified,
-      notificationSettings: NotificationSettingsModel.fromEntity(user.notificationSettings),
+      notificationSettings:
+          NotificationSettingsModel.fromEntity(user.notificationSettings),
       blockedUserIds: user.blockedUserIds,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -95,6 +97,10 @@ class UserModel {
     return dateTime != null ? Timestamp.fromDate(dateTime) : null;
   }
 
+  static DateTime _timestampToDateTimeNonNull(Timestamp timestamp) {
+    return timestamp.toDate();
+  }
+
   static DateTime? _timestampToDateTime(Timestamp? timestamp) {
     return timestamp?.toDate();
   }
@@ -118,7 +124,7 @@ class NotificationSettingsModel {
     this.doNotDisturbSettings,
   });
 
-  factory NotificationSettingsModel.fromJson(Map<String, dynamic> json) => 
+  factory NotificationSettingsModel.fromJson(Map<String, dynamic> json) =>
       _$NotificationSettingsModelFromJson(json);
   Map<String, dynamic> toJson() => _$NotificationSettingsModelToJson(this);
 
@@ -159,7 +165,7 @@ class DoNotDisturbSettingsModel {
     required this.endTimeUtc,
   });
 
-  factory DoNotDisturbSettingsModel.fromJson(Map<String, dynamic> json) => 
+  factory DoNotDisturbSettingsModel.fromJson(Map<String, dynamic> json) =>
       _$DoNotDisturbSettingsModelFromJson(json);
   Map<String, dynamic> toJson() => _$DoNotDisturbSettingsModelToJson(this);
 

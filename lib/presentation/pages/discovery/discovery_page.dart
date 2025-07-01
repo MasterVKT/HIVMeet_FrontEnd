@@ -8,13 +8,15 @@ import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_state.dart';
+import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/widgets/cards/swipe_card.dart';
 import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
+import 'package:hivmeet/presentation/widgets/common/hiv_toast.dart' as toast;
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
 import 'package:go_router/go_router.dart';
 
 class DiscoveryPage extends StatefulWidget {
-  const DiscoveryPage({Key? key}) : super(key: key);
+  const DiscoveryPage({super.key});
 
   @override
   State<DiscoveryPage> createState() => _DiscoveryPageState();
@@ -24,7 +26,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => getIt<DiscoveryBloc>()..add(const LoadDiscoveryProfiles()),
+      create: (context) =>
+          getIt<DiscoveryBloc>()..add(const LoadDiscoveryProfiles()),
       child: Scaffold(
         backgroundColor: AppColors.primaryWhite,
         body: SafeArea(
@@ -39,55 +42,61 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                     } else if (state is DailyLimitReached) {
                       _showLimitDialog(context, state.limitInfo);
                     } else if (state is DiscoveryError) {
-                      HIVToast.showError(
+                      toast.HIVToast.showError(
                         context: context,
                         message: state.message,
                       );
                     }
                   },
                   builder: (context, state) {
-                    if (state is DiscoveryLoading || state is DiscoveryInitial) {
+                    if (state is DiscoveryLoading ||
+                        state is DiscoveryInitial) {
                       return const Center(child: HIVLoader());
                     }
-                    
+
                     if (state is NoMoreProfiles) {
                       return _buildNoMoreProfiles(context);
                     }
-                    
+
                     if (state is DiscoveryLoaded) {
                       return Stack(
                         children: [
                           // Next profiles preview
-                          ...state.nextProfiles.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final profile = entry.value;
-                            return Positioned.fill(
-                              child: Transform.scale(
-                                scale: 1 - (index + 1) * 0.05,
-                                child: Transform.translate(
-                                  offset: Offset(0, (index + 1) * 10.0),
-                                  child: SwipeCard(
-                                    profile: profile,
-                                    isPreview: true,
+                          ...state.nextProfiles
+                              .asMap()
+                              .entries
+                              .map((entry) {
+                                final index = entry.key;
+                                final profile = entry.value;
+                                return Positioned.fill(
+                                  child: Transform.scale(
+                                    scale: 1 - (index + 1) * 0.05,
+                                    child: Transform.translate(
+                                      offset: Offset(0, (index + 1) * 10.0),
+                                      child: SwipeCard(
+                                        profile: profile,
+                                        isPreview: true,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            );
-                          }).toList().reversed,
-                          
+                                );
+                              })
+                              .toList()
+                              .reversed,
+
                           // Current profile
                           SwipeCard(
                             profile: state.currentProfile,
                             onSwipe: (direction) {
                               context.read<DiscoveryBloc>().add(
-                                SwipeProfile(direction: direction),
-                              );
+                                    SwipeProfile(direction: direction),
+                                  );
                             },
                           ),
                         ],
                       );
                     }
-                    
+
                     return const Center(child: Text('Une erreur est survenue'));
                   },
                 ),
@@ -113,8 +122,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           Text(
             'Découverte',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           BlocBuilder<DiscoveryBloc, DiscoveryState>(
             builder: (context, state) {
@@ -143,13 +152,13 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
-                        '${limit.remaining}',
+                        '${limit.remainingLikes}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: limit.hasReachedLimit
-                              ? AppColors.error
-                              : AppColors.primaryPurple,
-                          fontWeight: FontWeight.bold,
-                        ),
+                              color: limit.hasReachedLimit
+                                  ? AppColors.error
+                                  : AppColors.primaryPurple,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
@@ -182,8 +191,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             size: 60,
             onTap: () {
               context.read<DiscoveryBloc>().add(
-                const SwipeProfile(direction: SwipeDirection.left),
-              );
+                    SwipeProfile(direction: SwipeDirection.left),
+                  );
             },
           ),
           _ActionButton(
@@ -191,8 +200,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             color: AppColors.info,
             onTap: () {
               context.read<DiscoveryBloc>().add(
-                const SwipeProfile(direction: SwipeDirection.up),
-              );
+                    SwipeProfile(direction: SwipeDirection.up),
+                  );
             },
           ),
           _ActionButton(
@@ -201,8 +210,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             size: 60,
             onTap: () {
               context.read<DiscoveryBloc>().add(
-                const SwipeProfile(direction: SwipeDirection.right),
-              );
+                    SwipeProfile(direction: SwipeDirection.right),
+                  );
             },
           ),
           _ActionButton(
@@ -233,15 +242,15 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             Text(
               'Plus de profils pour le moment',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Revenez plus tard ou élargissez vos critères de recherche',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.slate,
-              ),
+                    color: AppColors.slate,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -276,7 +285,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     HIVDialog.show(
       context: context,
       title: 'Limite quotidienne atteinte',
-      content: 'Vous avez utilisé vos ${limit.limit} likes gratuits du jour. '
+      content:
+          'Vous avez utilisé vos ${limit.totalLikes} likes gratuits du jour. '
           'Passez à Premium pour des likes illimités !',
       actions: [
         DialogAction(
@@ -370,9 +380,9 @@ class _MatchDialog extends StatelessWidget {
             Text(
               'C\'est un Match !',
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryPurple,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryPurple,
+                  ),
             ),
             const SizedBox(height: AppSpacing.lg),
             CircleAvatar(
