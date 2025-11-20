@@ -20,10 +20,10 @@ class LoadMatches extends MatchesEvent {
 
 class LoadMoreMatches extends MatchesEvent {}
 
-class DeleteMatch extends MatchesEvent {
+class DeleteMatchEvent extends MatchesEvent {
   final String matchId;
 
-  const DeleteMatch({required this.matchId});
+  const DeleteMatchEvent({required this.matchId});
 
   @override
   List<Object> get props => [matchId];
