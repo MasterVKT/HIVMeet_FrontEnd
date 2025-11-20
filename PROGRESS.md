@@ -2,7 +2,7 @@
 
 **Session Date**: November 20, 2024
 **Branch**: `claude/gap-analysis-plan-01HqQrjqQzX8raS1WXb2SC5X`
-**Total Commits**: 11
+**Total Commits**: 12
 **Status**: Sprint 1 - Phase 0 & Core Features + Chat Complete ✅
 
 ---
@@ -444,13 +444,46 @@ getIt.registerFactory<ChatBloc>(
 
 ---
 
+### Sprint 1 - Task 1.8: Fix Hardcoded SenderId ✅
+
+**Problem**: ChatBloc used hardcoded `'current_user'` string for senderId in optimistic messages.
+
+**Solution Implemented**:
+
+1. **Inject AuthenticationService** into ChatBloc
+   - Added `_authService` field
+   - Added `authService` constructor parameter
+   - Updated dependency injection in `injection.dart`
+
+2. **Get Real User ID** from AuthenticationService
+   - `_authService.currentUser?.id ?? 'unknown'`
+   - Fallback to 'unknown' if user not authenticated
+   - Applied in both `_onSendTextMessage` and `_onSendMediaMessage`
+
+**Changes**:
+- `chat_bloc.dart`: Import AuthenticationService, inject dependency, use real userId
+- `injection.dart`: Add authService to ChatBloc registration
+
+**Benefits**:
+- ✅ Correct senderId for optimistic messages
+- ✅ Eliminated TODO identified during Chat refactoring
+- ✅ Follows dependency injection architecture
+
+**Files Modified**: 2
+- lib/presentation/blocs/chat/chat_bloc.dart
+- lib/injection.dart
+
+**Commit**: `fix(chat): Corriger senderId hardcodé dans ChatBloc`
+
+---
+
 ## 📊 Summary Statistics
 
 ### Code Changes
-- **Files Changed**: 57+
-- **Insertions**: ~6,481+
-- **Deletions**: ~894+
-- **Net Gain**: ~5,587 lines (production + tests)
+- **Files Changed**: 59+
+- **Insertions**: ~6,490+
+- **Deletions**: ~896+
+- **Net Gain**: ~5,594 lines (production + tests)
 
 ### Commits Breakdown
 1. ✅ Matches Use Cases + Tests
@@ -464,6 +497,7 @@ getIt.registerFactory<ChatBloc>(
 9. ✅ Navigation refactoring complete
 10. ✅ Chat Use Cases + BLoC refactoring
 11. ✅ Chat Use Cases unit tests (35 tests)
+12. ✅ Fix hardcoded senderId in ChatBloc
 
 ### Architecture Quality
 - ✅ 100% Clean Architecture compliance
@@ -488,51 +522,46 @@ getIt.registerFactory<ChatBloc>(
 ## 🚀 Next Steps (Recommended)
 
 ### High Priority
-1. **Fix Hardcoded SenderId in ChatBloc**
-   - Get current user ID from AuthenticationService
-   - Update optimistic message creation
-   - Priority: Medium (works but should be fixed)
-
-2. **Enrich Conversation Entity**
+1. **Enrich Conversation Entity**
    - Add participant profiles to Conversation
    - Eliminate need for separate profile fetches
    - Fix "Participant {id}" temporary display
 
-3. **Backend Coordination**
+2. **Backend Coordination**
    - Implement soft delete for account deletion (GDPR)
    - Ensure payment webhooks are configured
    - Verify settings deletion endpoints exist
 
-4. **Integration Testing**
+3. **Integration Testing**
    - End-to-end tests for Matches flow
    - End-to-end tests for Conversations flow
    - End-to-end tests for Chat flow
    - Auth flow testing
 
-5. **BLoC Unit Tests**
+4. **BLoC Unit Tests**
    - ChatBloc tests (optimistic updates, pagination, rollback)
    - MatchesBloc tests
    - ConversationsBloc tests
    - DiscoveryBloc tests
 
 ### Medium Priority
-6. **Remaining Pages**
+5. **Remaining Pages**
    - Profile Page full implementation
    - Settings Page completion
    - Premium Page features
 
-7. **Performance Optimization**
+6. **Performance Optimization**
    - Image caching strategy
    - Pagination performance
    - Memory management for large lists
 
-8. **Error Recovery**
+7. **Error Recovery**
    - Network error retry strategies
    - Offline mode support
    - Data synchronization
 
 ### Low Priority
-9. **Polish & UX**
+8. **Polish & UX**
    - Animations and transitions
    - Loading states consistency
    - Error message localization
@@ -562,7 +591,6 @@ getIt.registerFactory<ChatBloc>(
 - [ ] Settings deleteAccount API endpoint
 
 ### Important
-- [ ] Fix hardcoded senderId in ChatBloc (get from AuthService)
 - [ ] ChatBloc unit tests (optimistic updates, pagination, rollback)
 - [ ] Test coverage for other BLoCs (MatchesBloc, ConversationsBloc, DiscoveryBloc)
 - [ ] Integration tests for critical flows (Matches, Conversations, Chat)
@@ -570,6 +598,7 @@ getIt.registerFactory<ChatBloc>(
 
 ### Completed ✅
 - [x] Chat Use Cases unit tests (35 tests across 4 files)
+- [x] Fix hardcoded senderId in ChatBloc (AuthService injection)
 
 ### Nice to Have
 - [ ] Performance profiling and optimization
@@ -590,7 +619,8 @@ getIt.registerFactory<ChatBloc>(
 - ✅ Task 1.5: AppScaffold Navigation Refactoring
 - ✅ Task 1.6: Chat Page Refactoring (Clean Architecture Migration)
 - ✅ Task 1.7: Chat Use Cases Unit Tests (35 tests)
-- ⏳ Task 1.8: BLoC Unit Tests (pending - ChatBloc, others)
+- ✅ Task 1.8: Fix Hardcoded SenderId (AuthService injection)
+- ⏳ Task 1.9: BLoC Unit Tests (pending - ChatBloc, others)
 
 **Quality Metrics**:
 - Code Quality: ⭐⭐⭐⭐⭐
