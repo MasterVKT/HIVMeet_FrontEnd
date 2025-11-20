@@ -2,8 +2,8 @@
 
 **Session Date**: November 20, 2024
 **Branch**: `claude/gap-analysis-plan-01HqQrjqQzX8raS1WXb2SC5X`
-**Total Commits**: 16
-**Status**: Sprint 1 - 100% COMPLÉTÉ ✅ | Sprint 2 - EN COURS (Task 2.1 ✅)
+**Total Commits**: 18
+**Status**: Sprint 1 - 100% ✅ | Sprint 2 - Task 2.1 ✅ | Sprint 3 - Task 3.1 ✅
 
 ---
 
@@ -750,13 +750,77 @@ getIt.registerFactory<ChatBloc>(
 
 ---
 
+## 🚀 SPRINT 3: FEATURES AVANCÉES (EN COURS)
+
+**Objectif**: Finaliser features avancées, compléter Use Cases Resources
+
+### Sprint 3 - Task 3.1: Use Cases Resources ✅
+
+**Créations - 5 Use Cases Resources/Feed**:
+
+1. **GetResources** ✅
+   - Charge ressources (articles, guides) avec filtres multiples
+   - Filtres: catégorie, tags, recherche, langue, type
+   - Pagination classique (page, pageSize)
+   - Factories: `.initial()`, `.search()`, `.byCategory()`
+
+2. **GetFeedPosts** ✅
+   - Charge posts du feed communautaire
+   - Posts utilisateurs: témoignages, conseils, questions/réponses
+   - Pagination + filtrage par catégorie
+   - Factories: `.initial()`, `.nextPage()`, `.byCategory()`
+
+3. **LikePost** ✅
+   - Like un post du feed
+   - Enregistre côté serveur, incrémente compteur
+
+4. **CommentPost** ✅
+   - Ajoute commentaire textuel sur post
+   - Validations côté client:
+     * Contenu non vide
+     * Maximum 500 caractères
+   - Retourne PostComment créé
+
+5. **AddToFavorites** ✅
+   - Ajoute ressource aux favoris personnels
+   - Sauvegarde pour accès rapide
+
+**Refactoring ResourcesBloc** ✅:
+- ❌ **AVANT**: Appels directs à `ResourceRepository` (3 méthodes)
+- ✅ **APRÈS**: Injection de 2 Use Cases (GetResources, AddToFavorites)
+- Méthodes refactorées:
+  - `_onLoadResources`: Utilise GetResources avec factory `.byCategory()`
+  - `_onSearchResources`: Utilise GetResources avec factory `.search()`
+  - `_onAddFavorite`: Utilise AddToFavorites
+
+**injection.dart - Section 10.8 ajoutée** ✅:
+- Enregistrement de 5 Use Cases Resources
+- ResourcesBloc injecté avec 2 Use Cases
+
+**Architecture Quality**:
+- ✅ ResourcesBloc ne communique plus avec Repository directement
+- ✅ 100% Clean Architecture compliance
+- ✅ Validations côté client (CommentPost: 500 caractères max)
+- ✅ Factories pour faciliter création params
+
+**Files**:
+- 5 nouveaux Use Cases créés (get_resources.dart, get_feed_posts.dart, like_post.dart, comment_post.dart, add_to_favorites.dart)
+- resources_bloc.dart refactoré (79 lignes)
+- injection.dart mis à jour (5 Use Cases Resources + ResourcesBloc)
+
+**Commit**: `feat(resources): Refactorer ResourcesBloc avec Use Cases (Sprint 3 - Tâche 3.1)`
+
+**Statistics**: 7 files, +379 insertions, -11 deletions
+
+---
+
 ## 📊 Summary Statistics
 
 ### Code Changes
-- **Files Changed**: 68+
-- **Insertions**: ~9,124+
-- **Deletions**: ~915+
-- **Net Gain**: ~8,209 lines (production + tests)
+- **Files Changed**: 75+
+- **Insertions**: ~9,503+
+- **Deletions**: ~926+
+- **Net Gain**: ~8,577 lines (production + tests)
 
 ### Commits Breakdown
 1. ✅ Matches Use Cases + Tests
@@ -775,6 +839,8 @@ getIt.registerFactory<ChatBloc>(
 14. ✅ ConversationsBloc + MatchesBloc tests (55+ tests)
 15. ✅ DiscoveryBloc unit tests (17 tests) - FINALISATION Sprint 1
 16. ✅ Discovery Use Cases + DiscoveryBloc refactoring (Sprint 2 Task 2.1)
+17. ✅ Documentation Sprint 2 Task 2.1 dans PROGRESS.md
+18. ✅ Resources Use Cases + ResourcesBloc refactoring (Sprint 3 Task 3.1)
 
 ### Architecture Quality
 - ✅ 100% Clean Architecture compliance
