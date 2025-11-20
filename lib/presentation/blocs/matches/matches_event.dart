@@ -39,3 +39,30 @@ class MarkMatchAsSeen extends MatchesEvent {
   @override
   List<Object> get props => [matchId];
 }
+
+/// Filtre les matches par statut (all, new, active)
+class FilterMatches extends MatchesEvent {
+  final MatchFilter filter;
+
+  const FilterMatches({required this.filter});
+
+  @override
+  List<Object> get props => [filter];
+}
+
+/// Recherche un match par nom
+class SearchMatches extends MatchesEvent {
+  final String query;
+
+  const SearchMatches({required this.query});
+
+  @override
+  List<Object> get props => [query];
+}
+
+/// Enum pour les filtres de matches
+enum MatchFilter {
+  all,    // Tous les matches
+  newMatches,  // Nouveaux matches uniquement
+  active, // Matches avec conversations actives
+}

@@ -190,6 +190,55 @@ class PhotoLimitFailure extends LimitFailure {
         );
 }
 
+class DailyLimitReachedFailure extends LimitFailure {
+  const DailyLimitReachedFailure()
+      : super(
+          message: 'Limite quotidienne atteinte. Réessayez demain',
+          code: 'daily-limit-reached',
+        );
+}
+
+// Erreurs liées aux fonctionnalités premium
+class PremiumFailure extends Failure {
+  const PremiumFailure({
+    required super.message,
+    super.code,
+  });
+}
+
+class PremiumRequiredFailure extends PremiumFailure {
+  const PremiumRequiredFailure()
+      : super(
+          message:
+              'Cette fonctionnalité nécessite un abonnement Premium',
+          code: 'premium-required',
+        );
+}
+
+// Erreurs liées au matching
+class MatchingFailure extends Failure {
+  const MatchingFailure({
+    required super.message,
+    super.code,
+  });
+}
+
+class NoSwipeToRewindFailure extends MatchingFailure {
+  const NoSwipeToRewindFailure()
+      : super(
+          message: 'Aucun swipe à annuler',
+          code: 'no-swipe-to-rewind',
+        );
+}
+
+class AlreadyMatchedFailure extends MatchingFailure {
+  const AlreadyMatchedFailure()
+      : super(
+          message: 'Vous avez déjà matché avec cet utilisateur',
+          code: 'already-matched',
+        );
+}
+
 // Erreurs de paiement
 class PaymentFailure extends Failure {
   const PaymentFailure({
