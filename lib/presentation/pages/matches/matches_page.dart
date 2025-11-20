@@ -9,6 +9,7 @@ import 'package:hivmeet/presentation/blocs/matches/matches_bloc.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_event.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_state.dart';
 import 'package:hivmeet/presentation/widgets/matches/matches_widgets.dart';
+import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
 
 /// Page principale des matches
 ///
@@ -97,7 +98,8 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return AppScaffold(
+      currentIndex: 1, // Matches tab
       appBar: AppBar(
         title: _showSearch
             ? null
@@ -354,47 +356,6 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar(BuildContext context) {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      currentIndex: 1,
-      onTap: (index) {
-        switch (index) {
-          case 0:
-            context.go('/discovery');
-            break;
-          case 1:
-            // Déjà sur matches
-            break;
-          case 2:
-            context.go('/conversations');
-            break;
-          case 3:
-            context.go('/profile');
-            break;
-        }
-      },
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.explore),
-          label: 'Découvrir',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.favorite),
-          label: 'Matches',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat),
-          label: 'Messages',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profil',
-        ),
-      ],
     );
   }
 }
