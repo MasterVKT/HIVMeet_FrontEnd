@@ -3,7 +3,13 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/domain/entities/match.dart';
-import 'package:hivmeet/domain/repositories/match_repository.dart';
+import 'package:hivmeet/domain/usecases/match/get_discovery_profiles.dart';
+import 'package:hivmeet/domain/usecases/match/like_profile.dart';
+import 'package:hivmeet/domain/usecases/match/dislike_profile.dart';
+import 'package:hivmeet/domain/usecases/match/super_like_profile.dart';
+import 'package:hivmeet/domain/usecases/match/rewind_swipe.dart';
+import 'package:hivmeet/domain/usecases/match/update_filters.dart';
+import 'package:hivmeet/domain/usecases/match/get_daily_like_limit.dart';
 import 'discovery_event.dart';
 import 'discovery_state.dart';
 import 'dart:async';
@@ -11,15 +17,33 @@ import 'package:hivmeet/core/error/failures.dart';
 
 @injectable
 class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
-  final MatchRepository _matchRepository;
+  final GetDiscoveryProfiles _getDiscoveryProfiles;
+  final LikeProfile _likeProfile;
+  final DislikeProfile _dislikeProfile;
+  final SuperLikeProfile _superLikeProfile;
+  final RewindSwipe _rewindSwipe;
+  final UpdateFilters _updateFilters;
+  final GetDailyLikeLimit _getDailyLikeLimit;
 
   List<DiscoveryProfile> _profiles = [];
   int _currentIndex = 0;
   DailyLikeLimit? _dailyLimit;
 
   DiscoveryBloc({
-    required MatchRepository matchRepository,
-  })  : _matchRepository = matchRepository,
+    required GetDiscoveryProfiles getDiscoveryProfiles,
+    required LikeProfile likeProfile,
+    required DislikeProfile dislikeProfile,
+    required SuperLikeProfile superLikeProfile,
+    required RewindSwipe rewindSwipe,
+    required UpdateFilters updateFilters,
+    required GetDailyLikeLimit getDailyLikeLimit,
+  })  : _getDiscoveryProfiles = getDiscoveryProfiles,
+        _likeProfile = likeProfile,
+        _dislikeProfile = dislikeProfile,
+        _superLikeProfile = superLikeProfile,
+        _rewindSwipe = rewindSwipe,
+        _updateFilters = updateFilters,
+        _getDailyLikeLimit = getDailyLikeLimit,
         super(DiscoveryInitial()) {
     on<LoadDiscoveryProfiles>(_onLoadDiscoveryProfiles);
     on<SwipeProfile>(_onSwipeProfile);
@@ -40,10 +64,10 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
 
     try {
       print(
-          '🔄 DEBUG DiscoveryBloc: Appel _matchRepository.getDiscoveryProfiles');
+          '🔄 DEBUG DiscoveryBloc: Appel _getDiscoveryProfiles use case');
       // Charger les profils en premier (priorité)
-      final result =
-          await _matchRepository.getDiscoveryProfiles(limit: event.limit);
+      final params = GetDiscoveryProfilesParams.initial(limit: event.limit);
+      final result = await _getDiscoveryProfiles(params);
 
       result.fold(
         (failure) {
@@ -71,7 +95,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
 
   Future<void> _loadDailyLimitInBackground() async {
     try {
-      final limitEither = await _matchRepository.getDailyLikeLimit();
+      final limitEither = await _getDailyLikeLimit();
       _dailyLimit = limitEither.fold((l) => null, (r) => r);
 
       // Mettre à jour l'état si on est toujours en mode chargé
@@ -112,7 +136,8 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
 
     switch (event.direction) {
       case SwipeDirection.right:
-        final either = await _matchRepository.likeProfile(currentProfile.id);
+        final params = LikeProfileParams(profileId: currentProfile.id);
+        final either = await _likeProfile(params);
         if (either.isLeft()) {
           emit(DiscoveryError(message: 'Erreur like'));
           return;
@@ -120,7 +145,8 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         result = either.getOrElse(() => const SwipeResult(isMatch: false));
         break;
       case SwipeDirection.left:
-        final either = await _matchRepository.dislikeProfile(currentProfile.id);
+        final params = DislikeProfileParams(profileId: currentProfile.id);
+        final either = await _dislikeProfile(params);
         if (either.isLeft()) {
           emit(DiscoveryError(message: 'Erreur dislike'));
           return;
@@ -128,8 +154,8 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         result = const SwipeResult(isMatch: false);
         break;
       case SwipeDirection.up:
-        final either =
-            await _matchRepository.superLikeProfile(currentProfile.id);
+        final params = SuperLikeProfileParams(profileId: currentProfile.id);
+        final either = await _superLikeProfile(params);
         if (either.isLeft()) {
           emit(DiscoveryError(message: 'Erreur super like'));
           return;
@@ -157,7 +183,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
 
     // Mettre à jour la limite quotidienne (si disponible via backend)
     if (event.direction == SwipeDirection.right) {
-      final limitEither = await _matchRepository.getDailyLikeLimit();
+      final limitEither = await _getDailyLikeLimit();
       _dailyLimit = limitEither.fold((l) => _dailyLimit, (r) => r);
     }
 
@@ -169,7 +195,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     if (_currentIndex > 0) {
-      final either = await _matchRepository.rewindLastSwipe();
+      final either = await _rewindSwipe();
       if (either.isLeft()) {
         final msg = either
             .swap()
@@ -188,7 +214,8 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     try {
-      final either = await _matchRepository.updateSearchFilters(event.filters);
+      final params = UpdateFiltersParams(filters: event.filters);
+      final either = await _updateFilters(params);
       either.fold(
         (failure) => emit(DiscoveryError(message: failure.message)),
         (_) => add(const LoadDiscoveryProfiles()),
@@ -202,7 +229,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     LoadDailyLimit event,
     Emitter<DiscoveryState> emit,
   ) async {
-    final either = await _matchRepository.getDailyLikeLimit();
+    final either = await _getDailyLikeLimit();
     _dailyLimit = either.fold((l) => null, (r) => r);
     if (state is DiscoveryLoaded && _dailyLimit != null) {
       _emitLoaded(emit);
@@ -250,10 +277,11 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     }
 
     try {
-      final result = await _matchRepository.getDiscoveryProfiles(
+      final params = GetDiscoveryProfilesParams(
         limit: event.limit,
         lastProfileId: _profiles.isNotEmpty ? _profiles.last.id : null,
       );
+      final result = await _getDiscoveryProfiles(params);
       result.fold(
         (failure) {
           print(
@@ -282,10 +310,11 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
 
   Future<void> _loadMoreProfiles() async {
     try {
-      final result = await _matchRepository.getDiscoveryProfiles(
+      final params = GetDiscoveryProfilesParams(
         limit: 20,
         lastProfileId: _profiles.isNotEmpty ? _profiles.last.id : null,
       );
+      final result = await _getDiscoveryProfiles(params);
       result.fold(
         (failure) {
           print(

@@ -18,6 +18,18 @@ import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
 import 'package:hivmeet/domain/usecases/chat/send_text_message.dart';
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
+import 'package:hivmeet/domain/usecases/match/get_discovery_profiles.dart';
+import 'package:hivmeet/domain/usecases/match/like_profile.dart';
+import 'package:hivmeet/domain/usecases/match/dislike_profile.dart';
+import 'package:hivmeet/domain/usecases/match/super_like_profile.dart';
+import 'package:hivmeet/domain/usecases/match/rewind_swipe.dart';
+import 'package:hivmeet/domain/usecases/match/update_filters.dart';
+import 'package:hivmeet/domain/usecases/match/get_daily_like_limit.dart';
+import 'package:hivmeet/domain/usecases/match/get_matches.dart';
+import 'package:hivmeet/domain/usecases/match/delete_match.dart';
+import 'package:hivmeet/domain/usecases/match/get_likes_received.dart';
+import 'package:hivmeet/domain/usecases/match/get_likes_received_count.dart';
+import 'package:hivmeet/domain/usecases/match/activate_boost.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
@@ -148,6 +160,55 @@ Future<void> configureDependencies() async {
     MarkMessageAsRead(getIt<MessageRepository>()),
   );
 
+  // 10.7. Use Cases pour Match/Discovery
+  getIt.registerSingleton<GetDiscoveryProfiles>(
+    GetDiscoveryProfiles(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<LikeProfile>(
+    LikeProfile(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<DislikeProfile>(
+    DislikeProfile(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<SuperLikeProfile>(
+    SuperLikeProfile(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<RewindSwipe>(
+    RewindSwipe(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<UpdateFilters>(
+    UpdateFilters(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<GetDailyLikeLimit>(
+    GetDailyLikeLimit(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<GetMatches>(
+    GetMatches(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<DeleteMatch>(
+    DeleteMatch(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<GetLikesReceived>(
+    GetLikesReceived(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<GetLikesReceivedCount>(
+    GetLikesReceivedCount(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<ActivateBoost>(
+    ActivateBoost(getIt<MatchRepository>()),
+  );
+
   // 11. BLoCs
   getIt.registerFactory<ConversationsBloc>(
     () => ConversationsBloc(
@@ -158,7 +219,15 @@ Future<void> configureDependencies() async {
   );
 
   getIt.registerFactory<DiscoveryBloc>(
-    () => DiscoveryBloc(matchRepository: getIt<MatchRepository>()),
+    () => DiscoveryBloc(
+      getDiscoveryProfiles: getIt<GetDiscoveryProfiles>(),
+      likeProfile: getIt<LikeProfile>(),
+      dislikeProfile: getIt<DislikeProfile>(),
+      superLikeProfile: getIt<SuperLikeProfile>(),
+      rewindSwipe: getIt<RewindSwipe>(),
+      updateFilters: getIt<UpdateFilters>(),
+      getDailyLikeLimit: getIt<GetDailyLikeLimit>(),
+    ),
   );
 
   getIt.registerFactory<ResourcesBloc>(
