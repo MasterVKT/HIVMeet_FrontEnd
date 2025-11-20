@@ -458,8 +458,24 @@ class MatchRepositoryImpl implements MatchRepository {
                         {};
 
     // Calculer la date de naissance à partir de l'âge
-    final age = profileData['age'] as int? ?? 25;
-    final birthDate = DateTime.now().subtract(Duration(days: age * 365));
+    final age = profileData['age'] as int?;
+    final birthDate = age != null
+        ? DateTime.now().subtract(Duration(days: age * 365))
+        : profileData['birth_date'] != null
+            ? DateTime.parse(profileData['birth_date'] as String)
+            : DateTime.now().subtract(const Duration(days: 365 * 25));
+
+    // Parse location - vérifier dans location object ou directement dans profileData
+    final locationData = profileData['location'] as Map<String, dynamic>?;
+    final latitude = locationData != null
+        ? (locationData['latitude'] as num?)?.toDouble()
+        : (profileData['latitude'] as num?)?.toDouble();
+    final longitude = locationData != null
+        ? (locationData['longitude'] as num?)?.toDouble()
+        : (profileData['longitude'] as num?)?.toDouble();
+    final geohash = locationData?['geohash'] as String? ??
+        profileData['geohash'] as String? ??
+        '';
 
     final profile = Profile(
       id: profileData['id'] as String? ?? json['matched_user_id'] as String,
@@ -470,9 +486,9 @@ class MatchRepositoryImpl implements MatchRepository {
       birthDate: birthDate,
       bio: profileData['bio'] as String? ?? '',
       location: Location(
-        latitude: (profileData['latitude'] as num?)?.toDouble() ?? 0.0,
-        longitude: (profileData['longitude'] as num?)?.toDouble() ?? 0.0,
-        geohash: profileData['geohash'] as String? ?? '',
+        latitude: latitude ?? 0.0,
+        longitude: longitude ?? 0.0,
+        geohash: geohash,
       ),
       city: profileData['city'] as String? ?? '',
       country: profileData['country'] as String? ?? '',
