@@ -87,28 +87,20 @@ class PremiumRepositoryImpl implements PremiumRepository {
 
   @override
   Future<Either<Failure, PaymentResult>> purchasePlan(String planId) async {
-    try {
-      final sessionResult = await createPaymentSession(planId);
-      return sessionResult.fold(
-        (failure) => Left(failure),
-        (session) async {
-          // Dans une vraie app, on redirigerait vers l'URL de paiement
-          // et attendrait le callback de validation
-          // Pour la démo, on simule un paiement réussi
-          return const Right(PaymentResult(
-            status: PaymentStatus.succeeded,
-            subscriptionId: 'sub_demo',
-            activatedAt: null,
-            featuresUnlocked: ['unlimited_likes', 'see_who_liked'],
-          ));
-        },
-      );
-    } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
-    } catch (e) {
-      return Left(
-          ServerFailure(message: 'Erreur lors de l\'achat du plan: $e'));
-    }
+    // IMPORTANT: Cette méthode NE DOIT PAS simuler de paiement!
+    // Le vrai flux est:
+    // 1. Frontend appelle createPaymentSession() pour obtenir l'URL
+    // 2. Frontend redirige l'utilisateur vers l'URL de paiement
+    // 3. Utilisateur paie sur la plateforme de paiement
+    // 4. Webhook backend valide le paiement et active l'abonnement
+    // 5. Frontend poll getCurrentSubscription() pour vérifier l'activation
+    //
+    // Cette méthode ne devrait PAS être utilisée directement.
+    // Utiliser createPaymentSession() à la place.
+    return Left(ServerFailure(
+      message: 'Utiliser createPaymentSession() puis rediriger vers payment_url. '
+          'Le paiement est validé via webhook backend, pas par le frontend.',
+    ));
   }
 
   @override

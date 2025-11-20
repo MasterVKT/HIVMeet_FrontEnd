@@ -262,12 +262,13 @@ class ResourceRepositoryImpl implements ResourceRepository {
     required String postId,
     required String reason,
   }) async {
-    try {
-      // TODO: Implémenter l'API de signalement
-      return const Right(null);
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
+    // TODO: L'API de signalement de posts n'existe pas encore dans le backend
+    // Endpoint attendu: POST /api/v1/feed/posts/{postId}/report
+    // Body: { reason: string, details?: string }
+    return Left(ServerFailure(
+      message: 'Le signalement de posts n\'est pas encore disponible. '
+          'Cette fonctionnalité sera ajoutée prochainement.',
+    ));
   }
 
   // Méthodes helper pour le mapping
