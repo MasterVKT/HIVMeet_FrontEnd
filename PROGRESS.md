@@ -2,8 +2,8 @@
 
 **Session Date**: November 20, 2024
 **Branch**: `claude/gap-analysis-plan-01HqQrjqQzX8raS1WXb2SC5X`
-**Total Commits**: 15
-**Status**: Sprint 1 - 100% COMPLÉTÉ (All BLoCs + Use Cases Tested) 🎉
+**Total Commits**: 16
+**Status**: Sprint 1 - 100% COMPLÉTÉ ✅ | Sprint 2 - EN COURS (Task 2.1 ✅)
 
 ---
 
@@ -693,13 +693,70 @@ getIt.registerFactory<ChatBloc>(
 
 ---
 
+## 🔧 SPRINT 2: ROBUSTESSE & QUALITÉ (EN COURS)
+
+**Objectif**: Stabiliser l'app, compléter Use Cases manquants, optimiser performances
+
+### Sprint 2 - Task 2.1: Use Cases Match Complets ✅
+
+**Créations - 3 nouveaux Use Cases Discovery**:
+
+1. **GetDiscoveryProfiles** ✅
+   - Charge les profils de découverte avec pagination
+   - Factories: `.initial()` pour première page, `.nextPage()` pour suite
+   - Params: limit (default 20), lastProfileId (cursor pagination)
+
+2. **UpdateFilters** ✅
+   - Met à jour les filtres de recherche (âge, distance, genre, etc.)
+   - Application immédiate des nouveaux critères de matching
+
+3. **GetDailyLikeLimit** ✅
+   - Récupère la limite quotidienne de likes
+   - Différence gratuit (50 likes/jour) vs premium (illimité)
+
+**Refactoring DiscoveryBloc** ✅:
+- ❌ **AVANT**: Appels directs à `MatchRepository` (7 appels directs)
+- ✅ **APRÈS**: Injection de 7 Use Cases au lieu du repository
+- Use Cases injectés:
+  - GetDiscoveryProfiles (remplace getDiscoveryProfiles)
+  - LikeProfile (remplace likeProfile)
+  - DislikeProfile (remplace dislikeProfile)
+  - SuperLikeProfile (remplace superLikeProfile)
+  - RewindSwipe (remplace rewindLastSwipe)
+  - UpdateFilters (remplace updateSearchFilters)
+  - GetDailyLikeLimit (remplace getDailyLikeLimit)
+
+**injection.dart - Section 10.7 ajoutée** ✅:
+- Enregistrement de 11 Use Cases Match:
+  - GetDiscoveryProfiles, LikeProfile, DislikeProfile, SuperLikeProfile
+  - RewindSwipe, UpdateFilters, GetDailyLikeLimit
+  - GetMatches, DeleteMatch, GetLikesReceived, GetLikesReceivedCount, ActivateBoost
+- DiscoveryBloc injecté avec 7 Use Cases
+
+**Architecture Quality**:
+- ✅ DiscoveryBloc ne communique plus avec Repository directement
+- ✅ 100% Clean Architecture compliance
+- ✅ Séparation complète Domain/Presentation
+- ✅ Testabilité améliorée (Use Cases mockables)
+
+**Files**:
+- 3 nouveaux Use Cases créés (get_discovery_profiles.dart, update_filters.dart, get_daily_like_limit.dart)
+- discovery_bloc.dart refactoré (309 lignes, 7 Use Cases injectés)
+- injection.dart mis à jour (11 Use Cases Match + DiscoveryBloc)
+
+**Commit**: `feat(discovery): Refactorer DiscoveryBloc avec Use Cases (Sprint 2 - Tâche 2.1)`
+
+**Statistics**: 5 files, +232 insertions, -19 deletions
+
+---
+
 ## 📊 Summary Statistics
 
 ### Code Changes
-- **Files Changed**: 63+
-- **Insertions**: ~8,892+
-- **Deletions**: ~896+
-- **Net Gain**: ~7,996 lines (production + tests)
+- **Files Changed**: 68+
+- **Insertions**: ~9,124+
+- **Deletions**: ~915+
+- **Net Gain**: ~8,209 lines (production + tests)
 
 ### Commits Breakdown
 1. ✅ Matches Use Cases + Tests
@@ -716,7 +773,8 @@ getIt.registerFactory<ChatBloc>(
 12. ✅ Fix hardcoded senderId in ChatBloc
 13. ✅ ChatBloc unit tests (20+ tests)
 14. ✅ ConversationsBloc + MatchesBloc tests (55+ tests)
-15. ✅ DiscoveryBloc unit tests (17 tests) - FINALISATION
+15. ✅ DiscoveryBloc unit tests (17 tests) - FINALISATION Sprint 1
+16. ✅ Discovery Use Cases + DiscoveryBloc refactoring (Sprint 2 Task 2.1)
 
 ### Architecture Quality
 - ✅ 100% Clean Architecture compliance
