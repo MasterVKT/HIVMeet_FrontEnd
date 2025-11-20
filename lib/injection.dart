@@ -30,6 +30,11 @@ import 'package:hivmeet/domain/usecases/match/delete_match.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received_count.dart';
 import 'package:hivmeet/domain/usecases/match/activate_boost.dart';
+import 'package:hivmeet/domain/usecases/resources/get_resources.dart';
+import 'package:hivmeet/domain/usecases/resources/get_feed_posts.dart';
+import 'package:hivmeet/domain/usecases/resources/like_post.dart';
+import 'package:hivmeet/domain/usecases/resources/comment_post.dart';
+import 'package:hivmeet/domain/usecases/resources/add_to_favorites.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
@@ -209,6 +214,27 @@ Future<void> configureDependencies() async {
     ActivateBoost(getIt<MatchRepository>()),
   );
 
+  // 10.8. Use Cases pour Resources/Feed
+  getIt.registerSingleton<GetResources>(
+    GetResources(getIt<ResourceRepository>()),
+  );
+
+  getIt.registerSingleton<GetFeedPosts>(
+    GetFeedPosts(getIt<ResourceRepository>()),
+  );
+
+  getIt.registerSingleton<LikePost>(
+    LikePost(getIt<ResourceRepository>()),
+  );
+
+  getIt.registerSingleton<CommentPost>(
+    CommentPost(getIt<ResourceRepository>()),
+  );
+
+  getIt.registerSingleton<AddToFavorites>(
+    AddToFavorites(getIt<ResourceRepository>()),
+  );
+
   // 11. BLoCs
   getIt.registerFactory<ConversationsBloc>(
     () => ConversationsBloc(
@@ -231,7 +257,10 @@ Future<void> configureDependencies() async {
   );
 
   getIt.registerFactory<ResourcesBloc>(
-    () => ResourcesBloc(getIt<ResourceRepository>()),
+    () => ResourcesBloc(
+      getResources: getIt<GetResources>(),
+      addToFavorites: getIt<AddToFavorites>(),
+    ),
   );
 
   getIt.registerFactory<ChatBloc>(
