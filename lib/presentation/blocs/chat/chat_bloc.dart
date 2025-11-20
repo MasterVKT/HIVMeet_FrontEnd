@@ -9,6 +9,7 @@ import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
 import 'package:hivmeet/domain/usecases/chat/send_text_message.dart' as send_text;
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
+import 'package:hivmeet/core/services/authentication_service.dart';
 
 part 'chat_event.dart';
 part 'chat_state.dart';
@@ -30,6 +31,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final send_text.SendTextMessage _sendTextMessage;
   final SendMediaMessage _sendMediaMessage;
   final MarkMessageAsRead _markMessageAsRead;
+  final AuthenticationService _authService;
 
   // État interne pour pagination
   String? _conversationId;
@@ -41,10 +43,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required send_text.SendTextMessage sendTextMessage,
     required SendMediaMessage sendMediaMessage,
     required MarkMessageAsRead markMessageAsRead,
+    required AuthenticationService authService,
   })  : _getMessages = getMessages,
         _sendTextMessage = sendTextMessage,
         _sendMediaMessage = sendMediaMessage,
         _markMessageAsRead = markMessageAsRead,
+        _authService = authService,
         super(ChatInitial()) {
     on<LoadConversation>(_onLoadConversation);
     on<LoadMoreMessages>(_onLoadMoreMessages);
@@ -131,10 +135,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (currentState is! ChatLoaded || _conversationId == null) return;
 
     // Créer message optimiste
+    final currentUserId = _authService.currentUser?.id ?? 'unknown';
     final optimisticMessage = Message(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       conversationId: _conversationId!,
-      senderId: 'current_user', // TODO: Obtenir du AuthService
+      senderId: currentUserId,
       content: event.content,
       type: MessageType.text,
       createdAt: DateTime.now(),
@@ -188,10 +193,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (currentState is! ChatLoaded || _conversationId == null) return;
 
     // Créer message optimiste
+    final currentUserId = _authService.currentUser?.id ?? 'unknown';
     final optimisticMessage = Message(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       conversationId: _conversationId!,
-      senderId: 'current_user', // TODO: Obtenir du AuthService
+      senderId: currentUserId,
       content: '',
       type: event.type,
       createdAt: DateTime.now(),

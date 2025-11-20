@@ -171,6 +171,7 @@ Future<void> configureDependencies() async {
       sendTextMessage: getIt<SendTextMessage>(),
       sendMediaMessage: getIt<SendMediaMessage>(),
       markMessageAsRead: getIt<MarkMessageAsRead>(),
+      authService: getIt<AuthenticationService>(),
     ),
   );
 
