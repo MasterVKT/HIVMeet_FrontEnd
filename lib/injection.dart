@@ -9,7 +9,11 @@ import 'package:hivmeet/core/services/network_connectivity_service.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
 import 'package:hivmeet/data/datasources/remote/settings_api.dart';
 import 'package:hivmeet/data/datasources/remote/messaging_api.dart';
-import 'package:hivmeet/data/repositories/messaging_repository.dart';
+import 'package:hivmeet/data/repositories/message_repository_impl.dart';
+import 'package:hivmeet/domain/repositories/message_repository.dart';
+import 'package:hivmeet/domain/usecases/message/get_conversations.dart';
+import 'package:hivmeet/domain/usecases/message/send_message.dart';
+import 'package:hivmeet/domain/usecases/message/mark_as_read.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/data/repositories/match_repository_impl.dart';
@@ -96,8 +100,8 @@ Future<void> configureDependencies() async {
   );
 
   // 9. Repositories
-  getIt.registerSingleton<MessagingRepository>(
-    MessagingRepository(getIt<MessagingApi>()),
+  getIt.registerSingleton<MessageRepository>(
+    MessageRepositoryImpl(getIt<MessagingApi>()),
   );
 
   getIt.registerSingleton<ResourceRepository>(
@@ -109,9 +113,26 @@ Future<void> configureDependencies() async {
     MatchRepositoryImpl(getIt<MatchingApi>()),
   );
 
+  // 10.5. Use Cases pour Messages/Conversations
+  getIt.registerSingleton<GetConversations>(
+    GetConversations(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<SendMessage>(
+    SendMessage(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<MarkAsRead>(
+    MarkAsRead(getIt<MessageRepository>()),
+  );
+
   // 11. BLoCs
   getIt.registerFactory<ConversationsBloc>(
-    () => ConversationsBloc(getIt<MessagingRepository>()),
+    () => ConversationsBloc(
+      getConversations: getIt<GetConversations>(),
+      sendMessage: getIt<SendMessage>(),
+      markAsRead: getIt<MarkAsRead>(),
+    ),
   );
 
   getIt.registerFactory<DiscoveryBloc>(
