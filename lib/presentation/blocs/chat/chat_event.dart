@@ -16,32 +16,24 @@ class LoadConversation extends ChatEvent {
 
 class LoadMoreMessages extends ChatEvent {}
 
-class SendTextMessage extends ChatEvent {
+class SendTextMessageEvent extends ChatEvent {
   final String content;
-  const SendTextMessage({required this.content});
+  const SendTextMessageEvent({required this.content});
   @override
   List<Object> get props => [content];
 }
 
-class SendMediaMessage extends ChatEvent {
+class SendMediaMessageEvent extends ChatEvent {
   final File mediaFile;
   final MessageType type;
-  const SendMediaMessage({required this.mediaFile, required this.type});
+  const SendMediaMessageEvent({required this.mediaFile, required this.type});
   @override
   List<Object> get props => [mediaFile, type];
 }
 
-class MarkAsRead extends ChatEvent {
-  final String conversationId;
+class MarkAsReadEvent extends ChatEvent {
   final String messageId;
-  const MarkAsRead(this.conversationId, this.messageId);
-  @override
-  List<Object> get props => [conversationId, messageId];
-}
-
-class DeleteMessage extends ChatEvent {
-  final String messageId;
-  const DeleteMessage({required this.messageId});
+  const MarkAsReadEvent({required this.messageId});
   @override
   List<Object> get props => [messageId];
 }

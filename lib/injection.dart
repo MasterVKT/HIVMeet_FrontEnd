@@ -14,7 +14,12 @@ import 'package:hivmeet/domain/repositories/message_repository.dart';
 import 'package:hivmeet/domain/usecases/message/get_conversations.dart';
 import 'package:hivmeet/domain/usecases/message/send_message.dart';
 import 'package:hivmeet/domain/usecases/message/mark_as_read.dart';
+import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
+import 'package:hivmeet/domain/usecases/chat/send_text_message.dart';
+import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
+import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
+import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/data/repositories/match_repository_impl.dart';
 import 'package:hivmeet/data/datasources/remote/matching_api.dart';
@@ -126,6 +131,23 @@ Future<void> configureDependencies() async {
     MarkAsRead(getIt<MessageRepository>()),
   );
 
+  // 10.6. Use Cases pour Chat
+  getIt.registerSingleton<GetMessages>(
+    GetMessages(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<SendTextMessage>(
+    SendTextMessage(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<SendMediaMessage>(
+    SendMediaMessage(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<MarkMessageAsRead>(
+    MarkMessageAsRead(getIt<MessageRepository>()),
+  );
+
   // 11. BLoCs
   getIt.registerFactory<ConversationsBloc>(
     () => ConversationsBloc(
@@ -141,6 +163,15 @@ Future<void> configureDependencies() async {
 
   getIt.registerFactory<ResourcesBloc>(
     () => ResourcesBloc(getIt<ResourceRepository>()),
+  );
+
+  getIt.registerFactory<ChatBloc>(
+    () => ChatBloc(
+      getMessages: getIt<GetMessages>(),
+      sendTextMessage: getIt<SendTextMessage>(),
+      sendMediaMessage: getIt<SendMediaMessage>(),
+      markMessageAsRead: getIt<MarkMessageAsRead>(),
+    ),
   );
 
   // 12. BLoCs pour les autres pages (enregistrement temporaire)
