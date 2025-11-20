@@ -45,6 +45,20 @@ import 'package:hivmeet/data/datasources/remote/resources_api.dart';
 import 'package:hivmeet/data/repositories/resource_repository_impl.dart';
 import 'package:hivmeet/domain/repositories/resource_repository.dart';
 import 'package:hivmeet/presentation/blocs/resources/resources_bloc.dart';
+import 'package:hivmeet/data/datasources/remote/profile_api.dart';
+import 'package:hivmeet/data/repositories/profile_repository_impl.dart';
+import 'package:hivmeet/domain/repositories/profile_repository.dart';
+import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
+import 'package:hivmeet/domain/usecases/profile/update_profile.dart';
+import 'package:hivmeet/domain/usecases/profile/upload_photo.dart';
+import 'package:hivmeet/domain/usecases/profile/delete_photo.dart';
+import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart';
+import 'package:hivmeet/domain/usecases/profile/reorder_photos.dart';
+import 'package:hivmeet/domain/usecases/profile/update_location.dart';
+import 'package:hivmeet/domain/usecases/profile/block_user.dart';
+import 'package:hivmeet/domain/usecases/profile/unblock_user.dart';
+import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart';
+import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
 // Note: AuthBloc classique temporairement désactivé
 // import 'package:hivmeet/presentation/blocs/auth/auth_bloc.dart';
 // import 'package:hivmeet/domain/repositories/auth_repository.dart';
@@ -121,6 +135,10 @@ Future<void> configureDependencies() async {
     MatchingApi(getIt<ApiClient>()),
   );
 
+  getIt.registerSingleton<ProfileApi>(
+    ProfileApi(getIt<ApiClient>()),
+  );
+
   // 9. Repositories
   getIt.registerSingleton<MessageRepository>(
     MessageRepositoryImpl(getIt<MessagingApi>()),
@@ -133,6 +151,10 @@ Future<void> configureDependencies() async {
   // 10. Repositories - Utiliser le vrai repository
   getIt.registerSingleton<MatchRepository>(
     MatchRepositoryImpl(getIt<MatchingApi>()),
+  );
+
+  getIt.registerSingleton<ProfileRepository>(
+    ProfileRepositoryImpl(getIt<ProfileApi>()),
   );
 
   // 10.5. Use Cases pour Messages/Conversations
@@ -235,6 +257,47 @@ Future<void> configureDependencies() async {
     AddToFavorites(getIt<ResourceRepository>()),
   );
 
+  // 10.9. Use Cases pour Profile
+  getIt.registerSingleton<GetCurrentProfile>(
+    GetCurrentProfile(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<UpdateProfile>(
+    UpdateProfile(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<UploadPhoto>(
+    UploadPhoto(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<DeletePhoto>(
+    DeletePhoto(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<SetMainPhoto>(
+    SetMainPhoto(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<ReorderPhotos>(
+    ReorderPhotos(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<UpdateLocation>(
+    UpdateLocation(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<BlockUser>(
+    BlockUser(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<UnblockUser>(
+    UnblockUser(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerSingleton<ToggleProfileVisibility>(
+    ToggleProfileVisibility(getIt<ProfileRepository>()),
+  );
+
   // 11. BLoCs
   getIt.registerFactory<ConversationsBloc>(
     () => ConversationsBloc(
@@ -270,6 +333,22 @@ Future<void> configureDependencies() async {
       sendMediaMessage: getIt<SendMediaMessage>(),
       markMessageAsRead: getIt<MarkMessageAsRead>(),
       authService: getIt<AuthenticationService>(),
+    ),
+  );
+
+  getIt.registerFactory<ProfileBloc>(
+    () => ProfileBloc(
+      getCurrentProfile: getIt<GetCurrentProfile>(),
+      updateProfile: getIt<UpdateProfile>(),
+      uploadPhoto: getIt<UploadPhoto>(),
+      deletePhoto: getIt<DeletePhoto>(),
+      setMainPhoto: getIt<SetMainPhoto>(),
+      reorderPhotos: getIt<ReorderPhotos>(),
+      updateLocation: getIt<UpdateLocation>(),
+      blockUser: getIt<BlockUser>(),
+      unblockUser: getIt<UnblockUser>(),
+      toggleProfileVisibility: getIt<ToggleProfileVisibility>(),
+      profileRepository: getIt<ProfileRepository>(),
     ),
   );
 
