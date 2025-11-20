@@ -2,11 +2,9 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
-import 'package:hivmeet/core/error/exceptions.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/data/datasources/remote/profile_api.dart';
-import 'package:hivmeet/data/models/profile_model.dart';
 
 @LazySingleton(as: ProfileRepository)
 class ProfileRepositoryImpl implements ProfileRepository {

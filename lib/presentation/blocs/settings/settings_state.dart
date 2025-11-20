@@ -1,6 +1,4 @@
-// lib/presentation/blocs/settings/settings_state.dart
-
-import 'package:equatable/equatable.dart';
+part of 'settings_bloc.dart';
 
 abstract class SettingsState extends Equatable {
   const SettingsState();
@@ -86,9 +84,7 @@ class SettingsLoaded extends SettingsState {
 
 class SettingsError extends SettingsState {
   final String message;
-
   const SettingsError({required this.message});
-
   @override
   List<Object> get props => [message];
 }

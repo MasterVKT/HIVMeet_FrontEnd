@@ -10,9 +10,22 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 
+/// Module d'injection pour les dépendances externes
 @module
 abstract class InjectionModule {
-  @lazySingleton
+  /// Instance de FlutterSecureStorage avec configuration sécurisée
+  @singleton
+  FlutterSecureStorage get secureStorage => const FlutterSecureStorage(
+        aOptions: AndroidOptions(
+          encryptedSharedPreferences: true,
+        ),
+        iOptions: IOSOptions(
+          accessibility: KeychainAccessibility.first_unlock_this_device,
+        ),
+      );
+
+  /// Instance de FirebaseAuth
+  @singleton
   FirebaseAuth get firebaseAuth => FirebaseAuth.instance;
 
   @lazySingleton
@@ -24,9 +37,6 @@ abstract class InjectionModule {
   @lazySingleton
   FirebaseMessaging get firebaseMessaging => FirebaseMessaging.instance;
 
-  @lazySingleton
-  FlutterSecureStorage get secureStorage => const FlutterSecureStorage();
-
   @preResolve
   Future<SharedPreferences> get sharedPreferences =>
       SharedPreferences.getInstance();
@@ -36,7 +46,7 @@ abstract class InjectionModule {
     final dio = Dio();
     dio.options.baseUrl = const String.fromEnvironment(
       'API_URL',
-      defaultValue: 'https://dev.hivmeet.api/api/v1/',
+      defaultValue: 'http://10.0.2.2:8000/api/v1/',
     );
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);

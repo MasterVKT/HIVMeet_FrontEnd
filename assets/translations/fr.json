@@ -1,45 +1,60 @@
 {
-  "app": {
-    "name": "HIVMeet",
-    "tagline": "Rencontres authentiques, communauté bienveillante"
-  },
-  "auth": {
-    "login": "Connexion",
-    "register": "Inscription",
-    "email": "Email",
-    "password": "Mot de passe",
-    "confirm_password": "Confirmer le mot de passe",
-    "forgot_password": "Mot de passe oublié ?",
-    "remember_me": "Se souvenir de moi",
-    "sign_in": "Se connecter",
-    "sign_up": "S'inscrire",
-    "welcome_back": "Bon retour !",
-    "connect_to_continue": "Connectez-vous pour continuer",
-    "email_required": "L'email est requis",
-    "email_invalid": "Email invalide",
-    "password_required": "Le mot de passe est requis"
-  },
-  "profile": {
-    "profile": "Profil",
-    "my_profile": "Mon profil",
-    "edit_profile": "Modifier le profil",
-    "display_name": "Nom d'affichage",
-    "age": "Âge",
-    "bio": "À propos de moi",
-    "interests": "Centres d'intérêt"
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "apply": "Appliquer",
+    "close": "Fermer",
+    "reset": "Réinitialiser",
+    "save": "Sauvegarder",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "view_profile": "Voir le profil",
+    "send_message": "Envoyer un message",
+    "report": "Signaler",
+    "block": "Bloquer"
   },
   "discovery": {
-    "discovery": "Découverte",
+    "title": "Découverte",
     "like": "J'aime",
     "dislike": "Passer",
     "super_like": "Super Like",
-    "its_a_match": "C'est un match !"
+    "online_now": "En ligne maintenant",
+    "compatibility": "{percent}% de compatibilité",
+    "likes_remaining": "{count} likes restants",
+    "loading_more": "Chargement de nouveaux profils...",
+    "daily_limit_reached_title": "Limite quotidienne atteinte",
+    "daily_limit_reached_message": "Vous avez utilisé vos {limit} likes quotidiens. Revenez dans {resetTime} pour continuer à découvrir de nouveaux profils.",
+    "upgrade_premium": "Passer à Premium",
+    "no_more_profiles_title": "Plus de profils",
+    "no_more_profiles_message": "Vous avez vu tous les profils disponibles dans votre région. Ajustez vos filtres pour découvrir plus de personnes.",
+    "adjust_filters": "Ajuster les filtres",
+    "its_a_match": "C'est un match !",
+    "match_message": "Vous et {name} vous êtes aimés !",
+    "match_subtitle": "Commencez une conversation maintenant",
+    "continue_swiping": "Continuer à swiper",
+    "send_message": "Envoyer un message",
+    "common_interests": "Intérêts communs",
+    "interests_subtitle": "Découvrez ce qui vous rapproche",
+    "no_interests": "Aucun intérêt partagé pour le moment",
+    "filters": "Filtres",
+    "age_range": "Tranche d'âge",
+    "distance": "Distance",
+    "relationship_type": "Type de relation",
+    "interests": "Centres d'intérêt",
+    "verified_only": "Profils vérifiés uniquement",
+    "max_interests_selected": "Maximum 5 intérêts sélectionnés",
+    "any": "Tous",
+    "friendship": "Amitié",
+    "relationship": "Relation sérieuse",
+    "casual": "Rencontre occasionnelle"
   },
-  "common": {
-    "ok": "OK",
-    "cancel": "Annuler",
-    "save": "Sauvegarder",
-    "loading": "Chargement...",
-    "error": "Erreur"
+  "profile": {
+    "interests": "Centres d'intérêt",
+    "report_user": "Signaler cet utilisateur",
+    "report_message": "Êtes-vous sûr de vouloir signaler cet utilisateur ? Cette action sera examinée par notre équipe de modération.",
+    "block_user": "Bloquer cet utilisateur",
+    "block_message": "Êtes-vous sûr de vouloir bloquer cet utilisateur ? Vous ne pourrez plus voir son profil ni recevoir de messages de sa part."
   }
 }

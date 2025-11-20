@@ -1,15 +1,14 @@
 buildscript {
-    ext.kotlin_version = '2.1.0'
+    ext.kotlin_version = '1.9.22'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.7.2'
+        classpath 'com.android.tools.build:gradle:8.4.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'com.google.gms:google-services:4.4.2'
-        classpath 'com.google.firebase:firebase-crashlytics-gradle:3.0.2'
+        classpath 'com.google.gms:google-services:4.4.1'
     }
 }
 
@@ -20,11 +19,27 @@ allprojects {
     }
 }
 
-// Using default build directory to avoid path conflicts with plugins
-// rootProject.buildDir = '../build'
-// subprojects {
-//     project.buildDir = "${rootProject.buildDir}/${project.name}"
-// }
+// Configuration pour gérer le cache pub personnalisé
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            // Résoudre les problèmes de plugins manquants
+            project.android {
+                lintOptions {
+                    checkReleaseBuilds false
+                    abortOnError false
+                }
+            }
+        }
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+
+// Correction pour l'ordre d'évaluation des projets
 subprojects {
     project.evaluationDependsOn(':app')
 }

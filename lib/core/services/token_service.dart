@@ -49,7 +49,7 @@ class TokenService {
 
         if (accessToken != null && refreshToken != null) {
           await _storeTokens(accessToken, refreshToken);
-          _apiClient.setAccessToken(accessToken);
+          // Note: Token géré automatiquement via Firebase Auth dans ApiClient
           return true;
         }
       }
@@ -95,7 +95,7 @@ class TokenService {
         if (newAccessToken != null) {
           await _secureStorage.write(
               key: _jwtAccessTokenKey, value: newAccessToken);
-          _apiClient.setAccessToken(newAccessToken);
+          // Note: Token géré automatiquement via Firebase Auth dans ApiClient
 
           if (newRefreshToken != null) {
             await _secureStorage.write(
@@ -119,7 +119,7 @@ class TokenService {
       _secureStorage.delete(key: _jwtAccessTokenKey),
       _secureStorage.delete(key: _jwtRefreshTokenKey),
     ]);
-    _apiClient.setAccessToken(null);
+    // Note: Token géré automatiquement via Firebase Auth dans ApiClient
   }
 
   /// Vérifie si l'utilisateur est authentifié

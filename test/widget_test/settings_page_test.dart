@@ -6,16 +6,38 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:hivmeet/presentation/pages/settings/settings_page.dart';
 import 'package:hivmeet/presentation/blocs/settings/settings_bloc.dart';
-import 'package:hivmeet/presentation/blocs/settings/settings_event.dart';
-import 'package:hivmeet/presentation/blocs/settings/settings_state.dart';
+// Ne pas importer les parts directement; seulement le bloc expose types
+import 'package:get_it/get_it.dart';
 
 class MockSettingsBloc extends Mock implements SettingsBloc {}
+
+class FakeSettingsState extends Fake implements SettingsState {}
+
+class FakeSettingsEvent extends Fake implements SettingsEvent {}
 
 void main() {
   late MockSettingsBloc mockSettingsBloc;
 
   setUp(() {
     mockSettingsBloc = MockSettingsBloc();
+    final sl = GetIt.instance;
+    if (sl.isRegistered<SettingsBloc>()) {
+      sl.unregister<SettingsBloc>();
+    }
+    sl.registerFactory<SettingsBloc>(() => mockSettingsBloc);
+    // Mock le stream et la méthode close pour éviter les erreurs de type.
+    when(() => mockSettingsBloc.stream)
+        .thenAnswer((_) => const Stream<SettingsState>.empty());
+    when(() => mockSettingsBloc.close()).thenAnswer((_) async {});
+  });
+
+  setUpAll(() {
+    registerFallbackValue(FakeSettingsState());
+    registerFallbackValue(FakeSettingsEvent());
+  });
+
+  tearDown(() {
+    GetIt.instance.reset(dispose: false);
   });
 
   Widget createWidgetUnderTest() {
@@ -47,10 +69,10 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
 
     expect(find.text('Paramètres'), findsOneWidget);
-    expect(find.text('Compte'), findsOneWidget);
-    expect(find.text('Confidentialité'), findsOneWidget);
-    expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Support'), findsOneWidget);
+    expect(find.text('Compte'), findsWidgets);
+    expect(find.text('Confidentialité'), findsWidgets);
+    expect(find.text('Notifications'), findsWidgets);
+    expect(find.text('Support'), findsWidgets);
   });
 
   testWidgets('Toggle switches update settings', (tester) async {

@@ -2,15 +2,20 @@
 
 import 'package:equatable/equatable.dart';
 
+enum MessageType { text, image, video, voice, system }
+
+enum MessageStatus { sending, sent, delivered, read, failed }
+
 class Message extends Equatable {
   final String id;
   final String conversationId;
   final String senderId;
   final String content;
   final MessageType type;
-  final String? mediaUrl;
   final DateTime createdAt;
   final bool isRead;
+  final bool isDelivered;
+  final String? mediaUrl;
   final Map<String, String> reactions;
   final MessageStatus status;
 
@@ -20,40 +25,48 @@ class Message extends Equatable {
     required this.senderId,
     required this.content,
     required this.type,
-    this.mediaUrl,
     required this.createdAt,
-    required this.isRead,
+    this.isRead = false,
+    this.isDelivered = false,
+    this.mediaUrl,
     this.reactions = const {},
     required this.status,
   });
 
-  // Propriété de compatibilité pour résoudre les erreurs
-  DateTime get sentAt => createdAt;
-
-  Message copyWith({
-    String? id,
-    String? conversationId,
-    String? senderId,
-    String? content,
-    MessageType? type,
-    String? mediaUrl,
-    DateTime? createdAt,
-    bool? isRead,
-    Map<String, String>? reactions,
-    MessageStatus? status,
-  }) {
+  factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
-      id: id ?? this.id,
-      conversationId: conversationId ?? this.conversationId,
-      senderId: senderId ?? this.senderId,
-      content: content ?? this.content,
-      type: type ?? this.type,
-      mediaUrl: mediaUrl ?? this.mediaUrl,
-      createdAt: createdAt ?? this.createdAt,
-      isRead: isRead ?? this.isRead,
-      reactions: reactions ?? this.reactions,
-      status: status ?? this.status,
+      id: json['id'] as String,
+      conversationId: json['conversation_id'] as String,
+      senderId: json['sender_id'] as String,
+      content: json['content'] as String,
+      type: MessageType.values.firstWhere(
+          (e) => e.toString() == 'MessageType.${json['type'] as String}'),
+      createdAt: DateTime.parse(json['timestamp'] as String),
+      isRead: json['is_read'] as bool,
+      isDelivered: json['is_delivered'] as bool,
+      mediaUrl: json['mediaUrl'] as String?,
+      reactions: (json['reactions'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v as String)) ??
+          {},
+      status: MessageStatus.values.firstWhere(
+          (e) => e.toString() == 'MessageStatus.${json['status'] as String}'),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'conversation_id': conversationId,
+      'sender_id': senderId,
+      'content': content,
+      'type': type.toString().split('.').last,
+      'timestamp': createdAt.toIso8601String(),
+      'is_read': isRead,
+      'is_delivered': isDelivered,
+      'mediaUrl': mediaUrl,
+      'reactions': reactions,
+      'status': status.toString().split('.').last,
+    };
   }
 
   @override
@@ -63,44 +76,53 @@ class Message extends Equatable {
         senderId,
         content,
         type,
-        mediaUrl,
         createdAt,
         isRead,
+        isDelivered,
+        mediaUrl,
         reactions,
-        status,
+        status
       ];
 }
 
-enum MessageType { text, image, video, audio }
-
-enum MessageStatus { sending, sent, delivered, read, failed }
-
 class Conversation extends Equatable {
   final String id;
-  final List<String> participants;
+  final List<String> participantIds;
   final Message? lastMessage;
-  final Map<String, int> unreadCounts;
-  final DateTime createdAt;
-  final DateTime? lastActivityAt;
+  final int unreadCount;
+  final DateTime updatedAt;
 
   const Conversation({
     required this.id,
-    required this.participants,
+    required this.participantIds,
     this.lastMessage,
-    required this.unreadCounts,
-    required this.createdAt,
-    this.lastActivityAt,
+    this.unreadCount = 0,
+    required this.updatedAt,
   });
 
-  int getUnreadCount(String userId) => unreadCounts[userId] ?? 0;
+  factory Conversation.fromJson(Map<String, dynamic> json) {
+    return Conversation(
+      id: json['id'] as String,
+      participantIds: (json['participant_ids'] as List).cast<String>(),
+      lastMessage: json['last_message'] != null
+          ? Message.fromJson(json['last_message'] as Map<String, dynamic>)
+          : null,
+      unreadCount: json['unread_count'] as int,
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'participant_ids': participantIds,
+      'last_message': lastMessage?.toJson(),
+      'unread_count': unreadCount,
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
 
   @override
-  List<Object?> get props => [
-        id,
-        participants,
-        lastMessage,
-        unreadCounts,
-        createdAt,
-        lastActivityAt,
-      ];
+  List<Object?> get props =>
+      [id, participantIds, lastMessage, unreadCount, updatedAt];
 }

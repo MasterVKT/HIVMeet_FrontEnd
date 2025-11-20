@@ -1,221 +1,99 @@
-// lib/presentation/blocs/chat/chat_bloc.dart
+// Assumant le fichier chat_bloc.dart
+// Enlever part 'chat_event.dart'; part 'chat_state.dart';
+// Ajouter import 'chat_event.dart'; import 'chat_state.dart';
 
-import 'dart:async';
-import 'package:flutter_bloc/flutter_bloc.dart';
+// Puis pour event.dart: part of 'chat_bloc.dart';
+// State similaire.
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/domain/entities/message.dart';
-import 'package:hivmeet/domain/repositories/message_repository.dart';
-import 'package:hivmeet/domain/repositories/profile_repository.dart';
-import 'chat_event.dart';
-import 'chat_state.dart';
+import 'package:hivmeet/data/repositories/messaging_repository.dart';
+import 'dart:io';
+
+part 'chat_event.dart';
+part 'chat_state.dart';
 
 @injectable
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
-  final MessageRepository _messageRepository;
-  final ProfileRepository _profileRepository;
-  
-  StreamSubscription? _messagesSubscription;
-  StreamSubscription? _typingSubscription;
-  
-  String? _conversationId;
-  List<Message> _messages = [];
-  String? _lastMessageId;
+  final MessagingRepository _repository;
 
-  ChatBloc({
-    required MessageRepository messageRepository,
-    required ProfileRepository profileRepository,
-  })  : _messageRepository = messageRepository,
-        _profileRepository = profileRepository,
-        super(ChatInitial()) {
+  ChatBloc(this._repository) : super(ChatInitial()) {
     on<LoadConversation>(_onLoadConversation);
-    on<LoadMoreMessages>(_onLoadMoreMessages);
     on<SendTextMessage>(_onSendTextMessage);
     on<SendMediaMessage>(_onSendMediaMessage);
-    on<MarkMessageAsRead>(_onMarkMessageAsRead);
+    on<MarkAsRead>(_onMarkAsRead);
     on<DeleteMessage>(_onDeleteMessage);
     on<SetTypingStatus>(_onSetTypingStatus);
   }
 
-  Future<void> _onLoadConversation(
-    LoadConversation event,
-    Emitter<ChatState> emit,
-  ) async {
+  void _onLoadConversation(LoadConversation event, Emitter<ChatState> emit) {
     emit(ChatLoading());
-    _conversationId = event.conversationId;
-    
-    final conversationResult = await _messageRepository.getConversation(event.conversationId);
-    
-    conversationResult.fold(
-      (failure) => emit(ChatError(message: failure.message)),
-      (conversation) async {
-        final otherUserId = conversation.participants.firstWhere(
-          (id) => id != 'currentUserId', // TODO: Get current user ID
-        );
-        
-        final profileResult = await _profileRepository.getProfile(otherUserId);
-        
-        profileResult.fold(
-          (failure) => emit(ChatError(message: failure.message)),
-          (profile) async {
-            final messagesResult = await _messageRepository.getMessages(
-              conversationId: event.conversationId,
-              limit: 50,
-            );
-            
-            messagesResult.fold(
-              (failure) => emit(ChatError(message: failure.message)),
-              (messages) {
-                _messages = messages;
-                _lastMessageId = messages.isNotEmpty ? messages.last.id : null;
-                
-                emit(ChatLoaded(
-                  conversation: conversation,
-                  messages: _messages,
-                  otherUserProfile: profile,
-                  hasMore: messages.length >= 50,
-                ));
-                
-                _subscribeToMessages();
-                _subscribeToTyping();
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _onSendTextMessage(
-    SendTextMessage event,
-    Emitter<ChatState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is ChatLoaded) {
-      final result = await _messageRepository.sendMessage(
-        conversationId: _conversationId!,
-        content: event.content,
-      );
-      
-      result.fold(
-        (failure) => emit(ChatError(message: failure.message)),
-        (message) {
-          // Message will be added via stream subscription
-        },
-      );
+    try {
+      final stream = _repository.getMessages(event.conversationId);
+      emit(ChatLoaded(messages: [], stream: stream, isTyping: false));
+    } catch (e) {
+      emit(ChatError(message: 'Erreur: $e'));
     }
   }
 
-  Future<void> _onSendMediaMessage(
-    SendMediaMessage event,
-    Emitter<ChatState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is ChatLoaded) {
-      final result = await _messageRepository.sendMessage(
-        conversationId: _conversationId!,
+  void _onSendTextMessage(
+      SendTextMessage event, Emitter<ChatState> emit) async {
+    try {
+      final msg = Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        conversationId: (state is ChatLoaded) ? '' : '',
+        senderId: '',
+        content: event.content,
+        type: MessageType.text,
+        createdAt: DateTime.now(),
+        status: MessageStatus.sending,
+      );
+      await _repository.sendMessage(msg);
+    } catch (e) {
+      emit(ChatError(message: 'Envoi échoué: $e'));
+    }
+  }
+
+  void _onSendMediaMessage(
+      SendMediaMessage event, Emitter<ChatState> emit) async {
+    try {
+      // Exemple: uploader puis envoyer un message media
+      final url = await _repository.uploadMedia(event.mediaFile.path);
+      final msg = Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        conversationId: (state is ChatLoaded) ? '' : '',
+        senderId: '',
         content: '',
         type: event.type,
-        mediaFile: event.mediaFile,
+        mediaUrl: url,
+        createdAt: DateTime.now(),
+        status: MessageStatus.sending,
       );
-      
-      result.fold(
-        (failure) => emit(ChatError(message: failure.message)),
-        (message) {
-          // Message will be added via stream subscription
-        },
-      );
+      await _repository.sendMessage(msg);
+    } catch (e) {
+      emit(ChatError(message: 'Envoi média échoué: $e'));
     }
   }
 
-  Future<void> _onLoadMoreMessages(
-    LoadMoreMessages event,
-    Emitter<ChatState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is ChatLoaded && !currentState.isLoadingMore && currentState.hasMore) {
-      emit(currentState.copyWith(isLoadingMore: true));
-      
-      final result = await _messageRepository.getMessages(
-        conversationId: _conversationId!,
-        limit: 50,
-        beforeMessageId: _lastMessageId,
-      );
-      
-      result.fold(
-        (failure) => emit(ChatError(message: failure.message)),
-        (newMessages) {
-          _messages.addAll(newMessages);
-          _lastMessageId = newMessages.isNotEmpty ? newMessages.last.id : _lastMessageId;
-          
-          emit(currentState.copyWith(
-            messages: List.from(_messages),
-            hasMore: newMessages.length >= 50,
-            isLoadingMore: false,
-          ));
-        },
-      );
+  void _onMarkAsRead(MarkAsRead event, Emitter<ChatState> emit) async {
+    await _repository.markAsRead(event.conversationId, event.messageId);
+  }
+
+  void _onSetTypingStatus(SetTypingStatus event, Emitter<ChatState> emit) {
+    if (state is ChatLoaded) {
+      emit((state as ChatLoaded).copyWith(isTyping: event.isTyping));
     }
   }
 
-  Future<void> _onMarkMessageAsRead(
-    MarkMessageAsRead event,
-    Emitter<ChatState> emit,
-  ) async {
-    await _messageRepository.markAsRead(
-      conversationId: _conversationId!,
-      messageId: event.messageId,
-    );
+  void _onDeleteMessage(DeleteMessage event, Emitter<ChatState> emit) async {
+    try {
+      // Suppression basique via Firestore
+      // Non implémenté dans repository; à ajouter si besoin
+    } catch (e) {
+      emit(ChatError(message: 'Suppression échouée: $e'));
+    }
   }
 
-  Future<void> _onDeleteMessage(
-    DeleteMessage event,
-    Emitter<ChatState> emit,
-  ) async {
-    await _messageRepository.deleteMessage(
-      conversationId: _conversationId!,
-      messageId: event.messageId,
-    );
-  }
-
-  Future<void> _onSetTypingStatus(
-    SetTypingStatus event,
-    Emitter<ChatState> emit,
-  ) async {
-    await _messageRepository.setTypingStatus(
-      conversationId: _conversationId!,
-      isTyping: event.isTyping,
-    );
-  }
-
-  void _subscribeToMessages() {
-    _messagesSubscription?.cancel();
-    _messagesSubscription = _messageRepository
-        .watchMessages(_conversationId!)
-        .listen((messages) {
-      final currentState = state;
-      if (currentState is ChatLoaded) {
-        _messages = messages;
-        emit(currentState.copyWith(messages: messages));
-      }
-    });
-  }
-
-  void _subscribeToTyping() {
-    _typingSubscription?.cancel();
-    _typingSubscription = _messageRepository
-        .watchTypingStatus(_conversationId!)
-        .listen((typingStatus) {
-      final currentState = state;
-      if (currentState is ChatLoaded) {
-        emit(currentState.copyWith(typingStatus: typingStatus));
-      }
-    });
-  }
-
-  @override
-  Future<void> close() {
-    _messagesSubscription?.cancel();
-    _typingSubscription?.cancel();
-    return super.close();
-  }
+  // Pour médias/vidéo : Ajoutez events SendMedia, StartVideoCall (intégrez WebRTC)
 }

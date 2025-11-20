@@ -213,6 +213,18 @@ class SearchPreferences extends Equatable {
       relationshipTypes.isNotEmpty ? relationshipTypes.first : '';
   List<String> get gendersSought => interestedIn;
 
+  Map<String, dynamic> toJson() {
+    return {
+      'min_age': minAge,
+      'max_age': maxAge,
+      'max_distance': maxDistance,
+      'interested_in': interestedIn,
+      'relationship_types': relationshipTypes,
+      'show_verified_only': showVerifiedOnly,
+      'show_online_only': showOnlineOnly,
+    };
+  }
+
   SearchPreferences copyWith({
     int? minAge,
     int? maxAge,

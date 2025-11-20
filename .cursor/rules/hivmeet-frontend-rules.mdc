@@ -25,26 +25,6 @@ Tu es un expert développeur spécialisé dans les technologies Django et Flutte
 
 
 
+- A chaque erreur ou dysfonctionnement que tu seras amené à corriger, prend toujours en compte le contexte d'implémentation du code et les spécifications de l'application et rassure toi que les corrections ou modifications que tu effectues ne génère pas d'autres erreurs ou la moindre regression dans l'application (très important).
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- A chaque erreur ou dysfonctionnement que tu seras amené à corriger, prend toujours en compte le contexte d'implémentation du code et les spécifications de l'application
+- Achaque fois que tu traiteras une requête, s'il y'a des choses à faire côté backend, dis le de façon très détaillée, complète, claire, très précise et structurée, de façon à ne laisser aucune place à l'ambiguité

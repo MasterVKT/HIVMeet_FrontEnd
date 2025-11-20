@@ -2,18 +2,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
-import 'package:hivmeet/core/config/constants.dart';
-import 'package:hivmeet/injection.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_state.dart';
-import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/widgets/cards/swipe_card.dart';
-import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
-import 'package:hivmeet/presentation/widgets/common/hiv_toast.dart' as toast;
-import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
-import 'package:go_router/go_router.dart';
+import 'package:hivmeet/presentation/widgets/common/loading_widget.dart';
+import 'package:hivmeet/presentation/widgets/common/error_widget.dart'
+    as custom;
+import 'package:hivmeet/presentation/widgets/common/empty_state_widget.dart';
+import 'package:hivmeet/presentation/widgets/buttons/action_button.dart';
+import 'package:hivmeet/presentation/widgets/modals/filters_modal.dart';
+import 'package:hivmeet/presentation/widgets/modals/match_found_modal.dart';
+import 'package:hivmeet/injection.dart';
 
 class DiscoveryPage extends StatefulWidget {
   const DiscoveryPage({super.key});
@@ -23,85 +29,290 @@ class DiscoveryPage extends StatefulWidget {
 }
 
 class _DiscoveryPageState extends State<DiscoveryPage> {
+  late DiscoveryBloc _discoveryBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    print('🔄 DEBUG DiscoveryPage: initState()');
+    _discoveryBloc = getIt<DiscoveryBloc>();
+    print('🔄 DEBUG DiscoveryPage: DiscoveryBloc créé');
+    // Charger initialement 5 profils pour un affichage rapide
+    print('🔄 DEBUG DiscoveryPage: Ajout de LoadDiscoveryProfiles');
+    _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) =>
-          getIt<DiscoveryBloc>()..add(const LoadDiscoveryProfiles()),
+    return BlocProvider<DiscoveryBloc>(
+      create: (context) => _discoveryBloc,
       child: Scaffold(
         backgroundColor: AppColors.primaryWhite,
-        body: SafeArea(
-          child: Column(
+        appBar: _buildAppBar(),
+        body: BlocConsumer<DiscoveryBloc, DiscoveryState>(
+          listener: _handleStateChanges,
+          builder: (context, state) {
+            print('🔄 DEBUG DiscoveryPage: State change: $state');
+
+            if (state is DiscoveryLoading) {
+              print('🔄 DEBUG DiscoveryPage: DiscoveryLoading state');
+              return const Center(
+                child: LoadingWidget(
+                  message: 'Chargement des profils...',
+                ),
+              );
+            }
+
+            if (state is DiscoveryError) {
+              print(
+                  '❌ DEBUG DiscoveryPage: DiscoveryError state: ${state.message}');
+              return custom.ErrorWidget(
+                message: state.message,
+                onRetry: () =>
+                    _discoveryBloc.add(const LoadDiscoveryProfiles()),
+              );
+            }
+
+            if (state is NoMoreProfiles) {
+              print('ℹ️ DEBUG DiscoveryPage: NoMoreProfiles state');
+              return _buildNoMoreProfilesState();
+            }
+
+            if (state is DiscoveryLoaded) {
+              print('✅ DEBUG DiscoveryPage: DiscoveryLoaded state');
+              return _buildDiscoveryContent(state);
+            }
+
+            if (state is DiscoveryLoadingMore) {
+              print('🔄 DEBUG DiscoveryPage: DiscoveryLoadingMore state');
+              return _buildDiscoveryContent(state.currentState);
+            }
+
+            if (state is DailyLimitReached) {
+              print('⚠️ DEBUG DiscoveryPage: DailyLimitReached state');
+              return _buildDailyLimitReachedState(state);
+            }
+
+            print('❓ DEBUG DiscoveryPage: État inconnu: $state');
+            return const Center(
+              child: LoadingWidget(
+                message: 'Initialisation...',
+              ),
+            );
+          },
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(
+        LocalizationService.translate('discovery.title'),
+        style: GoogleFonts.openSans(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primaryPurple,
+        ),
+      ),
+      backgroundColor: AppColors.primaryWhite,
+      elevation: 0,
+      actions: [
+        IconButton(
+          icon: Icon(Icons.filter_list, color: AppColors.primaryPurple),
+          onPressed: _showFiltersModal,
+        ),
+        IconButton(
+          icon: Icon(Icons.settings, color: AppColors.primaryPurple),
+          onPressed: () => context.go('/settings'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscoveryContent(DiscoveryLoaded state) {
+    return Stack(
+      children: [
+        // Zone de swipe principale
+        Center(
+          child: Stack(
             children: [
-              _buildHeader(context),
-              Expanded(
-                child: BlocConsumer<DiscoveryBloc, DiscoveryState>(
-                  listener: (context, state) {
-                    if (state is MatchFound) {
-                      _showMatchDialog(context, state);
-                    } else if (state is DailyLimitReached) {
-                      _showLimitDialog(context, state.limitInfo);
-                    } else if (state is DiscoveryError) {
-                      toast.HIVToast.showError(
-                        context: context,
-                        message: state.message,
-                      );
-                    }
-                  },
-                  builder: (context, state) {
-                    if (state is DiscoveryLoading ||
-                        state is DiscoveryInitial) {
-                      return const Center(child: HIVLoader());
-                    }
+              // Profils suivants en arrière-plan (complètement masqués)
+              ...state.nextProfiles.asMap().entries.map((entry) {
+                final index = entry.key;
+                final profile = entry.value;
+                return Positioned(
+                  top: 50.0 +
+                      (index *
+                          20.0), // Augmenter encore plus l'espacement vertical
+                  left: 50.0 +
+                      (index *
+                          12.0), // Augmenter encore plus l'espacement horizontal
+                  right: 50.0 - (index * 12.0),
+                  child: Transform.scale(
+                    scale:
+                        0.7 - (index * 0.15), // Réduire encore plus l'échelle
+                    child: Opacity(
+                      opacity: 0.1 - (index * 0.05), // Rendre presque invisible
+                      child: SwipeCard(
+                        profile: profile,
+                        isPreview: true,
+                      ),
+                    ),
+                  ),
+                );
+              }),
 
-                    if (state is NoMoreProfiles) {
-                      return _buildNoMoreProfiles(context);
-                    }
+              // Profil principal
+              SwipeCard(
+                profile: state.currentProfile,
+                onSwipe: _handleSwipe,
+                onTap: _showProfileDetail,
+              ),
+            ],
+          ),
+        ),
 
-                    if (state is DiscoveryLoaded) {
-                      return Stack(
-                        children: [
-                          // Next profiles preview
-                          ...state.nextProfiles
-                              .asMap()
-                              .entries
-                              .map((entry) {
-                                final index = entry.key;
-                                final profile = entry.value;
-                                return Positioned.fill(
-                                  child: Transform.scale(
-                                    scale: 1 - (index + 1) * 0.05,
-                                    child: Transform.translate(
-                                      offset: Offset(0, (index + 1) * 10.0),
-                                      child: SwipeCard(
-                                        profile: profile,
-                                        isPreview: true,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              })
-                              .toList()
-                              .reversed,
+        // Boutons d'action
+        _buildActionButtons(state),
 
-                          // Current profile
-                          SwipeCard(
-                            profile: state.currentProfile,
-                            onSwipe: (direction) {
-                              context.read<DiscoveryBloc>().add(
-                                    SwipeProfile(direction: direction),
-                                  );
-                            },
-                          ),
-                        ],
-                      );
-                    }
+        // Indicateur de likes restants
+        if (state.dailyLimit != null)
+          _buildDailyLimitIndicator(state.dailyLimit!),
 
-                    return const Center(child: Text('Une erreur est survenue'));
-                  },
+        // Indicateur de chargement progressif
+        if (_discoveryBloc.state is DiscoveryLoadingMore)
+          _buildLoadingMoreIndicator(),
+
+        // Bouton de retour en arrière
+        if (state.canRewind) _buildRewindButton(),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(DiscoveryLoaded state) {
+    return Positioned(
+      bottom: 80, // Position plus basse pour éviter le chevauchement
+      left: 20, // Ajouter des marges latérales
+      right: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Bouton dislike
+          ActionButton(
+            icon: Icons.close,
+            color: AppColors.error,
+            onPressed: () => _handleSwipe(SwipeDirection.left),
+            size: 56, // Réduire légèrement la taille
+          ),
+
+          // Bouton super like (premium)
+          ActionButton(
+            icon: Icons.star,
+            color: AppColors.warning,
+            onPressed: () => _handleSwipe(SwipeDirection.up),
+            size: 56, // Uniformiser la taille
+            isPremium: true,
+          ),
+
+          // Bouton like
+          ActionButton(
+            icon: Icons.favorite,
+            color: AppColors.success,
+            onPressed: () => _handleSwipe(SwipeDirection.right),
+            size: 56, // Réduire légèrement la taille
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyLimitIndicator(DailyLikeLimit limit) {
+    return Positioned(
+      top: 70, // Position optimisée
+      left: 20,
+      right: 120, // Laisser plus d'espace pour le bouton rewind
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.favorite,
+              color: Colors.white,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              LocalizationService.translate(
+                'discovery.likes_remaining',
+                params: {'count': limit.remaining.toString()},
+              ),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRewindButton() {
+    return Positioned(
+      top: 70, // Aligner avec l'indicateur de likes
+      right: 20,
+      child: FloatingActionButton(
+        mini: true,
+        backgroundColor: AppColors.primaryPurple,
+        onPressed: () => _discoveryBloc.add(RewindLastSwipe()),
+        child: const Icon(
+          Icons.undo,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingMoreIndicator() {
+    return Positioned(
+      bottom: 200,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryPurple.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              _buildActionButtons(context),
+              const SizedBox(width: 8),
+              Text(
+                LocalizationService.translate('discovery.loading_more'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
@@ -109,313 +320,165 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.tune),
-            onPressed: () => context.push('/discovery/filters'),
-          ),
-          Text(
-            'Découverte',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          BlocBuilder<DiscoveryBloc, DiscoveryState>(
-            builder: (context, state) {
-              if (state is DiscoveryLoaded && state.dailyLimit != null) {
-                final limit = state.dailyLimit!;
-                return Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: limit.hasReachedLimit
-                        ? AppColors.error.withOpacity(0.1)
-                        : AppColors.primaryPurple.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.favorite,
-                        size: 16,
-                        color: limit.hasReachedLimit
-                            ? AppColors.error
-                            : AppColors.primaryPurple,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        '${limit.remainingLikes}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: limit.hasReachedLimit
-                                  ? AppColors.error
-                                  : AppColors.primaryPurple,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
-      ),
+  Widget _buildNoMoreProfilesState() {
+    return EmptyStateWidget(
+      icon: Icons.people_outline,
+      title: LocalizationService.translate('discovery.no_more_profiles_title'),
+      message:
+          LocalizationService.translate('discovery.no_more_profiles_message'),
+      actionText: LocalizationService.translate('discovery.adjust_filters'),
+      onAction: _showFiltersModal,
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _ActionButton(
-            icon: Icons.refresh,
-            color: AppColors.warning,
-            onTap: () {
-              context.read<DiscoveryBloc>().add(RewindLastSwipe());
-            },
-          ),
-          _ActionButton(
-            icon: Icons.close,
-            color: AppColors.error,
-            size: 60,
-            onTap: () {
-              context.read<DiscoveryBloc>().add(
-                    SwipeProfile(direction: SwipeDirection.left),
-                  );
-            },
-          ),
-          _ActionButton(
-            icon: Icons.star,
-            color: AppColors.info,
-            onTap: () {
-              context.read<DiscoveryBloc>().add(
-                    SwipeProfile(direction: SwipeDirection.up),
-                  );
-            },
-          ),
-          _ActionButton(
-            icon: Icons.favorite,
-            color: AppColors.success,
-            size: 60,
-            onTap: () {
-              context.read<DiscoveryBloc>().add(
-                    SwipeProfile(direction: SwipeDirection.right),
-                  );
-            },
-          ),
-          _ActionButton(
-            icon: Icons.bolt,
-            color: AppColors.primaryPurple,
-            onTap: () {
-              // TODO: Boost functionality
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNoMoreProfiles(BuildContext context) {
+  Widget _buildDailyLimitReachedState(DailyLimitReached state) {
     return Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.explore_off,
-              size: 80,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.favorite_border,
+            size: 80,
+            color: AppColors.warning,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            LocalizationService.translate(
+                'discovery.daily_limit_reached_title'),
+            style: GoogleFonts.openSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.charcoal,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            LocalizationService.translate(
+              'discovery.daily_limit_reached_message',
+              params: {
+                'limit': state.limitInfo.limit.toString(),
+                'resetTime': _formatResetTime(state.limitInfo.resetAt),
+              },
+            ),
+            style: GoogleFonts.openSans(
+              fontSize: 16,
               color: AppColors.slate,
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Plus de profils pour le moment',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () => context.go('/subscription'),
+            icon: const Icon(Icons.star),
+            label: Text(
+                LocalizationService.translate('discovery.upgrade_premium')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryPurple,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Revenez plus tard ou élargissez vos critères de recherche',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.slate,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            ElevatedButton(
-              onPressed: () => context.push('/discovery/filters'),
-              child: const Text('Modifier les filtres'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showMatchDialog(BuildContext context, MatchFound state) {
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: AppColors.primaryPurple,
+      unselectedItemColor: AppColors.slate,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.explore),
+          label: 'Découverte',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.favorite),
+          label: 'Matches',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.chat),
+          label: 'Messages',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profil',
+        ),
+      ],
+      currentIndex: 0,
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            // Déjà sur discovery
+            break;
+          case 1:
+            context.go('/matches');
+            break;
+          case 2:
+            context.go('/conversations');
+            break;
+          case 3:
+            context.go('/profile');
+            break;
+        }
+      },
+    );
+  }
+
+  void _handleStateChanges(BuildContext context, DiscoveryState state) {
+    if (state is MatchFound) {
+      _showMatchFoundModal(state);
+    }
+  }
+
+  void _handleSwipe(SwipeDirection direction) {
+    _discoveryBloc.add(SwipeProfile(direction: direction));
+  }
+
+  void _showProfileDetail() {
+    final currentState = _discoveryBloc.state;
+    if (currentState is DiscoveryLoaded) {
+      context.push(AppRoutes.profileDetail, extra: currentState.currentProfile);
+    }
+  }
+
+  void _showFiltersModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const FiltersModal(),
+    );
+  }
+
+  void _showMatchFoundModal(MatchFound state) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => _MatchDialog(
-        profile: state.matchedProfile,
-        onMessage: () {
-          Navigator.of(dialogContext).pop();
-          context.push('/chat/${state.matchId}');
+      builder: (context) => MatchFoundModal(
+        matchedProfile: state.matchedProfile,
+        matchId: state.matchId,
+        onSendMessage: () {
+          Navigator.of(context).pop();
+          context.go('/conversations');
         },
         onContinue: () {
-          Navigator.of(dialogContext).pop();
+          Navigator.of(context).pop();
         },
       ),
     );
   }
 
-  void _showLimitDialog(BuildContext context, DailyLikeLimit limit) {
-    HIVDialog.show(
-      context: context,
-      title: 'Limite quotidienne atteinte',
-      content:
-          'Vous avez utilisé vos ${limit.totalLikes} likes gratuits du jour. '
-          'Passez à Premium pour des likes illimités !',
-      actions: [
-        DialogAction(
-          label: 'Plus tard',
-          type: DialogActionType.text,
-          onPressed: (context) => Navigator.of(context).pop(),
-        ),
-        DialogAction(
-          label: 'Découvrir Premium',
-          type: DialogActionType.primary,
-          onPressed: (context) {
-            Navigator.of(context).pop();
-            context.push('/premium');
-          },
-        ),
-      ],
-    );
-  }
-}
+  String _formatResetTime(DateTime resetTime) {
+    final now = DateTime.now();
+    final difference = resetTime.difference(now);
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final double size;
-
-  const _ActionButton({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.size = 48,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: Icon(
-            icon,
-            color: color,
-            size: size * 0.5,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchDialog extends StatelessWidget {
-  final DiscoveryProfile profile;
-  final VoidCallback onMessage;
-  final VoidCallback onContinue;
-
-  const _MatchDialog({
-    required this.profile,
-    required this.onMessage,
-    required this.onContinue,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'C\'est un Match !',
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryPurple,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            CircleAvatar(
-              radius: 60,
-              backgroundImage: NetworkImage(profile.mainPhotoUrl),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Vous et ${profile.displayName} vous êtes plu !',
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onContinue,
-                    child: const Text('Continuer'),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onMessage,
-                    child: const Text('Envoyer un message'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    if (difference.inHours > 0) {
+      return '${difference.inHours}h ${difference.inMinutes % 60}m';
+    } else {
+      return '${difference.inMinutes}m';
+    }
   }
 }

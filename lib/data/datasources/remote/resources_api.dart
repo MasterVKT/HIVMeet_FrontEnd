@@ -1,218 +1,270 @@
+// lib/data/datasources/remote/resources_api.dart
+
 import 'package:dio/dio.dart';
-import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/network/api_client.dart';
 
-@injectable
 class ResourcesApi {
   final ApiClient _apiClient;
 
-  const ResourcesApi(this._apiClient);
+  ResourcesApi(this._apiClient);
 
-  /// Liste des ressources avec filtres
-  /// GET /resources
+  /// Récupérer les ressources
+  /// GET /api/v1/content/resources
   Future<Response<Map<String, dynamic>>> getResources({
     int page = 1,
     int pageSize = 20,
-    String? categoryId,
-    List<String>? tags,
-    String? searchQuery,
+    String? category,
+    String? search,
     String? language,
-    String? type,
   }) async {
-    final queryParams = <String, dynamic>{
+    Map<String, dynamic> queryParams = {
       'page': page,
-      'limit': pageSize,
+      'page_size': pageSize,
     };
 
-    if (categoryId != null) queryParams['category_id'] = categoryId;
-    if (tags != null && tags.isNotEmpty) queryParams['tags'] = tags.join(',');
-    if (searchQuery != null) queryParams['search'] = searchQuery;
+    if (category != null) queryParams['category'] = category;
+    if (search != null) queryParams['search'] = search;
     if (language != null) queryParams['language'] = language;
-    if (type != null) queryParams['type'] = type;
 
-    return await _apiClient.get('/resources', queryParameters: queryParams);
-  }
-
-  /// Détail d'une ressource
-  /// GET /resources/{id}
-  Future<Response<Map<String, dynamic>>> getResource(String resourceId) async {
-    return await _apiClient.get('/resources/$resourceId');
-  }
-
-  /// Liste des catégories
-  /// GET /resources/categories
-  Future<Response<Map<String, dynamic>>> getCategories() async {
-    return await _apiClient.get('/resources/categories');
-  }
-
-  /// Marquer un article comme lu (analytics)
-  /// POST /resources/{article_id}/read
-  Future<Response<Map<String, dynamic>>> markArticleAsRead({
-    required String articleId,
-    int? readingTimeSeconds,
-  }) async {
-    final data = <String, dynamic>{};
-
-    if (readingTimeSeconds != null) {
-      data['reading_time_seconds'] = readingTimeSeconds;
-    }
-
-    return await _apiClient.post('/resources/$articleId/read', data: data);
-  }
-
-  /// Ajouter aux favoris
-  /// POST /resources/{resource_id}/favorite
-  Future<Response<Map<String, dynamic>>> addToFavorites({
-    required String resourceId,
-  }) async {
-    return await _apiClient.post('/resources/$resourceId/favorite');
-  }
-
-  /// Supprimer des favoris
-  /// DELETE /resources/{resource_id}/favorite
-  Future<Response<Map<String, dynamic>>> removeFromFavorites({
-    required String resourceId,
-  }) async {
-    return await _apiClient.delete('/resources/$resourceId/favorite');
-  }
-
-  /// Liste des favoris
-  /// GET /resources/favorites
-  Future<Response<Map<String, dynamic>>> getFavorites({
-    int page = 1,
-    int pageSize = 20,
-    String? type,
-  }) async {
-    final queryParams = <String, dynamic>{
-      'page': page,
-      'limit': pageSize,
-    };
-
-    if (type != null) queryParams['type'] = type;
-
-    return await _apiClient.get('/resources/favorites',
+    return await _apiClient.get('/api/v1/content/resources',
         queryParameters: queryParams);
   }
 
-  /// Ressources récemment consultées
-  /// GET /resources/recently-viewed
-  Future<Response<Map<String, dynamic>>> getRecentlyViewed({
+  /// Récupérer une ressource par ID
+  /// GET /api/v1/content/resources/{resource_id}
+  Future<Response<Map<String, dynamic>>> getResource(String resourceId) async {
+    return await _apiClient.get('/api/v1/content/resources/$resourceId');
+  }
+
+  /// Récupérer les catégories de ressources
+  /// GET /api/v1/content/resource-categories
+  Future<Response<Map<String, dynamic>>> getResourceCategories() async {
+    return await _apiClient.get('/api/v1/content/resource-categories');
+  }
+
+  /// Marquer une ressource comme favorite
+  /// POST /api/v1/content/resources/{resource_id}/favorite
+  Future<Response<Map<String, dynamic>>> favoriteResource(
+      String resourceId) async {
+    return await _apiClient
+        .post('/api/v1/content/resources/$resourceId/favorite');
+  }
+
+  /// Récupérer les ressources favorites
+  /// GET /api/v1/content/favorites
+  Future<Response<Map<String, dynamic>>> getFavoriteResources({
     int page = 1,
-    int limit = 20,
+    int pageSize = 20,
   }) async {
-    return await _apiClient.get('/resources/recently-viewed', queryParameters: {
+    return await _apiClient.get('/api/v1/content/favorites', queryParameters: {
       'page': page,
-      'limit': limit,
+      'page_size': pageSize,
     });
   }
 
-  /// Liste des posts du feed
-  /// GET /feed/posts
+  /// Récupérer les posts du feed
+  /// GET /api/v1/feed/posts
   Future<Response<Map<String, dynamic>>> getFeedPosts({
     int page = 1,
     int pageSize = 20,
-    String? categoryFilter,
+    String? category,
+    String? search,
   }) async {
-    final queryParams = <String, dynamic>{
+    Map<String, dynamic> queryParams = {
       'page': page,
-      'limit': pageSize,
+      'page_size': pageSize,
     };
 
-    if (categoryFilter != null) queryParams['category'] = categoryFilter;
+    if (category != null) queryParams['category'] = category;
+    if (search != null) queryParams['search'] = search;
 
-    return await _apiClient.get('/feed/posts', queryParameters: queryParams);
+    return await _apiClient.get('/api/v1/feed/posts',
+        queryParameters: queryParams);
   }
 
-  /// Créer un post dans le feed (alias)
-  /// POST /feed/posts
-  Future<Response<Map<String, dynamic>>> createFeedPost({
-    required String content,
-    List<String>? tags,
-    String? imageUrl,
-  }) async {
-    return await createPost(
-      content: content,
-      imageUrl: imageUrl,
-      tags: tags ?? [],
-      allowComments: true,
-    );
-  }
-
-  /// Créer un post dans le feed
-  /// POST /feed/posts
+  /// Créer un post
+  /// POST /api/v1/feed/posts
   Future<Response<Map<String, dynamic>>> createPost({
     required String content,
     String? imageUrl,
-    List<String> tags = const [],
-    bool allowComments = true,
+    List<String>? tags,
   }) async {
-    final data = <String, dynamic>{
+    Map<String, dynamic> data = {
       'content': content,
-      'allow_comments': allowComments,
     };
 
     if (imageUrl != null) data['image_url'] = imageUrl;
-    if (tags.isNotEmpty) data['tags'] = tags;
+    if (tags != null) data['tags'] = tags;
 
-    return await _apiClient.post('/feed/posts', data: data);
+    return await _apiClient.post('/api/v1/feed/posts', data: data);
   }
 
   /// Liker un post
-  /// POST /feed/posts/{post_id}/like
-  Future<Response<Map<String, dynamic>>> likeFeedPost({
-    required String postId,
-  }) async {
-    return await _apiClient.post('/feed/posts/$postId/like');
+  /// POST /api/v1/feed/posts/{post_id}/like
+  Future<Response<Map<String, dynamic>>> likePost(String postId) async {
+    return await _apiClient.post('/api/v1/feed/posts/$postId/like');
   }
 
-  /// Supprimer le like d'un post
-  /// DELETE /feed/posts/{post_id}/like
-  Future<Response<Map<String, dynamic>>> unlikeFeedPost({
-    required String postId,
-  }) async {
-    return await _apiClient.delete('/feed/posts/$postId/like');
-  }
-
-  /// Commentaires d'un post
-  /// GET /feed/posts/{post_id}/comments
-  Future<Response<Map<String, dynamic>>> getPostComments({
-    required String postId,
+  /// Récupérer les commentaires d'un post
+  /// GET /api/v1/feed/posts/{post_id}/comments
+  Future<Response<Map<String, dynamic>>> getPostComments(
+    String postId, {
     int page = 1,
     int pageSize = 20,
   }) async {
     return await _apiClient
-        .get('/feed/posts/$postId/comments', queryParameters: {
+        .get('/api/v1/feed/posts/$postId/comments', queryParameters: {
       'page': page,
-      'limit': pageSize,
+      'page_size': pageSize,
     });
   }
 
-  /// Ajouter un commentaire
-  /// POST /feed/posts/{post_id}/comments
-  Future<Response<Map<String, dynamic>>> addComment({
-    required String postId,
+  /// Commenter un post
+  /// POST /api/v1/feed/posts/{post_id}/comments
+  Future<Response<Map<String, dynamic>>> commentPost(
+    String postId, {
     required String content,
   }) async {
-    return await _apiClient.post('/feed/posts/$postId/comments', data: {
+    return await _apiClient.post('/api/v1/feed/posts/$postId/comments', data: {
       'content': content,
     });
   }
 
   /// Signaler un post
-  /// POST /feed/posts/{post_id}/report
-  Future<Response<Map<String, dynamic>>> reportFeedPost({
-    required String postId,
+  /// POST /api/v1/feed/posts/{post_id}/report
+  Future<Response<Map<String, dynamic>>> reportPost(
+    String postId, {
     required String reason,
-    String? details,
+    String? description,
   }) async {
-    final data = <String, dynamic>{
+    return await _apiClient.post('/api/v1/feed/posts/$postId/report', data: {
       'reason': reason,
+      if (description != null) 'description': description,
+    });
+  }
+
+  /// Ajouter un commentaire à un post
+  /// POST /api/v1/feed/posts/{post_id}/comments
+  Future<Response<Map<String, dynamic>>> addComment(
+    String postId, {
+    required String content,
+  }) async {
+    return await _apiClient.post('/api/v1/feed/posts/$postId/comments', data: {
+      'content': content,
+    });
+  }
+
+  /// Récupérer les catégories de ressources
+  /// GET /api/v1/content/categories
+  Future<Response<Map<String, dynamic>>> getCategories() async {
+    return await _apiClient.get('/api/v1/content/categories');
+  }
+
+  /// Marquer un article comme lu
+  /// POST /api/v1/content/resources/{resource_id}/read
+  Future<Response<Map<String, dynamic>>> markArticleAsRead(
+      String resourceId) async {
+    return await _apiClient.post('/api/v1/content/resources/$resourceId/read');
+  }
+
+  /// Ajouter aux favoris
+  /// POST /api/v1/content/resources/{resource_id}/favorite
+  Future<Response<Map<String, dynamic>>> addToFavorites(
+      String resourceId) async {
+    return await _apiClient
+        .post('/api/v1/content/resources/$resourceId/favorite');
+  }
+
+  /// Retirer des favoris
+  /// DELETE /api/v1/content/resources/{resource_id}/favorite
+  Future<Response<Map<String, dynamic>>> removeFromFavorites(
+      String resourceId) async {
+    return await _apiClient
+        .delete('/api/v1/content/resources/$resourceId/favorite');
+  }
+
+  /// Récupérer les ressources récemment vues
+  /// GET /api/v1/content/recently-viewed
+  Future<Response<Map<String, dynamic>>> getRecentlyViewed({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    return await _apiClient
+        .get('/api/v1/content/recently-viewed', queryParameters: {
+      'page': page,
+      'page_size': pageSize,
+    });
+  }
+
+  /// Liker un post du feed
+  /// POST /api/v1/feed/posts/{post_id}/like
+  Future<Response<Map<String, dynamic>>> likeFeedPost(String postId) async {
+    return await _apiClient.post('/api/v1/feed/posts/$postId/like');
+  }
+
+  /// Ne plus liker un post du feed
+  /// DELETE /api/v1/feed/posts/{post_id}/like
+  Future<Response<Map<String, dynamic>>> unlikeFeedPost(String postId) async {
+    return await _apiClient.delete('/api/v1/feed/posts/$postId/like');
+  }
+
+  /// Liker une ressource
+  /// POST /api/v1/content/resources/{resource_id}/like
+  Future<Response<Map<String, dynamic>>> likeResource(String resourceId) async {
+    return await _apiClient.post('/api/v1/content/resources/$resourceId/like');
+  }
+
+  /// Bookmarker une ressource
+  /// POST /api/v1/content/resources/{resource_id}/bookmark
+  Future<Response<Map<String, dynamic>>> bookmarkResource(
+      String resourceId) async {
+    return await _apiClient
+        .post('/api/v1/content/resources/$resourceId/bookmark');
+  }
+
+  /// Partager une ressource
+  /// POST /api/v1/content/resources/{resource_id}/share
+  Future<Response<Map<String, dynamic>>> shareResource(
+    String resourceId, {
+    required String platform,
+    String? recipientId,
+  }) async {
+    Map<String, dynamic> data = {
+      'platform': platform,
+    };
+    if (recipientId != null) data['recipient_id'] = recipientId;
+
+    return await _apiClient.post('/api/v1/content/resources/$resourceId/share',
+        data: data);
+  }
+
+  /// Récupérer les statistiques de lecture
+  /// GET /api/v1/content/reading-stats
+  Future<Response<Map<String, dynamic>>> getReadingStats() async {
+    return await _apiClient.get('/api/v1/content/reading-stats');
+  }
+
+  /// Rechercher du contenu
+  /// GET /api/v1/content/search
+  Future<Response<Map<String, dynamic>>> searchContent({
+    required String query,
+    String? categoryId,
+    String? language,
+    int page = 1,
+    int perPage = 20,
+    String sort = 'relevance',
+  }) async {
+    Map<String, dynamic> queryParams = {
+      'q': query,
+      'page': page,
+      'per_page': perPage,
+      'sort': sort,
     };
 
-    if (details != null) {
-      data['details'] = details;
-    }
+    if (categoryId != null) queryParams['category_id'] = categoryId;
+    if (language != null) queryParams['language'] = language;
 
-    return await _apiClient.post('/feed/posts/$postId/report', data: data);
+    return await _apiClient.get('/api/v1/content/search',
+        queryParameters: queryParams);
   }
 }

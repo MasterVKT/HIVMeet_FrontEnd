@@ -21,7 +21,12 @@ class LocalizationService extends ChangeNotifier {
 
   /// Méthode statique pour traduire
   static String translate(String key, {Map<String, dynamic>? params}) {
-    return instance.translateKey(key, params: params);
+    try {
+      return instance.translateKey(key, params: params);
+    } catch (e) {
+      debugPrint('Error translating key $key: $e');
+      return key; // Retourne la clé si erreur
+    }
   }
 
   /// Initialise le service avec la langue par défaut
@@ -64,6 +69,12 @@ class LocalizationService extends ChangeNotifier {
 
   /// Récupère une chaîne traduite
   String translateKey(String key, {Map<String, dynamic>? params}) {
+    // Vérifier si le service est initialisé
+    if (_localizedStrings.isEmpty) {
+      debugPrint('LocalizationService not initialized, returning key: $key');
+      return key;
+    }
+
     final String? value = _getValue(key);
 
     if (value == null) {

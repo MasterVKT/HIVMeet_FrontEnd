@@ -33,20 +33,23 @@ dependencies:
   retrofit: ^4.0.3
   json_annotation: ^4.8.1
 
-  # Firebase
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  cloud_firestore: ^4.13.6
-  firebase_storage: ^11.5.6
-  firebase_messaging: ^14.7.9
-  firebase_analytics: ^10.7.4
-  firebase_crashlytics: ^3.4.8
+  # Firebase (mise à jour des majors pour corriger l'incompatibilité Pigeon)
+  firebase_core: ^3.2.0
+  firebase_auth: ^5.6.1
+  cloud_firestore: ^5.1.0
+  firebase_storage: ^12.1.1
+  firebase_messaging: ^15.0.3
+  firebase_analytics: ^11.2.0
+  firebase_crashlytics: ^4.1.1
 
   # Local Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_secure_storage: ^9.0.0
   shared_preferences: ^2.2.2
+
+  # JWT & Security
+  jwt_decoder: ^2.0.1
 
   # UI/UX
   google_fonts: ^6.1.0
@@ -69,7 +72,6 @@ dependencies:
   geocoding: ^2.1.1
   url_launcher: ^6.2.2
   path_provider: ^2.1.1
-  connectivity_plus: ^5.0.2
 
   # WebRTC for calls
   flutter_webrtc: ^0.9.47
@@ -85,6 +87,13 @@ dependencies:
   provider: ^6.1.5
   package_info_plus: ^8.3.0
   flutter_local_notifications: ^19.3.0
+  flutter_html: ^3.0.0
+  integration_test:
+    sdk: flutter
+
+dependency_overrides:
+  connectivity_plus: ^5.0.1
+  connectivity_plus_platform_interface: ^1.2.4
 
 dev_dependencies:
   flutter_test:
@@ -97,7 +106,6 @@ dev_dependencies:
   retrofit_generator: ^8.0.6
   json_serializable: ^6.7.1
   hive_generator: ^2.0.1
-  flutter_html: ^3.0.0
   mocktail: ^1.0.4
 
 flutter:

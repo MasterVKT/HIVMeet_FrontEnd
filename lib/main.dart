@@ -1,15 +1,58 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import 'core/config/app_config.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/config/logging_config.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/injection.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
+import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configuration de l'orientation
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  // Initialiser la configuration de logging
+  LoggingConfig.init();
+
+  // Filtrer les logs EGL répétitifs
+  if (kDebugMode) {
+    // Supprimer les logs EGL_emulation qui polluent la console
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
+
+  // Initialiser Firebase
+  await Firebase.initializeApp();
+
+  // Configurer l'injection de dépendances
+  await configureDependencies();
+
+  // Initialiser les services
+  final localizationService = getIt<LocalizationService>();
+  await localizationService.initialize();
+
+  // Configurer Crashlytics
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+
+  // Passer les erreurs asynchrones non gérées à Crashlytics
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   runApp(const HIVMeetApp());
 }
@@ -19,163 +62,33 @@ class HIVMeetApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConfig.appName,
-      theme: ThemeData(
-        primarySwatch: Colors.red,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: const HomePage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  bool _isPressed = false;
-
-  void _testApplication() {
-    setState(() {
-      _isPressed = true;
-    });
-
-    // Afficher un dialog plus visible
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            '🎉 Test Réussi !',
-            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 50),
-              const SizedBox(height: 15),
-              Text(
-                'HIVMeet est correctement configuré !',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Mode: ${AppConfig.enableLogs ? "Développement" : "Production"}',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              Text(
-                'API: ${AppConfig.apiBaseUrl}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  _isPressed = false;
-                });
-              },
-              child: const Text('Parfait !'),
-            ),
-          ],
-        );
-      },
-    );
-
-    // Aussi afficher le SnackBar
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Application configurée et fonctionnelle !'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppConfig.appName),
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.favorite,
-              size: 100,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Bienvenue sur ${AppConfig.appName}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Mode: ${AppConfig.enableLogs ? "Développement" : "Production"}',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'API: ${AppConfig.apiBaseUrl}',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 30),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              transform: Matrix4.identity()..scale(_isPressed ? 0.95 : 1.0),
-              child: ElevatedButton.icon(
-                onPressed: _testApplication,
-                icon: const Icon(Icons.play_arrow, color: Colors.white),
-                label: const Text(
-                  'Tester l\'application',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  elevation: 5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Cliquez sur le bouton pour tester la configuration',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBlocSimple>(
+          create: (context) => getIt<AuthBlocSimple>(),
         ),
+        BlocProvider<DiscoveryBloc>(
+          create: (context) => getIt<DiscoveryBloc>(),
+        ),
+      ],
+      child: MaterialApp.router(
+        title: 'HIVMeet',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        routerConfig: AppRouter.router,
+        builder: (context, child) {
+          // Filtrer les logs EGL en mode debug
+          if (kDebugMode) {
+            // Rediriger les logs EGL vers un niveau plus élevé pour les masquer
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(1.0), // Éviter les problèmes de redimensionnement
+              ),
+              child: child!,
+            );
+          }
+          return child!;
+        },
       ),
     );
   }

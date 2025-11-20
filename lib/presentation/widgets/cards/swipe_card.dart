@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/presentation/widgets/common/optimized_image.dart';
 
 class SwipeCard extends StatefulWidget {
   final DiscoveryProfile profile;
@@ -157,8 +158,21 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   }
 
   Widget _buildPhotoSection(double cardHeight) {
+    // Si c'est un aperçu, ne pas afficher d'image du tout
+    if (widget.isPreview) {
+      return SizedBox(
+        height: cardHeight * 0.6,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
-      height: cardHeight * 0.7,
+      height: cardHeight * 0.6, // Réduire davantage pour plus d'espace info
       child: PageView.builder(
         itemCount: widget.profile.allPhotos.length,
         onPageChanged: (index) {
@@ -169,44 +183,11 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
         itemBuilder: (context, index) {
           return Hero(
             tag: '${widget.profile.id}_photo_$index',
-            child: Image.network(
-              widget.profile.allPhotos[index],
+            child: OptimizedImage(
+              imageUrl: widget.profile.allPhotos[index],
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: AppColors.slate.withOpacity(0.1),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                      color: AppColors.primaryPurple,
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.slate.withOpacity(0.1),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.person,
-                        size: 80,
-                        color: AppColors.slate,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        LocalizationService.translate('common.image_error'),
-                        style: TextStyle(color: AppColors.slate),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              enableLazyLoading: false, // Désactiver temporairement pour debug
+              fadeInDuration: const Duration(milliseconds: 200),
             ),
           );
         },
@@ -291,6 +272,11 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   }
 
   Widget _buildProfileInfo() {
+    // Si c'est un aperçu, ne pas afficher d'informations
+    if (widget.isPreview) {
+      return const SizedBox.shrink();
+    }
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -306,7 +292,8 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
             ],
           ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16,
+            120), // Augmenter le padding bottom pour éviter les boutons
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -345,22 +332,22 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
               ],
             ),
             if (widget.profile.bio.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 widget.profile.bio,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 14, // Augmenter la taille pour la lisibilité
                 ),
-                maxLines: 2,
+                maxLines: 3, // Augmenter à 3 lignes pour plus de contenu
                 overflow: TextOverflow.ellipsis,
               ),
             ],
             if (widget.profile.interests.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Wrap(
-                spacing: 6,
-                runSpacing: 4,
+                spacing: 4,
+                runSpacing: 3,
                 children: widget.profile.interests.take(3).map((interest) {
                   return Container(
                     padding: const EdgeInsets.symmetric(
@@ -385,12 +372,12 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
             ],
             // Score de compatibilité
             if (widget.profile.compatibilityScore > 0) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Icon(
                     Icons.favorite,
-                    size: 16,
+                    size: 14,
                     color: AppColors.primaryPurple,
                   ),
                   const SizedBox(width: 4),
@@ -404,7 +391,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                     ),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -418,9 +405,14 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   }
 
   Widget _buildBadges() {
+    // Si c'est un aperçu, ne pas afficher de badges
+    if (widget.isPreview) {
+      return const SizedBox.shrink();
+    }
+
     return Positioned(
-      top: 16,
-      right: 16,
+      top: 20,
+      right: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -489,7 +481,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
 
   Widget _buildQuickActions() {
     return Positioned(
-      bottom: 120,
+      bottom: 200, // Déplacer plus haut pour éviter les boutons d'action
       right: 16,
       child: Column(
         children: [
@@ -527,7 +519,6 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
     });
 
     // Déterminer la direction du swipe
-    final screenWidth = MediaQuery.of(context).size.width;
     final dragDistance = _dragOffset.dx.abs();
     final verticalDistance = _dragOffset.dy.abs();
 
@@ -626,25 +617,182 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   void _showInterestsDialog() {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) {
-        return AlertDialog(
-          title:
-              Text(LocalizationService.translate('discovery.common_interests')),
-          content: Wrap(
-            spacing: 8,
-            children: widget.profile.interests.map((interest) {
-              return Chip(
-                label: Text(interest),
-                backgroundColor: AppColors.primaryPurple.withOpacity(0.1),
-              );
-            }).toList(),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(LocalizationService.translate('common.close')),
+          elevation: 8,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header avec gradient
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primaryPurple,
+                        AppColors.primaryPurple.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.favorite,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        LocalizationService.translate(
+                            'discovery.common_interests'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        LocalizationService.translate(
+                            'discovery.interests_subtitle'),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Contenu avec intérêts
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: widget.profile.interests.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: AppColors.slate,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  LocalizationService.translate(
+                                      'discovery.no_interests'),
+                                  style: TextStyle(
+                                    color: AppColors.slate,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              alignment: WrapAlignment.center,
+                              children:
+                                  widget.profile.interests.map((interest) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppColors.primaryPurple
+                                            .withOpacity(0.1),
+                                        AppColors.primaryPurple
+                                            .withOpacity(0.05),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppColors.primaryPurple
+                                          .withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.favorite,
+                                        color: AppColors.primaryPurple,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        interest,
+                                        style: TextStyle(
+                                          color: AppColors.primaryPurple,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                  ),
+                ),
+
+                // Bouton de fermeture
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryPurple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: Text(
+                        LocalizationService.translate('common.close'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

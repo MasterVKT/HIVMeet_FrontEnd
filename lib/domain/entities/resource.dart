@@ -5,70 +5,137 @@ import 'package:equatable/equatable.dart';
 class Resource extends Equatable {
   final String id;
   final String title;
-  final ResourceType type;
-  final String categoryId;
-  final String categoryName;
-  final List<String> tags;
-  final String? thumbnailUrl;
-  final DateTime publicationDate;
-  final DateTime? lastUpdatedAt;
-  final String? authorName;
-  final bool isPremium;
-  final bool isVerifiedExpert;
-  final String language;
   final String content;
-  final String? externalLink;
-  final int viewCount;
+  final String category;
+  final String type; // article, video, etc.
+  final String url;
+  final bool isPremium;
   final bool isFavorite;
+  final List<String> tags;
+  final String categoryName;
   final int? estimatedReadTimeMinutes;
+  final String? authorName;
+  final DateTime publicationDate;
+  final bool isVerifiedExpert;
+  final String? thumbnailUrl;
+  final String? externalLink;
   final List<RelatedResource>? relatedResources;
+  final String categoryId;
+  final DateTime? lastUpdatedAt;
+  final String language;
+  final int viewCount;
 
   const Resource({
     required this.id,
     required this.title,
-    required this.type,
-    required this.categoryId,
-    required this.categoryName,
-    required this.tags,
-    this.thumbnailUrl,
-    required this.publicationDate,
-    this.lastUpdatedAt,
-    this.authorName,
-    required this.isPremium,
-    required this.isVerifiedExpert,
-    required this.language,
     required this.content,
-    this.externalLink,
-    required this.viewCount,
-    required this.isFavorite,
+    required this.category,
+    required this.type,
+    required this.url,
+    this.isPremium = false,
+    this.isFavorite = false,
+    this.tags = const [],
+    required this.categoryName,
     this.estimatedReadTimeMinutes,
+    this.authorName,
+    required this.publicationDate,
+    this.isVerifiedExpert = false,
+    this.thumbnailUrl,
+    this.externalLink,
     this.relatedResources,
+    required this.categoryId,
+    this.lastUpdatedAt,
+    required this.language,
+    required this.viewCount,
   });
+
+  factory Resource.fromJson(Map<String, dynamic> json) {
+    return Resource(
+      id: json['id'],
+      title: json['title'],
+      content: json['content'],
+      category: json['category'],
+      type: json['type'],
+      url: json['url'],
+      isPremium: json['is_premium'] ?? false,
+      isFavorite: json['is_favorite'] ?? false,
+      tags: (json['tags'] as List?)?.cast<String>() ?? [],
+      categoryName: json['category_name'] ?? '',
+      estimatedReadTimeMinutes: json['estimated_read_time_minutes'],
+      authorName: json['author_name'],
+      publicationDate:
+          DateTime.parse(json['publication_date'] ?? DateTime.now().toString()),
+      isVerifiedExpert: json['is_verified_expert'] ?? false,
+      thumbnailUrl: json['thumbnail_url'],
+      externalLink: json['external_link'],
+      relatedResources: (json['related_resources'] as List?)
+          ?.map((e) => RelatedResource.fromJson(e))
+          .toList(),
+      categoryId: json['category_id'] ?? '',
+      lastUpdatedAt: json['last_updated_at'] != null
+          ? DateTime.parse(json['last_updated_at'])
+          : null,
+      language: json['language'] ?? 'en',
+      viewCount: json['view_count'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'content': content,
+      'category': category,
+      'type': type,
+      'url': url,
+      'is_premium': isPremium,
+      'is_favorite': isFavorite,
+      'tags': tags,
+      'category_name': categoryName,
+      'estimated_read_time_minutes': estimatedReadTimeMinutes,
+      'author_name': authorName,
+      'publication_date': publicationDate.toIso8601String(),
+      'is_verified_expert': isVerifiedExpert,
+      'thumbnail_url': thumbnailUrl,
+      'external_link': externalLink,
+      'related_resources': relatedResources?.map((e) => e.toJson()).toList(),
+      'category_id': categoryId,
+      'last_updated_at': lastUpdatedAt?.toIso8601String(),
+      'language': language,
+      'view_count': viewCount,
+    };
+  }
 
   Resource copyWith({
     bool? isFavorite,
+    String? categoryId,
+    DateTime? lastUpdatedAt,
+    String? language,
     int? viewCount,
+    // Ajouter d'autres champs si nécessaire
   }) {
     return Resource(
       id: id,
       title: title,
-      type: type,
-      categoryId: categoryId,
-      categoryName: categoryName,
-      tags: tags,
-      thumbnailUrl: thumbnailUrl,
-      publicationDate: publicationDate,
-      lastUpdatedAt: lastUpdatedAt,
-      authorName: authorName,
-      isPremium: isPremium,
-      isVerifiedExpert: isVerifiedExpert,
-      language: language,
       content: content,
-      externalLink: externalLink,
-      viewCount: viewCount ?? this.viewCount,
+      category: category,
+      type: type,
+      url: url,
+      isPremium: isPremium,
       isFavorite: isFavorite ?? this.isFavorite,
+      tags: tags,
+      categoryName: categoryName,
       estimatedReadTimeMinutes: estimatedReadTimeMinutes,
+      authorName: authorName,
+      publicationDate: publicationDate,
+      isVerifiedExpert: isVerifiedExpert,
+      thumbnailUrl: thumbnailUrl,
+      externalLink: externalLink,
       relatedResources: relatedResources,
+      categoryId: categoryId ?? this.categoryId,
+      lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
+      language: language ?? this.language,
+      viewCount: viewCount ?? this.viewCount,
     );
   }
 
@@ -76,23 +143,25 @@ class Resource extends Equatable {
   List<Object?> get props => [
         id,
         title,
-        type,
-        categoryId,
-        categoryName,
-        tags,
-        thumbnailUrl,
-        publicationDate,
-        lastUpdatedAt,
-        authorName,
-        isPremium,
-        isVerifiedExpert,
-        language,
         content,
-        externalLink,
-        viewCount,
+        category,
+        type,
+        url,
+        isPremium,
         isFavorite,
+        tags,
+        categoryName,
         estimatedReadTimeMinutes,
+        authorName,
+        publicationDate,
+        isVerifiedExpert,
+        thumbnailUrl,
+        externalLink,
         relatedResources,
+        categoryId,
+        lastUpdatedAt,
+        language,
+        viewCount,
       ];
 }
 
@@ -136,6 +205,22 @@ class RelatedResource extends Equatable {
     required this.title,
     this.thumbnailUrl,
   });
+
+  factory RelatedResource.fromJson(Map<String, dynamic> json) {
+    return RelatedResource(
+      id: json['id'],
+      title: json['title'],
+      thumbnailUrl: json['thumbnail_url'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'thumbnail_url': thumbnailUrl,
+    };
+  }
 
   @override
   List<Object?> get props => [id, title, thumbnailUrl];

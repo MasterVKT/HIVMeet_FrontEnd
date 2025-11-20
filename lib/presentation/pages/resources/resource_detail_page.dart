@@ -36,7 +36,7 @@ class ResourceDetailPage extends StatelessWidget {
             if (state is ResourceDetailLoading) {
               return const Center(child: HIVLoader());
             }
-            
+
             if (state is ResourceDetailError) {
               return Center(
                 child: Column(
@@ -62,30 +62,31 @@ class ResourceDetailPage extends StatelessWidget {
                 ),
               );
             }
-            
+
             if (state is ResourceDetailLoaded) {
               final resource = state.resource;
-              
+
               // Check if premium content is locked
               if (resource.isPremium && !state.userHasPremium) {
                 return _buildPremiumLockedView(context, resource);
               }
-              
+
               return CustomScrollView(
                 slivers: [
                   _buildAppBar(context, resource),
                   SliverToBoxAdapter(
                     child: _buildContent(context, resource),
                   ),
-                  if (resource.relatedResources != null && 
+                  if (resource.relatedResources != null &&
                       resource.relatedResources!.isNotEmpty)
                     SliverToBoxAdapter(
-                      child: _buildRelatedResources(context, resource.relatedResources!),
+                      child: _buildRelatedResources(
+                          context, resource.relatedResources!),
                     ),
                 ],
               );
             }
-            
+
             return const SizedBox.shrink();
           },
         ),
@@ -150,8 +151,8 @@ class ResourceDetailPage extends StatelessWidget {
                 ),
                 onPressed: () {
                   context.read<ResourceDetailBloc>().add(
-                    ToggleResourceFavorite(resourceId: resource.id),
-                  );
+                        ToggleResourceFavorite(resourceId: resource.id),
+                      );
                 },
               );
             }
@@ -179,9 +180,9 @@ class ResourceDetailPage extends StatelessWidget {
         children: [
           // Metadata
           _buildMetadata(context, resource),
-          
+
           const SizedBox(height: AppSpacing.lg),
-          
+
           // Tags
           if (resource.tags.isNotEmpty) ...[
             Wrap(
@@ -196,10 +197,10 @@ class ResourceDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
           ],
-          
+
           // Content based on type
           _buildResourceContent(context, resource),
-          
+
           const SizedBox(height: AppSpacing.xl),
         ],
       ),
@@ -212,7 +213,9 @@ class ResourceDetailPage extends StatelessWidget {
         Row(
           children: [
             Icon(
-              _getIconForType(resource.type),
+              _getIconForType(resource.type is ResourceType
+                  ? resource.type as ResourceType
+                  : ResourceType.article),
               size: 20,
               color: AppColors.slate,
             ),
@@ -220,8 +223,8 @@ class ResourceDetailPage extends StatelessWidget {
             Text(
               resource.categoryName,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.slate,
-              ),
+                    color: AppColors.slate,
+                  ),
             ),
             const SizedBox(width: AppSpacing.md),
             if (resource.estimatedReadTimeMinutes != null) ...[
@@ -234,8 +237,8 @@ class ResourceDetailPage extends StatelessWidget {
               Text(
                 '${resource.estimatedReadTimeMinutes} min',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.slate,
-                ),
+                      color: AppColors.slate,
+                    ),
               ),
             ],
           ],
@@ -253,16 +256,16 @@ class ResourceDetailPage extends StatelessWidget {
               Text(
                 resource.authorName!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.slate,
-                ),
+                      color: AppColors.slate,
+                    ),
               ),
               const SizedBox(width: AppSpacing.md),
             ],
             Text(
               DateFormat('dd MMMM yyyy').format(resource.publicationDate),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.slate,
-              ),
+                    color: AppColors.slate,
+                  ),
             ),
             const Spacer(),
             if (resource.isVerifiedExpert)
@@ -287,8 +290,8 @@ class ResourceDetailPage extends StatelessWidget {
                     Text(
                       'Contenu vérifié',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.success,
-                      ),
+                            color: AppColors.success,
+                          ),
                     ),
                   ],
                 ),
@@ -300,7 +303,10 @@ class ResourceDetailPage extends StatelessWidget {
   }
 
   Widget _buildResourceContent(BuildContext context, Resource resource) {
-    switch (resource.type) {
+    final ResourceType type = resource.type is ResourceType
+        ? resource.type as ResourceType
+        : ResourceType.article;
+    switch (type) {
       case ResourceType.article:
         return Html(
           data: resource.content,
@@ -333,7 +339,7 @@ class ResourceDetailPage extends StatelessWidget {
             }
           },
         );
-        
+
       case ResourceType.video:
         return Column(
           children: [
@@ -369,7 +375,7 @@ class ResourceDetailPage extends StatelessWidget {
             ],
           ],
         );
-        
+
       case ResourceType.link:
         return Column(
           children: [
@@ -393,10 +399,11 @@ class ResourceDetailPage extends StatelessWidget {
             ],
           ],
         );
-        
+
       case ResourceType.contact:
         return _buildContactInfo(context, resource);
     }
+    return const SizedBox.shrink();
   }
 
   Widget _buildContactInfo(BuildContext context, Resource resource) {
@@ -468,15 +475,15 @@ class ResourceDetailPage extends StatelessWidget {
               Text(
                 'Contenu Premium',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Cette ressource est réservée aux membres Premium',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.slate,
-                ),
+                      color: AppColors.slate,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -491,7 +498,8 @@ class ResourceDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildRelatedResources(BuildContext context, List<RelatedResource> related) {
+  Widget _buildRelatedResources(
+      BuildContext context, List<RelatedResource> related) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -500,8 +508,8 @@ class ResourceDetailPage extends StatelessWidget {
           child: Text(
             'Ressources similaires',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -538,9 +546,12 @@ class ResourceDetailPage extends StatelessWidget {
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             item.title,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),

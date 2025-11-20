@@ -15,7 +15,7 @@ void main() {
     await tester.pumpWidget(const HIVMeetApp());
 
     // Verify that our app loads correctly
-    expect(find.text('Bienvenue sur HIVMeet'), findsOneWidget);
+    expect(find.text('Bienvenue sur HIVMeet Dev'), findsOneWidget);
     expect(find.text('Tester l\'application'), findsOneWidget);
 
     // Tap the test button and trigger a frame.

@@ -34,24 +34,23 @@ class ConversationModel {
   Conversation toEntity() {
     return Conversation(
       id: id,
-      participants: participants,
+      participantIds: participants,
       lastMessage: lastMessage?.toEntity(),
-      unreadCounts: unreadCounts,
-      createdAt: createdAt,
-      lastActivityAt: lastActivityAt,
+      unreadCount: unreadCounts.values.fold(0, (a, b) => a + b),
+      updatedAt: lastActivityAt ?? createdAt,
     );
   }
 
   factory ConversationModel.fromEntity(Conversation conversation) {
     return ConversationModel(
       id: conversation.id,
-      participants: conversation.participants,
+      participants: conversation.participantIds,
       lastMessage: conversation.lastMessage != null
           ? MessageModel.fromEntity(conversation.lastMessage!)
           : null,
-      unreadCounts: conversation.unreadCounts,
-      createdAt: conversation.createdAt,
-      lastActivityAt: conversation.lastActivityAt,
+      unreadCounts: {'current_user': conversation.unreadCount},
+      createdAt: conversation.updatedAt,
+      lastActivityAt: conversation.updatedAt,
     );
   }
 }

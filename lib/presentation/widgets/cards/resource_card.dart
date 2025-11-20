@@ -45,7 +45,9 @@ class ResourceCard extends StatelessWidget {
                         height: 80,
                         color: AppColors.platinum,
                         child: Icon(
-                          _getIconForType(resource.type),
+                          _getIconForType(resource.type is ResourceType
+                              ? resource.type as ResourceType
+                              : ResourceType.article),
                           size: 40,
                           color: AppColors.slate,
                         ),
@@ -62,14 +64,16 @@ class ResourceCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    _getIconForType(resource.type),
+                    _getIconForType(resource.type is ResourceType
+                        ? resource.type as ResourceType
+                        : ResourceType.article),
                     size: 40,
                     color: AppColors.primaryPurple,
                   ),
                 ),
-              
+
               const SizedBox(width: AppSpacing.md),
-              
+
               // Content
               Expanded(
                 child: Column(
@@ -84,9 +88,12 @@ class ResourceCard extends StatelessWidget {
                             children: [
                               Text(
                                 resource.title,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -94,24 +101,34 @@ class ResourceCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Icon(
-                                    _getIconForType(resource.type),
+                                    _getIconForType(
+                                        resource.type is ResourceType
+                                            ? resource.type as ResourceType
+                                            : ResourceType.article),
                                     size: 16,
                                     color: AppColors.slate,
                                   ),
                                   const SizedBox(width: AppSpacing.xs),
                                   Text(
                                     resource.categoryName,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.slate,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: AppColors.slate,
+                                        ),
                                   ),
-                                  if (resource.estimatedReadTimeMinutes != null) ...[
+                                  if (resource.estimatedReadTimeMinutes !=
+                                      null) ...[
                                     const SizedBox(width: AppSpacing.sm),
                                     Text(
                                       '• ${resource.estimatedReadTimeMinutes} min',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.slate,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: AppColors.slate,
+                                          ),
                                     ),
                                   ],
                                 ],
@@ -133,7 +150,7 @@ class ResourceCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    
+
                     // Tags
                     if (resource.tags.isNotEmpty)
                       Wrap(
@@ -156,9 +173,9 @@ class ResourceCard extends StatelessWidget {
                           );
                         }).toList(),
                       ),
-                    
+
                     const SizedBox(height: AppSpacing.sm),
-                    
+
                     // Bottom info
                     Row(
                       children: [
@@ -183,9 +200,12 @@ class ResourceCard extends StatelessWidget {
                                 const SizedBox(width: AppSpacing.xxs),
                                 Text(
                                   'Vérifié',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.success,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.success,
+                                      ),
                                 ),
                               ],
                             ),
@@ -213,9 +233,12 @@ class ResourceCard extends StatelessWidget {
                                 const SizedBox(width: AppSpacing.xxs),
                                 Text(
                                   'Premium',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.white,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                      ),
                                 ),
                               ],
                             ),
@@ -223,10 +246,12 @@ class ResourceCard extends StatelessWidget {
                         ],
                         const Spacer(),
                         Text(
-                          DateFormat('dd MMM yyyy').format(resource.publicationDate),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.slate,
-                          ),
+                          DateFormat('dd MMM yyyy')
+                              .format(resource.publicationDate),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.slate,
+                                  ),
                         ),
                       ],
                     ),

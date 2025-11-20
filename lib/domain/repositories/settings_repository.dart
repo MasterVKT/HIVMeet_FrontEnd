@@ -2,7 +2,8 @@
 
 import 'package:dartz/dartz.dart';
 import 'package:hivmeet/core/error/failures.dart';
-import 'package:hivmeet/presentation/blocs/settings/settings_event.dart';
+
+enum NotificationType { newMatches, messages, likes, news }
 
 abstract class SettingsRepository {
   Future<Either<Failure, UserSettings>> getUserSettings();

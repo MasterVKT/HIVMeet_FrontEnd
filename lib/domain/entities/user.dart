@@ -88,6 +88,58 @@ class User extends Equatable {
         createdAt,
         updatedAt,
       ];
+
+  /// Convertit l'entité User en Map pour la sérialisation
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'displayName': displayName,
+      'isVerified': isVerified,
+      'isPremium': isPremium,
+      'premiumUntil': premiumUntil?.toIso8601String(),
+      'lastActive': lastActive.toIso8601String(),
+      'isEmailVerified': isEmailVerified,
+      'notificationSettings': notificationSettings.toJson(),
+      'blockedUserIds': blockedUserIds,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  /// Crée une entité User depuis un Map JSON
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as String,
+      email: json['email'] as String,
+      displayName: json['displayName'] as String? ??
+          json['username'] as String? ??
+          'Utilisateur',
+      isVerified: json['isVerified'] as bool? ?? false,
+      isPremium: json['isPremium'] as bool? ?? false,
+      premiumUntil: json['premiumUntil'] != null
+          ? DateTime.parse(json['premiumUntil'] as String)
+          : null,
+      lastActive: json['lastActive'] != null
+          ? DateTime.parse(json['lastActive'] as String)
+          : DateTime.now(),
+      isEmailVerified: json['isEmailVerified'] as bool? ??
+          json['email_verified'] as bool? ??
+          false,
+      notificationSettings: json['notificationSettings'] != null
+          ? NotificationSettings.fromJson(
+              json['notificationSettings'] as Map<String, dynamic>)
+          : const NotificationSettings(),
+      blockedUserIds:
+          (json['blockedUserIds'] as List<dynamic>?)?.cast<String>() ?? [],
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.now(),
+    );
+  }
 }
 
 class NotificationSettings extends Equatable {
@@ -116,11 +168,16 @@ class NotificationSettings extends Equatable {
     DoNotDisturbSettings? doNotDisturbSettings,
   }) {
     return NotificationSettings(
-      newMatchNotifications: newMatchNotifications ?? this.newMatchNotifications,
-      newMessageNotifications: newMessageNotifications ?? this.newMessageNotifications,
-      profileLikeNotifications: profileLikeNotifications ?? this.profileLikeNotifications,
-      appUpdateNotifications: appUpdateNotifications ?? this.appUpdateNotifications,
-      promotionalNotifications: promotionalNotifications ?? this.promotionalNotifications,
+      newMatchNotifications:
+          newMatchNotifications ?? this.newMatchNotifications,
+      newMessageNotifications:
+          newMessageNotifications ?? this.newMessageNotifications,
+      profileLikeNotifications:
+          profileLikeNotifications ?? this.profileLikeNotifications,
+      appUpdateNotifications:
+          appUpdateNotifications ?? this.appUpdateNotifications,
+      promotionalNotifications:
+          promotionalNotifications ?? this.promotionalNotifications,
       doNotDisturbSettings: doNotDisturbSettings ?? this.doNotDisturbSettings,
     );
   }
@@ -134,6 +191,35 @@ class NotificationSettings extends Equatable {
         promotionalNotifications,
         doNotDisturbSettings,
       ];
+
+  /// Convertit NotificationSettings en Map pour la sérialisation
+  Map<String, dynamic> toJson() {
+    return {
+      'newMatchNotifications': newMatchNotifications,
+      'newMessageNotifications': newMessageNotifications,
+      'profileLikeNotifications': profileLikeNotifications,
+      'appUpdateNotifications': appUpdateNotifications,
+      'promotionalNotifications': promotionalNotifications,
+      'doNotDisturbSettings': doNotDisturbSettings?.toJson(),
+    };
+  }
+
+  /// Crée NotificationSettings depuis un Map JSON
+  factory NotificationSettings.fromJson(Map<String, dynamic> json) {
+    return NotificationSettings(
+      newMatchNotifications: json['newMatchNotifications'] as bool? ?? true,
+      newMessageNotifications: json['newMessageNotifications'] as bool? ?? true,
+      profileLikeNotifications:
+          json['profileLikeNotifications'] as bool? ?? true,
+      appUpdateNotifications: json['appUpdateNotifications'] as bool? ?? true,
+      promotionalNotifications:
+          json['promotionalNotifications'] as bool? ?? false,
+      doNotDisturbSettings: json['doNotDisturbSettings'] != null
+          ? DoNotDisturbSettings.fromJson(
+              json['doNotDisturbSettings'] as Map<String, dynamic>)
+          : null,
+    );
+  }
 }
 
 class DoNotDisturbSettings extends Equatable {
@@ -149,4 +235,22 @@ class DoNotDisturbSettings extends Equatable {
 
   @override
   List<Object> get props => [enabled, startTimeUtc, endTimeUtc];
+
+  /// Convertit DoNotDisturbSettings en Map pour la sérialisation
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'startTimeUtc': startTimeUtc,
+      'endTimeUtc': endTimeUtc,
+    };
+  }
+
+  /// Crée DoNotDisturbSettings depuis un Map JSON
+  factory DoNotDisturbSettings.fromJson(Map<String, dynamic> json) {
+    return DoNotDisturbSettings(
+      enabled: json['enabled'] as bool,
+      startTimeUtc: json['startTimeUtc'] as String,
+      endTimeUtc: json['endTimeUtc'] as String,
+    );
+  }
 }

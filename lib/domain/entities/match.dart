@@ -100,6 +100,46 @@ class DiscoveryProfile extends Equatable {
     required this.compatibilityScore,
   });
 
+  factory DiscoveryProfile.fromJson(Map<String, dynamic> json) {
+    return DiscoveryProfile(
+      id: json['id'] as String,
+      displayName: json['display_name'] as String,
+      age: json['age'] as int,
+      mainPhotoUrl: json['main_photo_url'] as String,
+      otherPhotosUrls: (json['other_photos_urls'] as List).cast<String>(),
+      bio: json['bio'] as String,
+      city: json['city'] as String,
+      country: json['country'] as String,
+      distance: (json['distance'] as num?)?.toDouble(),
+      interests: (json['interests'] as List).cast<String>(),
+      relationshipType: json['relationship_type'] as String,
+      isVerified: json['is_verified'] as bool,
+      isPremium: json['is_premium'] as bool,
+      lastActive: DateTime.parse(json['last_active'] as String),
+      compatibilityScore: (json['compatibility_score'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'display_name': displayName,
+      'age': age,
+      'main_photo_url': mainPhotoUrl,
+      'other_photos_urls': otherPhotosUrls,
+      'bio': bio,
+      'city': city,
+      'country': country,
+      'distance': distance,
+      'interests': interests,
+      'relationship_type': relationshipType,
+      'is_verified': isVerified,
+      'is_premium': isPremium,
+      'last_active': lastActive.toIso8601String(),
+      'compatibility_score': compatibilityScore,
+    };
+  }
+
   bool get isOnline {
     return DateTime.now().difference(lastActive).inMinutes < 10;
   }
@@ -169,6 +209,22 @@ class DailyLikeLimit extends Equatable {
     required this.resetAt,
   });
 
+  factory DailyLikeLimit.fromJson(Map<String, dynamic> json) {
+    return DailyLikeLimit(
+      remainingLikes: json['remaining_likes'] as int,
+      totalLikes: json['total_likes'] as int,
+      resetAt: DateTime.parse(json['reset_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'remaining_likes': remainingLikes,
+      'total_likes': totalLikes,
+      'reset_at': resetAt.toIso8601String(),
+    };
+  }
+
   bool get hasReachedLimit => remainingLikes <= 0;
 
   // Propriétés de compatibilité pour résoudre les erreurs
@@ -177,4 +233,75 @@ class DailyLikeLimit extends Equatable {
 
   @override
   List<Object> get props => [remainingLikes, totalLikes, resetAt];
+}
+
+class SwipeResult extends Equatable {
+  final bool isMatch;
+  final String? matchId;
+  final Profile? matchedProfile;
+
+  const SwipeResult({
+    required this.isMatch,
+    this.matchId,
+    this.matchedProfile,
+  });
+
+  factory SwipeResult.fromJson(Map<String, dynamic> json) {
+    return SwipeResult(
+      isMatch: json['is_match'] as bool,
+      matchId: json['match_id'] as String?,
+      matchedProfile:
+          null, // TODO: Implémenter la sérialisation Profile si nécessaire
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'is_match': isMatch,
+      'match_id': matchId,
+      // matched_profile omis car Profile n'a pas de toJson()
+    };
+  }
+
+  @override
+  List<Object?> get props => [isMatch, matchId, matchedProfile];
+}
+
+class BoostStatus extends Equatable {
+  final bool isActive;
+  final DateTime? endsAt;
+  final int boostsRemaining;
+  final DateTime? activatedAt;
+
+  const BoostStatus({
+    required this.isActive,
+    this.endsAt,
+    required this.boostsRemaining,
+    this.activatedAt,
+  });
+
+  factory BoostStatus.fromJson(Map<String, dynamic> json) {
+    return BoostStatus(
+      isActive: json['is_active'] as bool,
+      endsAt: json['ends_at'] != null
+          ? DateTime.parse(json['ends_at'] as String)
+          : null,
+      boostsRemaining: json['boosts_remaining'] as int,
+      activatedAt: json['activated_at'] != null
+          ? DateTime.parse(json['activated_at'] as String)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'is_active': isActive,
+      'ends_at': endsAt?.toIso8601String(),
+      'boosts_remaining': boostsRemaining,
+      'activated_at': activatedAt?.toIso8601String(),
+    };
+  }
+
+  @override
+  List<Object?> get props => [isActive, endsAt, boostsRemaining, activatedAt];
 }

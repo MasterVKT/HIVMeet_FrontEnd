@@ -16,10 +16,22 @@ class SignIn implements UseCase<User, SignInParams> {
 
   @override
   Future<Either<Failure, User>> call(SignInParams params) async {
-    return await repository.signIn(
-      email: params.email,
-      password: params.password,
-    );
+    print('🔄 DEBUG SignIn: Début call avec email: ${params.email}');
+
+    try {
+      print('🔄 DEBUG SignIn: Appel repository.signIn...');
+      final result = await repository.signIn(
+        email: params.email,
+        password: params.password,
+      );
+      print('✅ DEBUG SignIn: Repository.signIn terminé');
+
+      return result;
+    } catch (e) {
+      print('❌ DEBUG SignIn: Exception dans call: $e');
+      print('Type exception: ${e.runtimeType}');
+      rethrow;
+    }
   }
 }
 

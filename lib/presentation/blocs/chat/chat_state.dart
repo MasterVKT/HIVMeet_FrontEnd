@@ -1,8 +1,4 @@
-// lib/presentation/blocs/chat/chat_state.dart
-
-import 'package:equatable/equatable.dart';
-import 'package:hivmeet/domain/entities/message.dart';
-import 'package:hivmeet/domain/entities/profile.dart';
+part of 'chat_bloc.dart';
 
 abstract class ChatState extends Equatable {
   const ChatState();
@@ -16,63 +12,31 @@ class ChatInitial extends ChatState {}
 class ChatLoading extends ChatState {}
 
 class ChatLoaded extends ChatState {
-  final Conversation conversation;
   final List<Message> messages;
-  final Profile otherUserProfile;
-  final bool hasMore;
-  final bool isLoadingMore;
-  final Map<String, bool> typingStatus;
-  final List<String> sendingMessageIds;
+  final Stream<List<Message>> stream;
+  final bool isTyping;
 
-  const ChatLoaded({
-    required this.conversation,
-    required this.messages,
-    required this.otherUserProfile,
-    required this.hasMore,
-    this.isLoadingMore = false,
-    this.typingStatus = const {},
-    this.sendingMessageIds = const [],
-  });
+  const ChatLoaded(
+      {required this.messages, required this.stream, required this.isTyping});
 
-  bool get isTyping => typingStatus.values.any((typing) => typing);
-
-  ChatLoaded copyWith({
-    Conversation? conversation,
-    List<Message>? messages,
-    Profile? otherUserProfile,
-    bool? hasMore,
-    bool? isLoadingMore,
-    Map<String, bool>? typingStatus,
-    List<String>? sendingMessageIds,
-  }) {
+  ChatLoaded copyWith(
+      {List<Message>? messages,
+      Stream<List<Message>>? stream,
+      bool? isTyping}) {
     return ChatLoaded(
-      conversation: conversation ?? this.conversation,
       messages: messages ?? this.messages,
-      otherUserProfile: otherUserProfile ?? this.otherUserProfile,
-      hasMore: hasMore ?? this.hasMore,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      typingStatus: typingStatus ?? this.typingStatus,
-      sendingMessageIds: sendingMessageIds ?? this.sendingMessageIds,
+      stream: stream ?? this.stream,
+      isTyping: isTyping ?? this.isTyping,
     );
   }
 
   @override
-  List<Object?> get props => [
-        conversation,
-        messages,
-        otherUserProfile,
-        hasMore,
-        isLoadingMore,
-        typingStatus,
-        sendingMessageIds,
-      ];
+  List<Object?> get props => [messages, stream, isTyping];
 }
 
 class ChatError extends ChatState {
   final String message;
-
   const ChatError({required this.message});
-
   @override
   List<Object> get props => [message];
 }

@@ -54,7 +54,7 @@ class AppTheme {
       primaryColor: AppColors.primaryPurple,
       primaryColorLight: AppColors.lightPurple,
       primaryColorDark: AppColors.darkPurple,
-      scaffoldBackgroundColor: AppColors.primaryWhite,
+      scaffoldBackgroundColor: Colors.white,
 
       // Les nuances de couleurs
       colorScheme: const ColorScheme.light(

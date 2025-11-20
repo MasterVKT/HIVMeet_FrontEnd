@@ -1,20 +1,16 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:injectable/injectable.dart';
+import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/services/token_manager.dart';
 import 'package:hivmeet/injection.dart';
+import 'dart:developer' as developer;
 
-@singleton
 class ApiClient {
-  static const String _devBaseUrl = 'http://localhost:8000/api/v1/';
-  static const String _stagingBaseUrl =
-      'https://staging-api.hivmeet.com/api/v1/';
-  static const String _prodBaseUrl = 'https://api.hivmeet.com/api/v1/';
-
   late final Dio _dio;
-  String? _accessToken;
+  final TokenManager _tokenManager;
 
-  ApiClient() {
+  ApiClient(this._tokenManager) {
     _dio = Dio(BaseOptions(
       baseUrl: _getBaseUrl(),
       connectTimeout: const Duration(seconds: 30),
@@ -29,78 +25,230 @@ class ApiClient {
   }
 
   String _getBaseUrl() {
-    if (kDebugMode) {
-      return _devBaseUrl;
-    } else if (kProfileMode) {
-      return _stagingBaseUrl;
-    } else {
-      return _prodBaseUrl;
-    }
+    return '${AppConfig.apiBaseUrl}/api/v1/';
   }
 
   void _setupInterceptors() {
-    // Intercepteur pour ajouter les headers d'authentification et de langue
+    // Intercepteur intelligent avec gestion automatique des tokens
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Ajouter le token d'authentification
-          if (_accessToken != null) {
-            options.headers['Authorization'] = 'Bearer $_accessToken';
-          }
-
-          // Ajouter la langue
-          try {
-            final localizationService = getIt<LocalizationService>();
-            options.headers['Accept-Language'] =
-                localizationService.currentLocale;
-          } catch (e) {
-            options.headers['Accept-Language'] = 'fr'; // Fallback
-          }
-
-          if (kDebugMode) {
-            debugPrint('🚀 REQUEST: ${options.method} ${options.uri}');
-            debugPrint('📤 DATA: ${options.data}');
-            debugPrint('📋 HEADERS: ${options.headers}');
-          }
-
+          await _handleRequestAuthentication(options);
+          _addLanguageHeader(options);
+          _logRequest(options);
           handler.next(options);
         },
         onResponse: (response, handler) {
-          if (kDebugMode) {
-            debugPrint(
-                '✅ RESPONSE: ${response.statusCode} ${response.requestOptions.uri}');
-            debugPrint('📥 DATA: ${response.data}');
-          }
+          _logResponse(response);
           handler.next(response);
         },
-        onError: (error, handler) {
-          if (kDebugMode) {
-            debugPrint('❌ ERROR: ${error.requestOptions.uri}');
-            debugPrint('💥 MESSAGE: ${error.message}');
-            debugPrint('📊 STATUS: ${error.response?.statusCode}');
-          }
-
-          // Gestion automatique des erreurs d'authentification
-          if (error.response?.statusCode == 401) {
-            _handleUnauthorized();
-          }
-
-          handler.next(error);
+        onError: (error, handler) async {
+          await _handleRequestError(error, handler);
         },
       ),
     );
   }
 
-  void _handleUnauthorized() {
-    // Supprimer le token expiré
-    _accessToken = null;
-    // TODO: Rediriger vers l'écran de connexion
-    debugPrint('🔒 Token expiré - redirection vers connexion nécessaire');
+  /// Gère l'authentification automatique des requêtes
+  Future<void> _handleRequestAuthentication(RequestOptions options) async {
+    try {
+      // Exclure les endpoints qui n'ont pas besoin d'authentification
+      final excludedPaths = [
+        'auth/firebase-exchange/',
+        'auth/register/',
+        'auth/login', // match both with and without trailing slash
+        'auth/refresh-token',
+        'auth/refresh-token/',
+        '/health/',
+        '/health/simple/',
+        '/health/ready/',
+      ];
+
+      final isExcluded =
+          excludedPaths.any((path) => options.path.contains(path));
+
+      if (isExcluded) {
+        developer.log('⚪ Requête sans authentification: ${options.path}',
+            name: 'ApiClient');
+        return;
+      }
+
+      // Récupérer le token via TokenManager
+      final token = await _tokenManager.getAccessToken();
+
+      if (token != null) {
+        options.headers['Authorization'] = 'Bearer $token';
+
+        // Vérifier si le token doit être rafraîchi bientôt
+        if (_tokenManager.shouldRefreshToken(token)) {
+          developer.log('⏰ Token proche de l\'expiration, refresh préventif',
+              name: 'ApiClient');
+
+          // Tentative de refresh en arrière-plan (n'interrompt pas la requête courante)
+          _tokenManager.refreshAccessToken().then((result) {
+            if (result.success) {
+              developer.log('✅ Refresh préventif réussi', name: 'ApiClient');
+            }
+          }).catchError((e) {
+            developer.log('⚠️ Refresh préventif échoué: $e', name: 'ApiClient');
+          });
+        }
+
+        developer.log('🔐 Token ajouté à la requête: ${options.path}',
+            name: 'ApiClient');
+      } else {
+        developer.log('⚠️ Aucun token disponible pour: ${options.path}',
+            name: 'ApiClient');
+      }
+    } catch (e) {
+      developer.log('❌ Erreur authentification requête: $e', name: 'ApiClient');
+    }
   }
 
-  /// Définir le token d'accès
-  void setAccessToken(String? token) {
-    _accessToken = token;
+  /// Ajoute l'header de langue
+  void _addLanguageHeader(RequestOptions options) {
+    try {
+      final localizationService = getIt<LocalizationService>();
+      options.headers['Accept-Language'] = localizationService.currentLocale;
+    } catch (e) {
+      options.headers['Accept-Language'] = 'fr'; // Fallback
+    }
+  }
+
+  /// Log les requêtes pour le debugging
+  void _logRequest(RequestOptions options) {
+    if (kDebugMode) {
+      developer.log('🚀 ${options.method} ${options.uri}', name: 'ApiClient');
+      developer.log('📤 DATA: ${options.data}', name: 'ApiClient');
+
+      final hasAuth = options.headers['Authorization'] != null;
+      developer.log('🔐 Auth: ${hasAuth ? "✅" : "❌"}', name: 'ApiClient');
+    }
+  }
+
+  /// Log les réponses pour le debugging
+  void _logResponse(Response response) {
+    if (kDebugMode) {
+      developer.log(
+        '✅ ${response.statusCode} ${response.requestOptions.path}',
+        name: 'ApiClient',
+      );
+    }
+  }
+
+  /// Gère les erreurs de requête avec retry intelligent
+  Future<void> _handleRequestError(
+      DioException error, ErrorInterceptorHandler handler) async {
+    developer.log(
+      '❌ ${error.response?.statusCode ?? "NETWORK"} ${error.requestOptions.path}',
+      name: 'ApiClient',
+    );
+
+    // Gestion spéciale des erreurs 401 (token expiré)
+    if (error.response?.statusCode == 401) {
+      final retryResult =
+          await _handleUnauthorizedWithRetry(error.requestOptions);
+
+      if (retryResult != null) {
+        // Retry réussi, retourner la nouvelle réponse
+        handler.resolve(retryResult);
+        return;
+      }
+    }
+
+    handler.next(error);
+  }
+
+  /// Gère les erreurs 401 avec tentative de retry automatique
+  Future<Response?> _handleUnauthorizedWithRetry(
+      RequestOptions originalRequest) async {
+    try {
+      developer.log('🔄 Tentative de refresh token suite à 401',
+          name: 'ApiClient');
+
+      // Tenter le refresh du token
+      final refreshResult = await _tokenManager.refreshAccessToken();
+
+      if (refreshResult.success && refreshResult.newAccessToken != null) {
+        developer.log('✅ Refresh réussi, retry de la requête',
+            name: 'ApiClient');
+
+        // Mettre à jour le header Authorization
+        originalRequest.headers['Authorization'] =
+            'Bearer ${refreshResult.newAccessToken}';
+
+        // Retry de la requête originale avec le nouveau token
+        return await _dio.fetch(originalRequest);
+      } else {
+        developer.log('❌ Refresh échoué: ${refreshResult.error}',
+            name: 'ApiClient');
+
+        // Si le refresh échoue, l'utilisateur doit se reconnecter
+        // Note: L'AuthenticationService se chargera de la déconnexion
+        return null;
+      }
+    } catch (e) {
+      developer.log('❌ Erreur lors du retry: $e', name: 'ApiClient');
+      return null;
+    }
+  }
+
+  void _handleUnauthorized() {
+    // Token Firebase Auth expiré ou invalide
+    debugPrint('🔒 Erreur 401 - Token Firebase non accepté par le backend');
+    debugPrint('ℹ️ Vérifiez la configuration Firebase côté backend');
+    // Note: On ne déconnecte plus automatiquement l'utilisateur
+  }
+
+  /// Échange un token Firebase Auth contre un token Django JWT
+  Future<String?> _exchangeFirebaseToken(String? firebaseToken) async {
+    if (firebaseToken == null) return null;
+
+    try {
+      if (kDebugMode) {
+        debugPrint('🔄 Tentative échange token Firebase...');
+      }
+
+      // Créer une instance Dio séparée sans intercepteurs pour éviter la boucle
+      final exchangeDio = Dio(BaseOptions(
+        baseUrl: _getBaseUrl(),
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+
+      // Appel au backend pour échanger le token
+      final response = await exchangeDio.post(
+        'auth/firebase-exchange/',
+        data: {
+          'firebase_token': firebaseToken,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final accessToken = data?['access'] as String?;
+
+        if (kDebugMode) {
+          debugPrint('✅ Échange token réussi');
+        }
+
+        return accessToken;
+      }
+
+      if (kDebugMode) {
+        debugPrint('❌ Échange token échoué: ${response.statusCode}');
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Erreur échange token: $e');
+      }
+      return null;
+    }
   }
 
   /// Requête GET

@@ -10,8 +10,7 @@ import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
-import 'package:hivmeet/presentation/blocs/chat/chat_event.dart';
-import 'package:hivmeet/presentation/blocs/chat/chat_state.dart';
+// Events/States sont des parts de ChatBloc, on n'importe que le bloc
 import 'package:hivmeet/presentation/widgets/chat/message_bubble.dart';
 import 'package:hivmeet/presentation/widgets/chat/message_input.dart';
 import 'package:hivmeet/presentation/widgets/common/hiv_toast.dart';
@@ -180,8 +179,7 @@ class _ChatPageState extends State<ChatPage>
                       return Stack(
                         children: [
                           // Messages list
-                          _buildMessagesList(
-                              state.messages, state.typingStatus.isNotEmpty),
+                          _buildMessagesList(state.messages, state.isTyping),
 
                           // Scroll to bottom button
                           if (_showScrollToBottom) _buildScrollToBottomButton(),
@@ -247,7 +245,7 @@ class _ChatPageState extends State<ChatPage>
                 ),
                 BlocBuilder<ChatBloc, ChatState>(
                   builder: (context, state) {
-                    if (state is ChatLoaded && state.typingStatus.isNotEmpty) {
+                    if (state is ChatLoaded && state.isTyping) {
                       return AnimatedBuilder(
                         animation: _typingAnimation,
                         builder: (context, child) {
@@ -466,7 +464,7 @@ class _ChatPageState extends State<ChatPage>
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              _formatTimestamp(timestamp),
+              '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.slate,
                     fontWeight: FontWeight.w500,

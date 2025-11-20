@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 
 enum Environment {
   development,
@@ -43,7 +44,21 @@ class AppConfig {
   static String get apiBaseUrl {
     if (kDebugMode) {
       // Mode développement
-      return ' http://10.0.2.2:8000';
+      // - Android Emulator: 10.0.2.2
+      // - iOS Simulator: localhost
+      // - Web: même machine -> localhost
+      // - Fallback: 10.0.2.2 (cas Android devices configurés via port-forwarding)
+      if (kIsWeb) {
+        return 'http://localhost:8000';
+      }
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          return 'http://10.0.2.2:8000';
+        case TargetPlatform.iOS:
+          return 'http://localhost:8000';
+        default:
+          return 'http://10.0.2.2:8000';
+      }
     } else {
       // Mode production
       return 'https://api.hivmeet.com';
@@ -99,23 +114,37 @@ class AppConfig {
     return 50.0; // 50 km par défaut
   }
 
-  // Configuration des notifications
-  static bool get enablePushNotifications {
-    return true;
-  }
+  // ✅ NOUVELLE CONFIGURATION CENTRALISÉE DES ENDPOINTS
+  // Endpoints d'authentification
+  static const String authBase = '/auth';
+  static String get firebaseExchange => '$authBase/firebase-exchange/';
+  static String get login => '$authBase/login/';
+  static String get register => '$authBase/register/';
+  static String get refreshToken => '$authBase/refresh-token/';
 
-  // Configuration des fonctionnalités premium
-  static bool get enablePremiumFeatures {
-    return true;
-  }
+  // Endpoints de découverte
+  static String get discovery => '/discovery/';
+  static String get matches => '/matches/';
+  static String get profiles => '/profiles/';
 
-  // Configuration de debug
-  static bool get isDebug {
-    return _environment == Environment.development;
-  }
+  // Endpoints de messagerie
+  static String get conversations => '/conversations/';
+  static String get messages => '/messages/';
 
-  // Configuration des erreurs
-  static bool get reportErrors {
-    return _environment == Environment.production;
-  }
+  // Endpoints de ressources
+  static String get resources => '/resources/';
+
+  // Endpoints de premium
+  static String get premium => '/premium/';
+  static String get subscriptions => '/subscriptions/';
+
+  // Méthode pour construire les URLs complètes
+  static String buildUrl(String endpoint) => '$apiBaseUrl/api/v1$endpoint';
+
+  // URLs complètes pré-construites pour les endpoints critiques
+  static String get firebaseExchangeUrl => buildUrl(firebaseExchange);
+  static String get loginUrl => buildUrl(login);
+  static String get registerUrl => buildUrl(register);
+  static String get discoveryUrl => buildUrl(discovery);
+  static String get matchesUrl => buildUrl(matches);
 }

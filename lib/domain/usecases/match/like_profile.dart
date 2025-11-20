@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
+import 'package:hivmeet/domain/entities/match.dart';
 
 @injectable
 class LikeProfile implements UseCase<SwipeResult, LikeProfileParams> {

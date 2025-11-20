@@ -7,7 +7,6 @@ import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 import 'package:hivmeet/data/datasources/remote/messaging_api.dart';
-import 'package:hivmeet/data/models/message_model.dart';
 
 @LazySingleton(as: MessageRepository)
 class MessageRepositoryImpl implements MessageRepository {
@@ -27,11 +26,13 @@ class MessageRepositoryImpl implements MessageRepository {
 
       final response = await _messagingApi.getConversations(
         page: page,
-        perPage: limit,
+        pageSize: limit,
       );
 
-      final conversations = (response.data!['data'] as List)
-          .map((json) => _mapJsonToConversation(json))
+      final payload = response.data!;
+      final list = (payload['results'] ?? payload['data'] ?? []) as List;
+      final conversations = list
+          .map((json) => _mapJsonToConversation(json as Map<String, dynamic>))
           .toList();
 
       return Right(conversations);
@@ -45,7 +46,8 @@ class MessageRepositoryImpl implements MessageRepository {
       String conversationId) async {
     try {
       final response = await _messagingApi.getConversation(conversationId);
-      final conversation = _mapJsonToConversation(response.data!);
+      final conversation =
+          _mapJsonToConversation(response.data!);
       return Right(conversation);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -66,15 +68,17 @@ class MessageRepositoryImpl implements MessageRepository {
     String? beforeMessageId,
   }) async {
     try {
-      final response = await _messagingApi.getMessages(
+      final response = await _messagingApi.getConversationMessages(
         conversationId: conversationId,
-        page: 1, // TODO: Implémenter pagination basée sur beforeMessageId
-        limit: limit,
+        page: 1,
+        pageSize: limit,
         beforeMessageId: beforeMessageId,
       );
 
-      final messages = (response.data!['data'] as List)
-          .map((json) => _mapJsonToMessage(json))
+      final payload = response.data!;
+      final list = (payload['results'] ?? payload['data'] ?? []) as List;
+      final messages = list
+          .map((json) => _mapJsonToMessage(json as Map<String, dynamic>))
           .toList();
 
       return Right(messages);
@@ -97,19 +101,17 @@ class MessageRepositoryImpl implements MessageRepository {
     File? mediaFile,
   }) async {
     try {
-      // Si un fichier média est fourni, l'uploader d'abord
-      String? mediaUrl;
-      if (mediaFile != null) {
-        // TODO: Implémenter l'upload de fichier média
-        // mediaUrl = await _uploadMediaFile(mediaFile);
-      }
+      // Si un fichier média est fourni, on utilise l'endpoint dédié
 
-      final response = await _messagingApi.sendMessage(
-        conversationId: conversationId,
-        content: content,
-        messageType: _messageTypeToString(type),
-        mediaUrl: mediaUrl,
-      );
+      final response = mediaFile != null
+          ? await _messagingApi.sendMediaMessage(
+              conversationId: conversationId,
+              mediaFilePath: mediaFile.path,
+            )
+          : await _messagingApi.sendTextMessage(
+              conversationId: conversationId,
+              content: content,
+            );
 
       final message = _mapJsonToMessage(response.data!);
       return Right(message);
@@ -125,7 +127,7 @@ class MessageRepositoryImpl implements MessageRepository {
   }) async {
     try {
       // Convertir messageId unique en liste pour l'API
-      await _messagingApi.markAsRead(
+      await _messagingApi.markMessageAsRead(
         conversationId: conversationId,
         messageIds: [messageId],
       );
@@ -157,10 +159,8 @@ class MessageRepositoryImpl implements MessageRepository {
     required bool isTyping,
   }) async {
     try {
-      await _messagingApi.setTypingStatus(
-        conversationId: conversationId,
-        isTyping: isTyping,
-      );
+      // Pas d'endpoint HTTP pour le statut de saisie (WebSocket prévu)
+      // Implémentation no-op côté HTTP pour respecter l'interface
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -175,46 +175,33 @@ class MessageRepositoryImpl implements MessageRepository {
   }
 
   // Méthodes utilitaires
-  String _messageTypeToString(MessageType type) {
-    switch (type) {
-      case MessageType.text:
-        return 'text';
-      case MessageType.image:
-        return 'image';
-      case MessageType.video:
-        return 'video';
-      case MessageType.audio:
-        return 'audio';
-    }
-  }
 
   Conversation _mapJsonToConversation(Map<String, dynamic> json) {
-    // TODO: Implémenter le mapping JSON vers Conversation
     return Conversation(
       id: json['id'] as String,
-      participants: (json['participants'] as List?)?.cast<String>() ?? [],
+      participantIds:
+          (json['participant_ids'] as List?)?.cast<String>() ?? const [],
       lastMessage: json['last_message'] != null
-          ? _mapJsonToMessage(json['last_message'])
+          ? _mapJsonToMessage(json['last_message'] as Map<String, dynamic>)
           : null,
-      unreadCounts: Map<String, int>.from(json['unread_counts'] ?? {}),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      lastActivityAt: json['last_activity_at'] != null
-          ? DateTime.parse(json['last_activity_at'] as String)
-          : null,
+      unreadCount: (json['unread_count'] as int?) ?? 0,
+      updatedAt: DateTime.parse(
+          (json['updated_at'] as String?) ?? DateTime.now().toIso8601String()),
     );
   }
 
   Message _mapJsonToMessage(Map<String, dynamic> json) {
-    // TODO: Implémenter le mapping JSON vers Message
     return Message(
       id: json['id'] as String,
       conversationId: json['conversation_id'] as String,
       senderId: json['sender_id'] as String,
       content: json['content'] as String,
-      type: _stringToMessageType(json['type'] as String),
+      type: _stringToMessageType(
+          (json['type'] ?? json['message_type'] ?? 'text') as String),
       mediaUrl: json['media_url'] as String?,
       isRead: json['is_read'] as bool? ?? false,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt:
+          DateTime.parse((json['created_at'] ?? json['sent_at']) as String),
       reactions: Map<String, String>.from(json['reactions'] ?? {}),
       status: _stringToMessageStatus(json['status'] as String? ?? 'sent'),
     );
@@ -228,8 +215,10 @@ class MessageRepositoryImpl implements MessageRepository {
         return MessageType.image;
       case 'video':
         return MessageType.video;
-      case 'audio':
-        return MessageType.audio;
+      case 'voice':
+        return MessageType.voice;
+      case 'system':
+        return MessageType.system;
       default:
         return MessageType.text;
     }

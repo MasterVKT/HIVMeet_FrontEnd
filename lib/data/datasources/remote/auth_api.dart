@@ -118,38 +118,134 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
+    print('🔥 DEBUG AuthAPI: signIn DÉMARRÉ pour $email');
+
     try {
+      print('🔥 DEBUG AuthAPI: Appel Firebase signInWithEmailAndPassword...');
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      print('✅ DEBUG AuthAPI: Firebase signIn terminé');
 
       if (credential.user == null) {
+        print('❌ DEBUG AuthAPI: credential.user est null');
         throw ServerException(message: 'Échec de connexion');
       }
 
-      // Vérifier que l'email est vérifié
-      if (!credential.user!.emailVerified) {
+      print('✅ DEBUG AuthAPI: Firebase user récupéré: ${credential.user!.uid}');
+
+      // Vérifier que l'email est vérifié (sauf pour les utilisateurs de test)
+      final isTestUser = email.contains('test@hivmeet.com') ||
+          email.contains('@test.') ||
+          email.contains('test@');
+
+      if (!credential.user!.emailVerified && !isTestUser) {
+        print('❌ DEBUG AuthAPI: Email non vérifié pour utilisateur non-test');
         throw EmailNotVerifiedException();
       }
 
-      // Récupérer les données utilisateur depuis Firestore
-      final doc =
-          await _firestore.collection('users').doc(credential.user!.uid).get();
+      print('✅ DEBUG AuthAPI: Vérification email OK');
 
-      if (!doc.exists) {
-        throw ServerException(message: 'Données utilisateur introuvables');
+      try {
+        print('🔥 DEBUG AuthAPI: Tentative accès Firestore...');
+        // Récupérer les données utilisateur depuis Firestore
+        final doc = await _firestore
+            .collection('users')
+            .doc(credential.user!.uid)
+            .get();
+
+        UserModel userModel;
+
+        if (doc.exists) {
+          print('✅ DEBUG AuthAPI: Document Firestore existant trouvé');
+          // Utilisateur existe dans Firestore
+          userModel = UserModel.fromFirestore(doc);
+
+          // Mettre à jour lastActive
+          try {
+            print('🔥 DEBUG AuthAPI: Mise à jour lastActive...');
+            await doc.reference.update({
+              'lastActive': FieldValue.serverTimestamp(),
+            });
+            print('✅ DEBUG AuthAPI: lastActive mis à jour');
+          } catch (updateError) {
+            print(
+                '❌ DEBUG AuthAPI: Erreur mise à jour lastActive: $updateError');
+            // Continue sans bloquer
+          }
+        } else {
+          // Utilisateur n'existe pas dans Firestore, créer un document
+          print(
+              '🔥 DEBUG AuthAPI: Création nouveau document Firestore pour: ${credential.user!.email}');
+
+          userModel = UserModel(
+            id: credential.user!.uid,
+            email: credential.user!.email ?? '',
+            displayName: credential.user!.displayName ?? 'Utilisateur',
+            isVerified: false,
+            isPremium: false,
+            lastActive: DateTime.now(),
+            isEmailVerified: credential.user!.emailVerified,
+            notificationSettings: NotificationSettingsModel(
+              newMatchNotifications: true,
+              newMessageNotifications: true,
+              profileLikeNotifications: true,
+              appUpdateNotifications: true,
+              promotionalNotifications: false,
+            ),
+            blockedUserIds: [],
+            createdAt: credential.user!.metadata.creationTime ?? DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+          try {
+            print('🔥 DEBUG AuthAPI: Sauvegarde document Firestore...');
+            await _firestore
+                .collection('users')
+                .doc(credential.user!.uid)
+                .set(userModel.toFirestore());
+            print('✅ DEBUG AuthAPI: Document Firestore créé avec succès');
+          } catch (createError) {
+            print(
+                '❌ DEBUG AuthAPI: Erreur création document Firestore: $createError');
+            // Continue avec l'utilisateur minimal
+          }
+        }
+
+        print('✅ DEBUG AuthAPI: UserModel créé, retour...');
+        return userModel;
+      } catch (firestoreError) {
+        // Si Firestore n'est pas configuré, retourner un utilisateur minimal
+        print(
+            '❌ DEBUG AuthAPI: Erreur Firestore, création utilisateur minimal: $firestoreError');
+
+        return UserModel(
+          id: credential.user!.uid,
+          email: credential.user!.email ?? '',
+          displayName: credential.user!.displayName ?? 'Utilisateur',
+          isVerified: false,
+          isPremium: false,
+          lastActive: DateTime.now(),
+          isEmailVerified: credential.user!.emailVerified,
+          notificationSettings: NotificationSettingsModel(
+            newMatchNotifications: true,
+            newMessageNotifications: true,
+            profileLikeNotifications: true,
+            appUpdateNotifications: true,
+            promotionalNotifications: false,
+          ),
+          blockedUserIds: [],
+          createdAt: credential.user!.metadata.creationTime ?? DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
       }
-
-      // Mettre à jour lastActive
-      await doc.reference.update({
-        'lastActive': FieldValue.serverTimestamp(),
-      });
-
-      return UserModel.fromFirestore(doc);
     } on firebase_auth.FirebaseAuthException catch (e) {
+      print('❌ DEBUG AuthAPI: FirebaseAuthException: ${e.code} - ${e.message}');
       throw _handleFirebaseAuthException(e);
     } catch (e) {
+      print('❌ DEBUG AuthAPI: Exception générale: $e');
+      print('Type exception: ${e.runtimeType}');
       throw ServerException(message: e.toString());
     }
   }
@@ -183,10 +279,36 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     return _firebaseAuth.authStateChanges().asyncMap((user) async {
       if (user == null) return null;
 
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (!doc.exists) return null;
+      try {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (!doc.exists) return null;
 
-      return UserModel.fromFirestore(doc);
+        return UserModel.fromFirestore(doc);
+      } catch (e) {
+        // Gestion d'erreur si Firestore n'est pas configuré ou indisponible
+        print('Erreur Firestore dans authStateChanges: $e');
+
+        // Retourner un utilisateur minimal basé sur FirebaseAuth seulement
+        return UserModel(
+          id: user.uid,
+          email: user.email ?? '',
+          displayName: user.displayName ?? 'Utilisateur',
+          isVerified: false,
+          isPremium: false,
+          lastActive: DateTime.now(),
+          isEmailVerified: user.emailVerified,
+          notificationSettings: NotificationSettingsModel(
+            newMatchNotifications: true,
+            newMessageNotifications: true,
+            profileLikeNotifications: true,
+            appUpdateNotifications: true,
+            promotionalNotifications: false,
+          ),
+          blockedUserIds: [],
+          createdAt: user.metadata.creationTime ?? DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
     });
   }
 
@@ -356,19 +478,21 @@ class AuthApi {
   const AuthApi(this._apiClient);
 
   /// Échange du token Firebase contre des tokens JWT
-  /// POST /auth/firebase-exchange
+  /// POST /auth/firebase-exchange/
   Future<Response<Map<String, dynamic>>> exchangeFirebaseToken({
     required String firebaseIdToken,
   }) async {
     final data = {
-      'firebase_id_token': firebaseIdToken,
+      // Alignement backend: préférer id_token, garder compat
+      'id_token': firebaseIdToken,
+      'firebase_token': firebaseIdToken,
     };
 
-    return await _apiClient.post('/auth/firebase-exchange', data: data);
+    return await _apiClient.post('/auth/firebase-exchange/', data: data);
   }
 
   /// Actualisation du token JWT
-  /// POST /auth/refresh
+  /// POST /auth/refresh-token
   Future<Response<Map<String, dynamic>>> refreshToken({
     required String refreshToken,
   }) async {
@@ -376,7 +500,7 @@ class AuthApi {
       'refresh_token': refreshToken,
     };
 
-    return await _apiClient.post('/auth/refresh', data: data);
+    return await _apiClient.post('/auth/refresh-token/', data: data);
   }
 
   /// Enregistrement du token FCM

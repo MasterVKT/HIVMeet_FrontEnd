@@ -216,12 +216,12 @@ class PaymentResult extends Equatable {
 
 // Résultat d'annulation
 class CancellationResult extends Equatable {
-  final UserSubscription subscription;
+  final UserSubscription? subscription;
   final DateTime? accessUntil;
   final RetentionOffer? retentionOffer;
 
   const CancellationResult({
-    required this.subscription,
+    this.subscription,
     this.accessUntil,
     this.retentionOffer,
   });

@@ -437,7 +437,7 @@ class _MessageInputState extends State<MessageInput>
     _recordingController.reset();
 
     // TODO: Arrêter l'enregistrement et envoyer le message vocal
-    widget.onSendMessage(_recordingDuration, MessageType.audio);
+    widget.onSendMessage(_recordingDuration, MessageType.voice);
     HapticFeedback.lightImpact();
   }
 

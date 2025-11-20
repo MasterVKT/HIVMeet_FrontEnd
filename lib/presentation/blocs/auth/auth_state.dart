@@ -32,11 +32,16 @@ class Unauthenticated extends AuthState {}
 /// État d'erreur d'authentification
 class AuthError extends AuthState {
   final String message;
+  const AuthError(this.message);
+}
 
-  const AuthError({required this.message});
+class AuthNetworkError extends AuthState {
+  final String message;
+  final int retryCount;
+  const AuthNetworkError(this.message, {this.retryCount = 0});
 
   @override
-  List<Object> get props => [message];
+  List<Object> get props => [message, retryCount];
 }
 
 /// État pendant la suppression du compte

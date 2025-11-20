@@ -1,32 +1,36 @@
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
-import 'package:hivmeet/core/error/exceptions.dart';
 import 'package:hivmeet/data/datasources/remote/subscriptions_api.dart';
 import 'package:hivmeet/domain/entities/premium.dart';
 import 'package:hivmeet/domain/repositories/premium_repository.dart';
 import 'package:hivmeet/data/services/payment_service.dart' as payment_service;
-import 'package:hivmeet/core/services/token_service.dart';
 import 'package:dio/dio.dart';
 
 @LazySingleton(as: PremiumRepository)
 class PremiumRepositoryImpl implements PremiumRepository {
   final SubscriptionsApi _subscriptionsApi;
   final payment_service.PaymentService _paymentService;
-  final TokenService _tokenService;
 
   const PremiumRepositoryImpl(
     this._subscriptionsApi,
     this._paymentService,
-    this._tokenService,
   );
 
   @override
   Future<Either<Failure, List<PremiumPlan>>> getAvailablePlans() async {
     try {
-      // TODO: Implémenter avec les vrais modèles
-      return const Right([]);
-    } on DioError catch (e) {
+      final response = await _subscriptionsApi.getSubscriptionPlans();
+      final payload = response.data!;
+      final list = (payload['results'] ??
+          payload['plans'] ??
+          payload['data'] ??
+          []) as List;
+      final plans = list
+          .map((json) => _mapJsonToPremiumPlan(json as Map<String, dynamic>))
+          .toList();
+      return Right(plans);
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(
@@ -37,9 +41,13 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, UserSubscription?>> getCurrentSubscription() async {
     try {
-      // TODO: Implémenter avec les vrais modèles
-        return const Right(null);
-    } on DioError catch (e) {
+      final response = await _subscriptionsApi.getCurrentSubscription();
+      final payload = response.data!;
+      final sub = payload['subscription'] as Map<String, dynamic>?;
+      if (sub == null) return const Right(null);
+      final subscription = _mapJsonToUserSubscription(sub);
+      return Right(subscription);
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -56,7 +64,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
         userId: 'current_user_id', // TODO: Récupérer le vrai ID utilisateur
       );
       return Right(session);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -69,7 +77,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
     try {
       final result = await _paymentService.verifyPayment(sessionId);
       return Right(result);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -95,7 +103,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
           ));
         },
       );
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(
@@ -106,9 +114,14 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, void>> updateAutoRenew(bool autoRenew) async {
     try {
-      // TODO: Implémenter avec la vraie API
+      // Non documenté dans backend: exposer via POST current/reactivate|cancel.
+      if (autoRenew) {
+        await _subscriptionsApi.reactivateSubscription();
+      } else {
+        await _subscriptionsApi.cancelSubscription();
+      }
       return const Right(null);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -121,7 +134,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
     try {
       // TODO: Implémenter avec les vrais modèles
       return const Right([]);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -132,27 +145,15 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, CancellationResult>> cancelSubscription() async {
     try {
-      // TODO: Implémenter avec les vrais modèles
-      final result = CancellationResult(
-        subscription: UserSubscription(
-          id: 'sub_id',
-          plan: PremiumPlan(
-            id: 'plan_id',
-            planId: 'plan_external_id',
-            name: 'Premium',
-            description: 'Plan premium',
-            price: 9.99,
-            currency: 'EUR',
-            billingInterval: BillingInterval.monthly,
-            features: PremiumFeatures(),
-          ),
-          status: SubscriptionStatus.cancelled,
-          currentPeriodStart: DateTime.now(),
-          currentPeriodEnd: DateTime.now().add(Duration(days: 30)),
-        ),
-      );
-      return Right(result);
-    } on DioError catch (e) {
+      final response = await _subscriptionsApi.cancelSubscription();
+      final payload = response.data;
+      UserSubscription? sub;
+      if (payload != null && payload['subscription'] is Map<String, dynamic>) {
+        sub = _mapJsonToUserSubscription(
+            payload['subscription'] as Map<String, dynamic>);
+      }
+      return Right(CancellationResult(subscription: sub));
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(message: 'Erreur lors de l\'annulation: $e'));
@@ -162,15 +163,23 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, BoostResult>> activateBoost() async {
     try {
-      const result = BoostResult(
-        boostId: 'boost_id',
-        activatedAt: null,
-        expiresAt: null,
-        estimatedViews: 100,
-        boostsRemaining: 2,
+      final response = await _subscriptionsApi.useBoost();
+      final data = response.data!;
+
+      final result = BoostResult(
+        boostId: data['boost']['id'] as String,
+        activatedAt: data['boost']['activated_at'] != null
+            ? DateTime.parse(data['boost']['activated_at'] as String)
+            : null,
+        expiresAt: data['boost']['expires_at'] != null
+            ? DateTime.parse(data['boost']['expires_at'] as String)
+            : null,
+        estimatedViews:
+            data['boost']['estimated_additional_views'] as int? ?? 0,
+        boostsRemaining: data['boosts_remaining'] as int? ?? 0,
       );
-      return const Right(result);
-    } on DioError catch (e) {
+      return Right(result);
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(
@@ -188,14 +197,20 @@ class PremiumRepositoryImpl implements PremiumRepository {
   Future<Either<Failure, PaymentResult>> validatePayment(
       String sessionId) async {
     try {
+      final response = await _subscriptionsApi.validatePayment(sessionId);
+      final data = response.data!;
+
       final result = PaymentResult(
-        status: PaymentStatus.succeeded,
-        subscriptionId: 'sub_id',
-        activatedAt: DateTime.now(),
-        featuresUnlocked: ['unlimited_likes', 'super_likes'],
+        status: _parsePaymentStatus(data['payment_status'] as String),
+        subscriptionId: data['subscription']['id'] as String,
+        activatedAt: data['subscription']['activated_at'] != null
+            ? DateTime.parse(data['subscription']['activated_at'] as String)
+            : null,
+        featuresUnlocked:
+            (data['features_unlocked'] as List?)?.cast<String>() ?? [],
       );
       return Right(result);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -207,13 +222,18 @@ class PremiumRepositoryImpl implements PremiumRepository {
   Future<Either<Failure, SuperLikeResult>> useSuperLike(
       String profileId) async {
     try {
-      const result = SuperLikeResult(
-        success: true,
-        superLikesRemaining: 5,
-        isMatch: false,
+      final response = await _subscriptionsApi.useSuperLike(
+        targetProfileId: profileId,
       );
-      return const Right(result);
-    } on DioError catch (e) {
+      final data = response.data!;
+
+      final result = SuperLikeResult(
+        success: data['success'] as bool,
+        superLikesRemaining: data['super_likes_remaining'] as int,
+        isMatch: data['is_match'] as bool? ?? false,
+      );
+      return Right(result);
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(message: 'Erreur lors du super like: $e'));
@@ -223,14 +243,38 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, PremiumStats>> getPremiumStats() async {
     try {
-      const stats = PremiumStats(
-        usageStats: UsageStats(),
-        featureUsage: FeatureUsage(),
-        periodStart: null,
-        periodEnd: null,
+      final response = await _subscriptionsApi.getPremiumStats();
+      final data = response.data!;
+
+      final stats = PremiumStats(
+        usageStats: UsageStats(
+          likesSentThisPeriod:
+              data['usage_stats']['likes_sent_this_period'] as int? ?? 0,
+          superLikesUsed: data['usage_stats']['super_likes_used'] as int? ?? 0,
+          boostsUsed: data['usage_stats']['boosts_used'] as int? ?? 0,
+          profileViewsGained:
+              data['usage_stats']['profile_views_gained'] as int? ?? 0,
+          matchesFromPremium:
+              data['usage_stats']['matches_from_premium'] as int? ?? 0,
+        ),
+        featureUsage: FeatureUsage(
+          whoLikedYouViews:
+              data['feature_usage']['who_liked_you_views'] as int? ?? 0,
+          mediaMessagesSent:
+              data['feature_usage']['media_messages_sent'] as int? ?? 0,
+          videoCallsMade:
+              data['feature_usage']['video_calls_made'] as int? ?? 0,
+          rewindsUsed: data['feature_usage']['rewinds_used'] as int? ?? 0,
+        ),
+        periodStart: data['period']['start'] != null
+            ? DateTime.parse(data['period']['start'] as String)
+            : null,
+        periodEnd: data['period']['end'] != null
+            ? DateTime.parse(data['period']['end'] as String)
+            : null,
       );
-      return const Right(stats);
-    } on DioError catch (e) {
+      return Right(stats);
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -241,12 +285,21 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, FeaturesUsage>> getFeaturesUsage() async {
     try {
-      const usage = FeaturesUsage(
-        boostsRemaining: 3,
-        superLikesRemaining: 5,
+      final response = await _subscriptionsApi.getFeaturesUsage();
+      final data = response.data!;
+
+      final usage = FeaturesUsage(
+        boostsRemaining: data['boosts_remaining'] as int? ?? 0,
+        superLikesRemaining: data['super_likes_remaining'] as int? ?? 0,
+        lastBoostReset: data['last_boost_reset'] != null
+            ? DateTime.parse(data['last_boost_reset'] as String)
+            : null,
+        lastSuperLikesReset: data['last_super_likes_reset'] != null
+            ? DateTime.parse(data['last_super_likes_reset'] as String)
+            : null,
       );
-      return const Right(usage);
-    } on DioError catch (e) {
+      return Right(usage);
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(
@@ -266,7 +319,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
         ),
       ];
       return const Right(features);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(
@@ -280,25 +333,16 @@ class PremiumRepositoryImpl implements PremiumRepository {
     bool proration = true,
   }) async {
     try {
-      // TODO: Implémenter avec la vraie API
-      final result = UserSubscription(
-        id: 'sub_modified',
-        plan: PremiumPlan(
-          id: newPlanId,
-          planId: newPlanId,
-          name: 'Premium Modified',
-          description: 'Plan modifié',
-          price: 9.99,
-          currency: 'EUR',
-          billingInterval: BillingInterval.monthly,
-          features: PremiumFeatures(),
-        ),
-        status: SubscriptionStatus.active,
-        currentPeriodStart: DateTime.now(),
-        currentPeriodEnd: DateTime.now().add(Duration(days: 30)),
+      final response = await _subscriptionsApi.modifySubscription(
+        newPlanId: newPlanId,
+        proration: proration,
       );
+      final data = response.data!;
+      final subscriptionData = data['subscription'] as Map<String, dynamic>;
+
+      final result = _mapJsonToUserSubscription(subscriptionData);
       return Right(result);
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
       return Left(ServerFailure(message: 'Erreur lors de la modification: $e'));
@@ -371,33 +415,6 @@ class PremiumRepositoryImpl implements PremiumRepository {
                       : null,
             )
           : null,
-    );
-  }
-
-  RetentionOffer _mapJsonToRetentionOffer(Map<String, dynamic> json) {
-    return RetentionOffer(
-      discountPercentage: json['discount_percentage'] as int,
-      offerExpiresAt: DateTime.parse(json['offer_expires_at'] as String),
-      specialMessage: json['special_message'] as String?,
-    );
-  }
-
-  UsageStats _mapJsonToUsageStats(Map<String, dynamic> json) {
-    return UsageStats(
-      likesSentThisPeriod: json['likes_sent_this_period'] as int? ?? 0,
-      superLikesUsed: json['super_likes_used'] as int? ?? 0,
-      boostsUsed: json['boosts_used'] as int? ?? 0,
-      profileViewsGained: json['profile_views_gained'] as int? ?? 0,
-      matchesFromPremium: json['matches_from_premium'] as int? ?? 0,
-    );
-  }
-
-  FeatureUsage _mapJsonToFeatureUsage(Map<String, dynamic> json) {
-    return FeatureUsage(
-      whoLikedYouViews: json['who_liked_you_views'] as int? ?? 0,
-      mediaMessagesSent: json['media_messages_sent'] as int? ?? 0,
-      videoCallsMade: json['video_calls_made'] as int? ?? 0,
-      rewindsUsed: json['rewinds_used'] as int? ?? 0,
     );
   }
 

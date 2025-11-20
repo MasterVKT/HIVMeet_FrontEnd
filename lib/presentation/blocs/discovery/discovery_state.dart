@@ -14,6 +14,15 @@ class DiscoveryInitial extends DiscoveryState {}
 
 class DiscoveryLoading extends DiscoveryState {}
 
+class DiscoveryLoadingMore extends DiscoveryState {
+  final DiscoveryLoaded currentState;
+
+  const DiscoveryLoadingMore({required this.currentState});
+
+  @override
+  List<Object> get props => [currentState];
+}
+
 class DiscoveryLoaded extends DiscoveryState {
   final DiscoveryProfile currentProfile;
   final List<DiscoveryProfile> nextProfiles;

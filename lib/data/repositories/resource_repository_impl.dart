@@ -28,15 +28,15 @@ class ResourceRepositoryImpl implements ResourceRepository {
       final response = await _resourcesApi.getResources(
         page: page,
         pageSize: pageSize,
-        categoryId: categoryId,
-        tags: tags,
-        searchQuery: searchQuery,
+        category: categoryId,
+        search: searchQuery,
         language: language,
-        type: type?.name,
       );
 
-      final resources = (response.data!['data'] as List)
-          .map((json) => _mapJsonToResource(json))
+      final payload = response.data!;
+      final list = (payload['results'] ?? payload['data'] ?? []) as List;
+      final resources = list
+          .map((json) => _mapJsonToResource(json as Map<String, dynamic>))
           .toList();
 
       return Right(resources);
@@ -63,10 +63,9 @@ class ResourceRepositoryImpl implements ResourceRepository {
     ResourceType? type,
   }) async {
     try {
-      final response = await _resourcesApi.getFavorites(
+      final response = await _resourcesApi.getFavoriteResources(
         page: page,
         pageSize: pageSize,
-        type: type?.name,
       );
 
       final resources = (response.data!['data'] as List)
@@ -89,11 +88,13 @@ class ResourceRepositoryImpl implements ResourceRepository {
       final response = await _resourcesApi.getFeedPosts(
         page: page,
         pageSize: pageSize,
-        categoryFilter: categoryFilter,
+        category: categoryFilter,
       );
 
-      final posts = (response.data!['data'] as List)
-          .map((json) => _mapJsonToFeedPost(json))
+      final payload = response.data!;
+      final list = (payload['results'] ?? payload['data'] ?? []) as List;
+      final posts = list
+          .map((json) => _mapJsonToFeedPost(json as Map<String, dynamic>))
           .toList();
 
       return Right(posts);
@@ -114,7 +115,6 @@ class ResourceRepositoryImpl implements ResourceRepository {
         content: content,
         imageUrl: imageUrl,
         tags: tags,
-        allowComments: allowComments,
       );
 
       final post = _mapJsonToFeedPost(response.data!);
@@ -132,13 +132,15 @@ class ResourceRepositoryImpl implements ResourceRepository {
   }) async {
     try {
       final response = await _resourcesApi.getPostComments(
-        postId: postId,
+        postId,
         page: page,
         pageSize: pageSize,
       );
 
-      final comments = (response.data!['data'] as List)
-          .map((json) => _mapJsonToPostComment(json))
+      final payload = response.data!;
+      final list = (payload['results'] ?? payload['data'] ?? []) as List;
+      final comments = list
+          .map((json) => _mapJsonToPostComment(json as Map<String, dynamic>))
           .toList();
 
       return Right(comments);
@@ -154,7 +156,7 @@ class ResourceRepositoryImpl implements ResourceRepository {
   }) async {
     try {
       final response = await _resourcesApi.addComment(
-        postId: postId,
+        postId,
         content: content,
       );
 
@@ -169,8 +171,14 @@ class ResourceRepositoryImpl implements ResourceRepository {
   Future<Either<Failure, List<ResourceCategory>>> getCategories() async {
     try {
       final response = await _resourcesApi.getCategories();
-      final categories = (response.data!['categories'] as List)
-          .map((json) => _mapJsonToResourceCategory(json))
+      final payload = response.data!;
+      final list = (payload['results'] ??
+          payload['categories'] ??
+          payload['data'] ??
+          []) as List;
+      final categories = list
+          .map((json) =>
+              _mapJsonToResourceCategory(json as Map<String, dynamic>))
           .toList();
       return Right(categories);
     } catch (e) {
@@ -178,10 +186,9 @@ class ResourceRepositoryImpl implements ResourceRepository {
     }
   }
 
-  @override
   Future<Either<Failure, void>> markAsRead(String resourceId) async {
     try {
-      await _resourcesApi.markArticleAsRead(articleId: resourceId);
+      await _resourcesApi.markArticleAsRead(resourceId);
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -191,7 +198,7 @@ class ResourceRepositoryImpl implements ResourceRepository {
   @override
   Future<Either<Failure, void>> addToFavorites(String resourceId) async {
     try {
-      await _resourcesApi.addToFavorites(resourceId: resourceId);
+      await _resourcesApi.addToFavorites(resourceId);
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -201,23 +208,28 @@ class ResourceRepositoryImpl implements ResourceRepository {
   @override
   Future<Either<Failure, void>> removeFromFavorites(String resourceId) async {
     try {
-      await _resourcesApi.removeFromFavorites(resourceId: resourceId);
+      await _resourcesApi.removeFromFavorites(resourceId);
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }
   }
 
-  @override
   Future<Either<Failure, List<Resource>>> getRecentlyViewed({
     int page = 1,
     int limit = 20,
   }) async {
     try {
       final response =
-          await _resourcesApi.getRecentlyViewed(page: page, limit: limit);
-      final resources = (response.data!['resources'] as List)
-          .map((json) => ResourceModel.fromJson(json).toEntity())
+          await _resourcesApi.getRecentlyViewed(page: page, pageSize: limit);
+      final payload = response.data!;
+      final list = (payload['results'] ??
+          payload['resources'] ??
+          payload['data'] ??
+          []) as List;
+      final resources = list
+          .map((json) =>
+              ResourceModel.fromJson(json as Map<String, dynamic>).toEntity())
           .toList();
       return Right(resources);
     } catch (e) {
@@ -228,7 +240,7 @@ class ResourceRepositoryImpl implements ResourceRepository {
   @override
   Future<Either<Failure, void>> likePost(String postId) async {
     try {
-      await _resourcesApi.likeFeedPost(postId: postId);
+      await _resourcesApi.likeFeedPost(postId);
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -238,7 +250,7 @@ class ResourceRepositoryImpl implements ResourceRepository {
   @override
   Future<Either<Failure, void>> unlikePost(String postId) async {
     try {
-      await _resourcesApi.unlikeFeedPost(postId: postId);
+      await _resourcesApi.unlikeFeedPost(postId);
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -263,10 +275,10 @@ class ResourceRepositoryImpl implements ResourceRepository {
     return Resource(
       id: json['id'] as String,
       title: json['title'] as String,
-      type: ResourceType.values.firstWhere(
-        (type) => type.name == json['type'],
-        orElse: () => ResourceType.article,
-      ),
+      category: (json['category'] as String?) ??
+          (json['category_name'] as String? ?? ''),
+      type: (json['type'] as String?) ?? 'article',
+      url: (json['url'] as String?) ?? (json['external_link'] as String? ?? ''),
       categoryId: json['category_id'] as String,
       categoryName: json['category_name'] as String,
       tags: List<String>.from(json['tags'] ?? []),

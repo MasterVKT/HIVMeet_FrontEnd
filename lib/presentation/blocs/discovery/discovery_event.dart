@@ -41,3 +41,12 @@ class UpdateFilters extends DiscoveryEvent {
 }
 
 class LoadDailyLimit extends DiscoveryEvent {}
+
+class LoadMoreProfiles extends DiscoveryEvent {
+  final int limit;
+
+  const LoadMoreProfiles({this.limit = 20});
+
+  @override
+  List<Object> get props => [limit];
+}

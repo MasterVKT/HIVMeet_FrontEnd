@@ -76,7 +76,7 @@ class ResourceModel {
     return ResourceModel(
       id: resource.id,
       title: resource.title,
-      type: resource.type,
+      type: _resourceTypeFromString(resource.type),
       categoryId: resource.categoryId,
       categoryName: resource.categoryName,
       tags: resource.tags,
@@ -99,8 +99,10 @@ class ResourceModel {
     return Resource(
       id: id,
       title: title,
-      type: type,
+      type: _resourceTypeToString(type),
+      category: categoryName,
       categoryId: categoryId,
+      url: externalLink ?? '',
       categoryName: categoryName,
       tags: tags,
       thumbnailUrl: thumbnailUrl,

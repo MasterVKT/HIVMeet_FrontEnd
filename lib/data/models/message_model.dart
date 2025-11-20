@@ -97,8 +97,10 @@ class MessageModel {
         return MessageType.image;
       case 'video':
         return MessageType.video;
-      case 'audio':
-        return MessageType.audio;
+      case 'voice':
+        return MessageType.voice;
+      case 'system':
+        return MessageType.system;
       default:
         return MessageType.text;
     }
@@ -112,8 +114,10 @@ class MessageModel {
         return 'image';
       case MessageType.video:
         return 'video';
-      case MessageType.audio:
-        return 'audio';
+      case MessageType.voice:
+        return 'voice';
+      case MessageType.system:
+        return 'system';
     }
   }
 
@@ -186,24 +190,25 @@ class ConversationModel {
   factory ConversationModel.fromEntity(Conversation conversation) {
     return ConversationModel(
       id: conversation.id,
-      participants: conversation.participants,
+      participants: conversation.participantIds,
       lastMessage: conversation.lastMessage != null
           ? MessageModel.fromEntity(conversation.lastMessage!)
           : null,
-      unreadCounts: conversation.unreadCounts,
-      createdAt: conversation.createdAt,
-      lastActivityAt: conversation.lastActivityAt,
+      unreadCounts: {
+        'current_user': conversation.unreadCount
+      }, // Mapper int vers Map
+      createdAt: conversation.updatedAt, // Mapper updatedAt vers createdAt
+      lastActivityAt: conversation.updatedAt, // Mapper depuis updatedAt
     );
   }
 
   Conversation toEntity() {
     return Conversation(
       id: id,
-      participants: participants,
+      participantIds: participants,
       lastMessage: lastMessage?.toEntity(),
-      unreadCounts: unreadCounts,
-      createdAt: createdAt,
-      lastActivityAt: lastActivityAt,
+      unreadCount: unreadCounts.values.fold(0, (a, b) => a + b),
+      updatedAt: lastActivityAt ?? createdAt,
     );
   }
 

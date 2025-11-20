@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'dev.flutter.flutter-gradle-plugin'
+    id 'com.google.gms.google-services'
 }
 
 def localProperties = new Properties()
@@ -47,7 +48,7 @@ android {
 
     defaultConfig {
         applicationId "com.hivmeet.hivmeet"
-        minSdk 21
+        minSdk 23
         targetSdk 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -55,12 +56,39 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // signingConfig signingConfigs.release
         }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+    
+    buildFeatures {
+        buildConfig = true
+    }
+}
+
+// Configuration des tâches Kotlin
+tasks.matching { task ->
+    task.name.startsWith('compileDebugKotlin') || task.name.startsWith('compileReleaseKotlin')
+}.configureEach { task ->
+    task.outputs.upToDateWhen { false }
+    task.kotlinOptions {
+        freeCompilerArgs += [
+            "-Xno-param-assertions",
+            "-Xno-call-assertions"
+        ]
     }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    
+    // RETIRÉ: Les dépendances Google Play Core pour éviter les doublons
+    // Les plugins Flutter gèrent déjà ces dépendances automatiquement
 }
