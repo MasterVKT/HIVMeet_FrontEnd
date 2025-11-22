@@ -128,17 +128,29 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   @override
   Future<Either<Failure, void>> deleteAccount() async {
-    try {
-      // Clear all local data
-      await _sharedPreferences.clear();
-      await _secureStorage.deleteAll();
+    // ATTENTION: deleteAccount backend API n'est pas encore implémentée!
+    // Ne PAS laisser l'utilisateur croire que son compte est supprimé
+    // alors qu'il existe toujours côté serveur.
+    //
+    // TODO: Implémenter DELETE /api/v1/auth/account/ dans le backend
+    // puis appeler via AuthApi
+    return Left(ServerFailure(
+      message: 'La suppression de compte n\'est pas encore disponible. '
+          'Contactez le support pour supprimer votre compte.',
+    ));
 
-      // TODO: Call backend API to delete account
-      // await _authApi.deleteAccount();
-
-      return const Right(null);
-    } catch (e) {
-      return Left(LocalFailure(message: e.toString()));
-    }
+    // Code à activer une fois l'API backend implémentée:
+    // try {
+    //   // 1. Appeler le backend pour supprimer le compte
+    //   await _authApi.deleteAccount();
+    //
+    //   // 2. Ensuite seulement, nettoyer les données locales
+    //   await _sharedPreferences.clear();
+    //   await _secureStorage.deleteAll();
+    //
+    //   return const Right(null);
+    // } catch (e) {
+    //   return Left(ServerFailure(message: e.toString()));
+    // }
   }
 }

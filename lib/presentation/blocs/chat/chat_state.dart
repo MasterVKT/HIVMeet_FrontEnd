@@ -13,25 +13,33 @@ class ChatLoading extends ChatState {}
 
 class ChatLoaded extends ChatState {
   final List<Message> messages;
-  final Stream<List<Message>> stream;
-  final bool isTyping;
+  final bool hasMore; // Plus de messages à charger
+  final bool isTyping; // L'autre participant est en train de taper
+  final bool isLoadingMore; // Chargement de messages plus anciens en cours
 
-  const ChatLoaded(
-      {required this.messages, required this.stream, required this.isTyping});
+  const ChatLoaded({
+    required this.messages,
+    required this.hasMore,
+    required this.isTyping,
+    required this.isLoadingMore,
+  });
 
-  ChatLoaded copyWith(
-      {List<Message>? messages,
-      Stream<List<Message>>? stream,
-      bool? isTyping}) {
+  ChatLoaded copyWith({
+    List<Message>? messages,
+    bool? hasMore,
+    bool? isTyping,
+    bool? isLoadingMore,
+  }) {
     return ChatLoaded(
       messages: messages ?? this.messages,
-      stream: stream ?? this.stream,
+      hasMore: hasMore ?? this.hasMore,
       isTyping: isTyping ?? this.isTyping,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 
   @override
-  List<Object?> get props => [messages, stream, isTyping];
+  List<Object?> get props => [messages, hasMore, isTyping, isLoadingMore];
 }
 
 class ChatError extends ChatState {

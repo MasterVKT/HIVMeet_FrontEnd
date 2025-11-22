@@ -20,6 +20,7 @@ import 'package:hivmeet/presentation/widgets/buttons/action_button.dart';
 import 'package:hivmeet/presentation/widgets/modals/filters_modal.dart';
 import 'package:hivmeet/presentation/widgets/modals/match_found_modal.dart';
 import 'package:hivmeet/injection.dart';
+import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
 
 class DiscoveryPage extends StatefulWidget {
   const DiscoveryPage({super.key});
@@ -46,10 +47,29 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   Widget build(BuildContext context) {
     return BlocProvider<DiscoveryBloc>(
       create: (context) => _discoveryBloc,
-      child: Scaffold(
-        backgroundColor: AppColors.primaryWhite,
-        appBar: _buildAppBar(),
-        body: BlocConsumer<DiscoveryBloc, DiscoveryState>(
+      child: AppScaffold(
+        currentIndex: 0, // Discovery tab
+        appBar: AppBar(
+          backgroundColor: AppColors.primaryWhite,
+          elevation: 0,
+          title: Text(
+            'HIVMeet',
+            style: GoogleFonts.pacifico(
+              fontSize: 28,
+              fontWeight: FontWeight.w400,
+              color: AppColors.primaryPurple,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.tune, color: AppColors.primaryPurple),
+              onPressed: () => _showFiltersModal(context),
+            ),
+          ],
+        ),
+        body: Container(
+          color: AppColors.primaryWhite,
+          child: BlocConsumer<DiscoveryBloc, DiscoveryState>(
           listener: _handleStateChanges,
           builder: (context, state) {
             print('🔄 DEBUG DiscoveryPage: State change: $state');
@@ -101,33 +121,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             );
           },
         ),
-        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Text(
-        LocalizationService.translate('discovery.title'),
-        style: GoogleFonts.openSans(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primaryPurple,
-        ),
       ),
-      backgroundColor: AppColors.primaryWhite,
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: Icon(Icons.filter_list, color: AppColors.primaryPurple),
-          onPressed: _showFiltersModal,
-        ),
-        IconButton(
-          icon: Icon(Icons.settings, color: AppColors.primaryPurple),
-          onPressed: () => context.go('/settings'),
-        ),
-      ],
     );
   }
 
@@ -381,49 +376,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: AppColors.primaryPurple,
-      unselectedItemColor: AppColors.slate,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.explore),
-          label: 'Découverte',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.favorite),
-          label: 'Matches',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat),
-          label: 'Messages',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profil',
-        ),
-      ],
-      currentIndex: 0,
-      onTap: (index) {
-        switch (index) {
-          case 0:
-            // Déjà sur discovery
-            break;
-          case 1:
-            context.go('/matches');
-            break;
-          case 2:
-            context.go('/conversations');
-            break;
-          case 3:
-            context.go('/profile');
-            break;
-        }
-      },
     );
   }
 

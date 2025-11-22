@@ -4,7 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/domain/entities/resource.dart';
-import 'package:hivmeet/domain/repositories/resource_repository.dart';
+import 'package:hivmeet/domain/usecases/resources/get_resources.dart';
+import 'package:hivmeet/domain/usecases/resources/add_to_favorites.dart';
 import 'package:hivmeet/core/error/failures.dart';
 
 part 'resources_event.dart';
@@ -12,9 +13,15 @@ part 'resources_state.dart';
 
 @injectable
 class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
-  final ResourceRepository _repository;
+  final GetResources _getResources;
+  final AddToFavorites _addToFavorites;
 
-  ResourcesBloc(this._repository) : super(ResourcesInitial()) {
+  ResourcesBloc({
+    required GetResources getResources,
+    required AddToFavorites addToFavorites,
+  })  : _getResources = getResources,
+        _addToFavorites = addToFavorites,
+        super(ResourcesInitial()) {
     on<LoadResources>(_onLoadResources);
     on<SearchResources>(_onSearchResources);
     on<AddFavorite>(_onAddFavorite);
@@ -24,9 +31,11 @@ class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
       LoadResources event, Emitter<ResourcesState> emit) async {
     emit(ResourcesLoading());
 
-    final result = await _repository.getResources(
-      categoryId: event.category,
-    );
+    final params = event.category != null
+        ? GetResourcesParams.byCategory(categoryId: event.category!)
+        : GetResourcesParams.initial();
+
+    final result = await _getResources(params);
 
     result.fold(
       (failure) => emit(ResourcesError(message: _mapFailureToMessage(failure))),
@@ -38,9 +47,8 @@ class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
       SearchResources event, Emitter<ResourcesState> emit) async {
     emit(ResourcesLoading());
 
-    final result = await _repository.getResources(
-      searchQuery: event.query,
-    );
+    final params = GetResourcesParams.search(query: event.query);
+    final result = await _getResources(params);
 
     result.fold(
       (failure) => emit(ResourcesError(message: _mapFailureToMessage(failure))),
@@ -49,7 +57,8 @@ class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
   }
 
   void _onAddFavorite(AddFavorite event, Emitter<ResourcesState> emit) async {
-    final result = await _repository.addToFavorites(event.resourceId);
+    final params = AddToFavoritesParams(resourceId: event.resourceId);
+    final result = await _addToFavorites(params);
 
     result.fold(
       (failure) => emit(ResourcesError(message: _mapFailureToMessage(failure))),

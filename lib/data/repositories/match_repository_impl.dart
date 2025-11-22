@@ -46,87 +46,23 @@ class MatchRepositoryImpl implements MatchRepository {
       return Right(profiles);
     } on ServerException catch (e) {
       print('❌ DEBUG MatchRepositoryImpl: ServerException: ${e.message}');
-
-      // Si c'est une erreur d'authentification, utiliser des données de fallback
-      if (e.message.contains('401') || e.message.contains('authentification')) {
-        print(
-            '🔒 DEBUG MatchRepositoryImpl: Erreur d\'authentification, utilisation des données de fallback');
-        return Right(_getFallbackProfiles(limit));
-      }
-
       return Left(ServerFailure(message: e.message));
     } catch (e) {
       print('❌ DEBUG MatchRepositoryImpl: Exception: $e');
-
-      // En cas d'erreur réseau, utiliser des données de fallback
-      print(
-          '🌐 DEBUG MatchRepositoryImpl: Erreur réseau, utilisation des données de fallback');
-      return Right(_getFallbackProfiles(limit));
+      return Left(ServerFailure(message: 'Erreur lors du chargement des profils: $e'));
     }
-  }
-
-  /// Génère des profils de fallback pour les tests et les erreurs d'authentification
-  List<DiscoveryProfile> _getFallbackProfiles(int limit) {
-    return List.generate(limit, (index) {
-      return DiscoveryProfile(
-        id: 'fallback_profile_$index',
-        displayName: 'Utilisateur ${index + 1}',
-        age: 25 + (index % 15),
-        mainPhotoUrl: 'https://picsum.photos/400/600?random=$index',
-        otherPhotosUrls: [
-          'https://picsum.photos/400/600?random=${index + 100}',
-          'https://picsum.photos/400/600?random=${index + 200}',
-        ],
-        bio:
-            'Bio de l\'utilisateur ${index + 1}. Passionné(e) de musique et de voyage.',
-        city: 'Paris',
-        country: 'France',
-        distance: (index * 2.5).toDouble(),
-        interests: [
-          'Musique',
-          'Voyage',
-          'Sport',
-          'Cinéma',
-          'Lecture',
-        ].take(2 + (index % 3)).toList(),
-        relationshipType: [
-          'any',
-          'friendship',
-          'relationship',
-          'casual'
-        ][index % 4],
-        isVerified: index % 3 == 0,
-        isPremium: index % 5 == 0,
-        lastActive: DateTime.now().subtract(Duration(minutes: index * 5)),
-        compatibilityScore: 60.0 + (index * 2.0),
-      );
-    });
   }
 
   @override
   Future<Either<Failure, DiscoveryProfile>> getDiscoveryProfile(
       String profileId) async {
     try {
-      // TODO: Implémenter getProfile individuel dans l'API ou utiliser getDiscoveryProfiles
-      // Pour l'instant, simulons avec des données fictives
-      final profile = DiscoveryProfile(
-        id: profileId,
-        displayName: 'Profile $profileId',
-        age: 25,
-        mainPhotoUrl: 'https://example.com/photo.jpg',
-        otherPhotosUrls: [],
-        bio: 'Profile bio',
-        city: 'Paris',
-        country: 'France',
-        distance: 5.0,
-        interests: [],
-        relationshipType: 'serious',
-        isVerified: false,
-        isPremium: false,
-        lastActive: DateTime.now(),
-        compatibilityScore: 75,
-      );
-      return Right(profile);
+      // TODO: Implémenter getProfile individuel dans l'API
+      // Pour l'instant, utiliser getDiscoveryProfiles et filtrer par ID
+      // ou créer un endpoint dédié dans l'API
+      return Left(ServerFailure(
+        message: 'getDiscoveryProfile non implémenté - utiliser getDiscoveryProfiles',
+      ));
     } catch (e) {
       return Left(
           ServerFailure(message: 'Erreur lors du chargement du profil: $e'));
@@ -237,49 +173,12 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, Match>> getMatch(String matchId) async {
     try {
-      // TODO: Créer un match temporaire pour les tests
-      final match = Match(
-        id: 'temp_match_id',
-        profile: Profile(
-          id: 'temp_profile_id',
-          userId: 'temp_user_id',
-          displayName: 'Profil temporaire',
-          birthDate: DateTime.now().subtract(const Duration(days: 365 * 25)),
-          bio: 'Bio temporaire',
-          location: const Location(
-            latitude: 48.8566,
-            longitude: 2.3522,
-            geohash: 'u09tvw0',
-          ),
-          city: 'Paris',
-          country: 'France',
-          interests: const [],
-          relationshipType: RelationshipType.longTerm,
-          photos: const PhotoCollection(
-            main: 'https://example.com/photo.jpg',
-            others: [],
-            private: [],
-          ),
-          searchPreferences: const SearchPreferences(
-            minAge: 18,
-            maxAge: 50,
-            maxDistance: 50.0,
-            interestedIn: [Gender.female],
-            relationshipTypes: [RelationshipType.longTerm],
-          ),
-          lastActive: DateTime.now(),
-          isHidden: false,
-          verificationStatus: const VerificationStatus(
-            status: 'not_started',
-            documents: {},
-          ),
-          privacySettings: const PrivacySettings(),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        matchedAt: DateTime.now(),
-      );
-      return Right(match);
+      // TODO: Implémenter getMatch individuel dans l'API
+      // Pour l'instant, utiliser getMatches et filtrer par ID
+      // ou créer un endpoint dédié dans l'API
+      return Left(ServerFailure(
+        message: 'getMatch non implémenté - utiliser getMatches',
+      ));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {
@@ -470,17 +369,76 @@ class MatchRepositoryImpl implements MatchRepository {
   }
 
   // Helper methods
+
+  /// Extrait une PhotoCollection à partir des données JSON
+  /// Supporte les deux formats: photos array et main_photo_url/other_photos
+  PhotoCollection _extractPhotoCollection(Map<String, dynamic> json) {
+    String mainPhoto = '';
+    List<String> otherPhotos = [];
+
+    if (json['photos'] != null && json['photos'] is List) {
+      // Format API documentation: photos array with objects
+      final photos = json['photos'] as List;
+      final main = photos.firstWhere(
+        (p) => p['is_main'] == true,
+        orElse: () => photos.isNotEmpty ? photos.first : null,
+      );
+      if (main != null) {
+        mainPhoto = main['photo_url'] as String? ?? '';
+      }
+      otherPhotos = photos
+          .where((p) => p['is_main'] != true)
+          .map((p) => p['photo_url'] as String)
+          .toList();
+    } else {
+      // Format backend actuel: main_photo_url + other_photos
+      mainPhoto = json['main_photo_url'] as String? ?? '';
+      otherPhotos = (json['other_photos'] as List?)?.cast<String>() ?? [];
+    }
+
+    return PhotoCollection(
+      main: mainPhoto,
+      others: otherPhotos,
+      private: const [],
+    );
+  }
+
   DiscoveryProfile _mapJsonToDiscoveryProfile(Map<String, dynamic> json) {
+    // Gérer les photos - supporter les deux formats (API docs vs backend actuel)
+    String mainPhotoUrl = '';
+    List<String> otherPhotosUrls = [];
+
+    if (json['photos'] != null && json['photos'] is List) {
+      // Format API documentation: photos array with objects
+      final photos = json['photos'] as List;
+      final mainPhoto = photos.firstWhere(
+        (p) => p['is_main'] == true,
+        orElse: () => photos.isNotEmpty ? photos.first : null,
+      );
+      if (mainPhoto != null) {
+        mainPhotoUrl = mainPhoto['photo_url'] as String? ?? '';
+      }
+      otherPhotosUrls = photos
+          .where((p) => p['is_main'] != true)
+          .map((p) => p['photo_url'] as String)
+          .toList();
+    } else {
+      // Format backend actuel: main_photo_url + other_photos
+      mainPhotoUrl = json['main_photo_url'] as String? ?? '';
+      otherPhotosUrls = (json['other_photos'] as List?)?.cast<String>() ?? [];
+    }
+
     return DiscoveryProfile(
       id: json['id'] as String,
       displayName: json['display_name'] as String,
       age: json['age'] as int,
-      mainPhotoUrl: json['main_photo_url'] as String? ?? '',
-      otherPhotosUrls: (json['other_photos'] as List?)?.cast<String>() ?? [],
+      mainPhotoUrl: mainPhotoUrl,
+      otherPhotosUrls: otherPhotosUrls,
       bio: json['bio'] as String? ?? '',
       city: json['city'] as String? ?? '',
       country: json['country'] as String? ?? '',
-      distance: (json['distance'] as num?)?.toDouble(),
+      distance: (json['distance'] as num?)?.toDouble() ??
+                (json['distance_km'] as num?)?.toDouble(),
       interests: (json['interests'] as List?)?.cast<String>() ?? [],
       relationshipType: json['relationship_type'] as String? ?? 'casual',
       isVerified: json['is_verified'] as bool? ?? false,
@@ -493,34 +451,50 @@ class MatchRepositoryImpl implements MatchRepository {
 
   Match _mapJsonToMatch(Map<String, dynamic> json) {
     // Créer un profil à partir des données du match
-    final profileData = json['profile'] ?? json['matched_user'] ?? {};
+    // API retourne 'matched_profile' selon la documentation
+    final profileData = json['matched_profile'] as Map<String, dynamic>? ??
+                        json['profile'] as Map<String, dynamic>? ??
+                        json['matched_user'] as Map<String, dynamic>? ??
+                        {};
 
     // Calculer la date de naissance à partir de l'âge
-    final age = profileData['age'] as int? ?? 25;
-    final birthDate = DateTime.now().subtract(Duration(days: age * 365));
+    final age = profileData['age'] as int?;
+    final birthDate = age != null
+        ? DateTime.now().subtract(Duration(days: age * 365))
+        : profileData['birth_date'] != null
+            ? DateTime.parse(profileData['birth_date'] as String)
+            : DateTime.now().subtract(const Duration(days: 365 * 25));
+
+    // Parse location - vérifier dans location object ou directement dans profileData
+    final locationData = profileData['location'] as Map<String, dynamic>?;
+    final latitude = locationData != null
+        ? (locationData['latitude'] as num?)?.toDouble()
+        : (profileData['latitude'] as num?)?.toDouble();
+    final longitude = locationData != null
+        ? (locationData['longitude'] as num?)?.toDouble()
+        : (profileData['longitude'] as num?)?.toDouble();
+    final geohash = locationData?['geohash'] as String? ??
+        profileData['geohash'] as String? ??
+        '';
 
     final profile = Profile(
       id: profileData['id'] as String? ?? json['matched_user_id'] as String,
       userId: profileData['user_id'] as String? ??
           profileData['id'] as String? ??
           json['matched_user_id'] as String,
-      displayName: profileData['display_name'] as String? ?? 'Utilisateur',
+      displayName: profileData['display_name'] as String,
       birthDate: birthDate,
       bio: profileData['bio'] as String? ?? '',
       location: Location(
-        latitude: (profileData['latitude'] as num?)?.toDouble() ?? 0.0,
-        longitude: (profileData['longitude'] as num?)?.toDouble() ?? 0.0,
-        geohash: profileData['geohash'] as String? ?? '',
+        latitude: latitude ?? 0.0,
+        longitude: longitude ?? 0.0,
+        geohash: geohash,
       ),
       city: profileData['city'] as String? ?? '',
       country: profileData['country'] as String? ?? '',
       interests: (profileData['interests'] as List?)?.cast<String>() ?? [],
       relationshipType: profileData['relationship_type'] as String? ?? 'casual',
-      photos: PhotoCollection(
-        main: profileData['main_photo_url'] as String? ?? '',
-        others: (profileData['other_photos'] as List?)?.cast<String>() ?? [],
-        private: const [],
-      ),
+      photos: _extractPhotoCollection(profileData),
       searchPreferences: SearchPreferences(
         minAge: 18,
         maxAge: 50,

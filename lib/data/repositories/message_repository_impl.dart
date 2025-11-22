@@ -20,9 +20,11 @@ class MessageRepositoryImpl implements MessageRepository {
     String? lastConversationId,
   }) async {
     try {
-      // Convertir lastConversationId en page pour l'API
+      // TODO: L'API utilise pagination par page, mais le repository utilise cursor.
+      // Pour l'instant, toujours fetch page 1. Solution future:
+      // - Soit migrer l'API vers cursor-based pagination
+      // - Soit maintenir un mapping conversationId -> page côté client
       int page = 1;
-      // TODO: Implémenter la pagination basée sur lastConversationId
 
       final response = await _messagingApi.getConversations(
         page: page,
@@ -177,6 +179,14 @@ class MessageRepositoryImpl implements MessageRepository {
   // Méthodes utilitaires
 
   Conversation _mapJsonToConversation(Map<String, dynamic> json) {
+    // updated_at est OBLIGATOIRE - ne jamais fallback à DateTime.now()
+    final updatedAtStr = json['updated_at'] as String?;
+    if (updatedAtStr == null) {
+      throw ServerException(
+        message: 'Conversation manque updated_at - données API invalides',
+      );
+    }
+
     return Conversation(
       id: json['id'] as String,
       participantIds:
@@ -185,8 +195,7 @@ class MessageRepositoryImpl implements MessageRepository {
           ? _mapJsonToMessage(json['last_message'] as Map<String, dynamic>)
           : null,
       unreadCount: (json['unread_count'] as int?) ?? 0,
-      updatedAt: DateTime.parse(
-          (json['updated_at'] as String?) ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(updatedAtStr),
     );
   }
 

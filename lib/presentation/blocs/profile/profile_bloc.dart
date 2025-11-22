@@ -8,6 +8,14 @@ import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
 import 'package:hivmeet/domain/usecases/profile/update_profile.dart';
+import 'package:hivmeet/domain/usecases/profile/upload_photo.dart' as upload;
+import 'package:hivmeet/domain/usecases/profile/delete_photo.dart' as delete;
+import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart' as set_main;
+import 'package:hivmeet/domain/usecases/profile/reorder_photos.dart' as reorder;
+import 'package:hivmeet/domain/usecases/profile/update_location.dart' as update_loc;
+import 'package:hivmeet/domain/usecases/profile/block_user.dart' as block;
+import 'package:hivmeet/domain/usecases/profile/unblock_user.dart' as unblock;
+import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart' as toggle;
 import 'profile_event.dart';
 import 'profile_state.dart';
 
@@ -15,6 +23,14 @@ import 'profile_state.dart';
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final GetCurrentProfile _getCurrentProfile;
   final UpdateProfile _updateProfile;
+  final upload.UploadPhoto _uploadPhoto;
+  final delete.DeletePhoto _deletePhoto;
+  final set_main.SetMainPhoto _setMainPhoto;
+  final reorder.ReorderPhotos _reorderPhotos;
+  final update_loc.UpdateLocation _updateLocation;
+  final block.BlockUser _blockUser;
+  final unblock.UnblockUser _unblockUser;
+  final toggle.ToggleProfileVisibility _toggleProfileVisibility;
   final ProfileRepository _profileRepository;
 
   StreamSubscription<Profile?>? _profileSubscription;
@@ -22,9 +38,25 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc({
     required GetCurrentProfile getCurrentProfile,
     required UpdateProfile updateProfile,
+    required upload.UploadPhoto uploadPhoto,
+    required delete.DeletePhoto deletePhoto,
+    required set_main.SetMainPhoto setMainPhoto,
+    required reorder.ReorderPhotos reorderPhotos,
+    required update_loc.UpdateLocation updateLocation,
+    required block.BlockUser blockUser,
+    required unblock.UnblockUser unblockUser,
+    required toggle.ToggleProfileVisibility toggleProfileVisibility,
     required ProfileRepository profileRepository,
   })  : _getCurrentProfile = getCurrentProfile,
         _updateProfile = updateProfile,
+        _uploadPhoto = uploadPhoto,
+        _deletePhoto = deletePhoto,
+        _setMainPhoto = setMainPhoto,
+        _reorderPhotos = reorderPhotos,
+        _updateLocation = updateLocation,
+        _blockUser = blockUser,
+        _unblockUser = unblockUser,
+        _toggleProfileVisibility = toggleProfileVisibility,
         _profileRepository = profileRepository,
         super(ProfileInitial()) {
     on<LoadProfile>(_onLoadProfile);
@@ -114,11 +146,13 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         progress: 0.0,
       ));
 
-      final result = await _profileRepository.uploadProfilePhoto(
+      final params = upload.UploadPhotoParams(
         photo: event.photo,
         isMain: event.isMain,
         isPrivate: event.isPrivate,
       );
+
+      final result = await _uploadPhoto(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -144,8 +178,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result =
-          await _profileRepository.deleteProfilePhoto(event.photoUrl);
+      final params = delete.DeletePhotoParams(photoUrl: event.photoUrl);
+      final result = await _deletePhoto(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -169,7 +203,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.setMainPhoto(event.photoUrl);
+      final params = set_main.SetMainPhotoParams(photoUrl: event.photoUrl);
+      final result = await _setMainPhoto(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -193,7 +228,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.reorderPhotos(event.photoUrls);
+      final params = reorder.ReorderPhotosParams(photoUrls: event.photoUrls);
+      final result = await _reorderPhotos(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -217,8 +253,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result =
-          await _profileRepository.toggleProfileVisibility(event.isHidden);
+      final params = toggle.ToggleProfileVisibilityParams(
+        isHidden: event.isHidden,
+      );
+      final result = await _toggleProfileVisibility(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -245,12 +283,13 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.updateLocation(
+      final params = update_loc.UpdateLocationParams(
         latitude: event.latitude,
         longitude: event.longitude,
         city: event.city,
         country: event.country,
       );
+      final result = await _updateLocation(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -274,7 +313,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.blockUser(event.userId);
+      final params = block.BlockUserParams(userId: event.userId);
+      final result = await _blockUser(params);
 
       result.fold(
         (failure) => emit(ProfileError(
@@ -297,7 +337,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final currentState = state;
     if (currentState is ProfileLoaded) {
-      final result = await _profileRepository.unblockUser(event.userId);
+      final params = unblock.UnblockUserParams(userId: event.userId);
+      final result = await _unblockUser(params);
 
       result.fold(
         (failure) => emit(ProfileError(

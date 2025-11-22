@@ -4,15 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
 
 class ProfileDetailPage extends StatelessWidget {
   const ProfileDetailPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primaryWhite,
+    return AppScaffold(
+      currentIndex: 3, // Profile tab
       appBar: AppBar(
+        backgroundColor: AppColors.primaryWhite,
+        elevation: 0,
         title: Text(
           'Mon Profil',
           style: GoogleFonts.openSans(
@@ -21,8 +24,6 @@ class ProfileDetailPage extends StatelessWidget {
             color: AppColors.primaryPurple,
           ),
         ),
-        backgroundColor: AppColors.primaryWhite,
-        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.settings, color: AppColors.primaryPurple),
@@ -74,46 +75,6 @@ class ProfileDetailPage extends StatelessWidget {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primaryPurple,
-        unselectedItemColor: AppColors.slate,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            label: 'Découverte',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Matches',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
-        currentIndex: 3,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/discovery');
-              break;
-            case 1:
-              context.go('/matches');
-              break;
-            case 2:
-              context.go('/conversations');
-              break;
-            case 3:
-              // Déjà sur profile
-              break;
-          }
-        },
       ),
     );
   }
