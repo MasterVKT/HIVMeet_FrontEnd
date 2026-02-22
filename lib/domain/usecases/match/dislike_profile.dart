@@ -6,19 +6,20 @@ import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
+import 'package:hivmeet/domain/entities/match.dart';
 
 /// Use case pour disliker un profil (swipe left)
 ///
 /// Le profil ne sera plus proposé dans la découverte
 /// Cette action peut être annulée avec le Rewind (feature premium)
 @injectable
-class DislikeProfile implements UseCase<void, DislikeProfileParams> {
+class DislikeProfile implements UseCase<SwipeResult, DislikeProfileParams> {
   final MatchRepository repository;
 
   DislikeProfile(this.repository);
 
   @override
-  Future<Either<Failure, void>> call(DislikeProfileParams params) async {
+  Future<Either<Failure, SwipeResult>> call(DislikeProfileParams params) async {
     return await repository.dislikeProfile(params.profileId);
   }
 }

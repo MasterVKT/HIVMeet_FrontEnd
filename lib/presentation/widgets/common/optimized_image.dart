@@ -91,8 +91,12 @@ class _OptimizedImageState extends State<OptimizedImage>
             return _buildErrorWidget();
           },
           // Optimisations de performance
-          cacheWidth: widget.width?.toInt(),
-          cacheHeight: widget.height?.toInt(),
+          cacheWidth: (widget.width != null && widget.width!.isFinite)
+              ? widget.width!.toInt()
+              : null,
+          cacheHeight: (widget.height != null && widget.height!.isFinite)
+              ? widget.height!.toInt()
+              : null,
           filterQuality: FilterQuality.medium,
         );
       },

@@ -90,16 +90,16 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
 
     emit(currentState.copyWith(isLoadingMore: true));
 
-    final lastConversationId = _allConversations.isNotEmpty
-        ? _allConversations.last.id
-        : null;
+    final lastConversationId =
+        _allConversations.isNotEmpty ? _allConversations.last.id : null;
 
     if (lastConversationId == null) {
       emit(currentState.copyWith(isLoadingMore: false));
       return;
     }
 
-    final params = GetConversationsParams.initial().nextPage(lastConversationId);
+    final params =
+        GetConversationsParams.initial().nextPage(lastConversationId);
     final result = await _getConversations(params);
 
     result.fold(
@@ -169,8 +169,21 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
       totalUnreadCount: totalUnread,
     ));
 
-    // Appel API
-    final params = MarkAsReadParams(conversationId: event.conversationId);
+    // Appel API - marquer le dernier message comme lu
+    final conversation = _allConversations.firstWhere(
+      (conv) => conv.id == event.conversationId,
+    );
+
+    // Si pas de dernier message, pas besoin d'appeler l'API
+    if (conversation.lastMessage == null) {
+      _allConversations = updatedConversations;
+      return;
+    }
+
+    final params = MarkAsReadParams(
+      conversationId: event.conversationId,
+      messageId: conversation.lastMessage!.id,
+    );
     final result = await _markAsRead(params);
 
     result.fold(

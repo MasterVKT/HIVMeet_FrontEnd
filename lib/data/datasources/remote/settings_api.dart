@@ -11,8 +11,7 @@ class SettingsApi {
   /// Récupérer les préférences de notification
   /// GET /api/v1/user-settings/notification-preferences
   Future<Response<Map<String, dynamic>>> getNotificationPreferences() async {
-    return await _apiClient
-        .get('/api/v1/user-settings/notification-preferences');
+    return await _apiClient.get('/user-settings/notification-preferences');
   }
 
   /// Mettre à jour les préférences de notification
@@ -20,7 +19,7 @@ class SettingsApi {
   Future<Response<Map<String, dynamic>>> updateNotificationPreferences(
       Map<String, dynamic> preferences) async {
     return await _apiClient
-        .put('/api/v1/user-settings/notification-preferences', data: {
+        .put('/user-settings/notification-preferences', data: {
       'notification_preferences': preferences,
     });
   }
@@ -28,15 +27,14 @@ class SettingsApi {
   /// Récupérer les préférences de confidentialité
   /// GET /api/v1/user-settings/privacy-preferences
   Future<Response<Map<String, dynamic>>> getPrivacyPreferences() async {
-    return await _apiClient.get('/api/v1/user-settings/privacy-preferences');
+    return await _apiClient.get('/user-settings/privacy-preferences');
   }
 
   /// Mettre à jour les préférences de confidentialité
   /// PUT /api/v1/user-settings/privacy-preferences
   Future<Response<Map<String, dynamic>>> updatePrivacyPreferences(
       Map<String, dynamic> preferences) async {
-    return await _apiClient
-        .put('/api/v1/user-settings/privacy-preferences', data: {
+    return await _apiClient.put('/user-settings/privacy-preferences', data: {
       'privacy_preferences': preferences,
     });
   }
@@ -44,13 +42,13 @@ class SettingsApi {
   /// Récupérer la liste des utilisateurs bloqués
   /// GET /api/v1/user-settings/blocks
   Future<Response<Map<String, dynamic>>> getBlockedUsers() async {
-    return await _apiClient.get('/api/v1/user-settings/blocks');
+    return await _apiClient.get('/user-settings/blocks');
   }
 
   /// Bloquer un utilisateur
   /// POST /api/v1/user-settings/blocks/{user_id}
   Future<Response<Map<String, dynamic>>> blockUser(String userId) async {
-    return await _apiClient.post('/api/v1/user-settings/blocks/$userId', data: {
+    return await _apiClient.post('/user-settings/blocks/$userId', data: {
       'user_id': userId,
     });
   }
@@ -61,7 +59,7 @@ class SettingsApi {
     required String reason,
     String? feedback,
   }) async {
-    return await _apiClient.post('/api/v1/user-settings/delete-account', data: {
+    return await _apiClient.post('/user-settings/delete-account', data: {
       'reason': reason,
       if (feedback != null) 'feedback': feedback,
     });
@@ -70,6 +68,6 @@ class SettingsApi {
   /// Exporter les données utilisateur
   /// GET /api/v1/user-settings/export-data
   Future<Response<Map<String, dynamic>>> exportUserData() async {
-    return await _apiClient.get('/api/v1/user-settings/export-data');
+    return await _apiClient.get('/user-settings/export-data');
   }
 }

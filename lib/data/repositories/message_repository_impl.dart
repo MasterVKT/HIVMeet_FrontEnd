@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/error/exceptions.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 import 'package:hivmeet/data/datasources/remote/messaging_api.dart';

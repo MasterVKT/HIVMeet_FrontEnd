@@ -1,6 +1,8 @@
 // lib/presentation/widgets/conversations/conversations_widgets.dart
 
 /// Barrel file pour exporter tous les widgets relatifs aux conversations
+library;
+
 
 export 'conversation_card.dart';
 export 'conversations_search_bar.dart';

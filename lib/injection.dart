@@ -28,6 +28,7 @@ import 'package:hivmeet/domain/usecases/match/get_daily_like_limit.dart';
 import 'package:hivmeet/domain/usecases/match/get_matches.dart';
 import 'package:hivmeet/domain/usecases/match/delete_match.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received.dart';
+import 'package:hivmeet/domain/repositories/premium_repository.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received_count.dart';
 import 'package:hivmeet/domain/usecases/match/activate_boost.dart';
 import 'package:hivmeet/domain/usecases/resources/get_resources.dart';
@@ -35,12 +36,21 @@ import 'package:hivmeet/domain/usecases/resources/get_feed_posts.dart';
 import 'package:hivmeet/domain/usecases/resources/like_post.dart';
 import 'package:hivmeet/domain/usecases/resources/comment_post.dart';
 import 'package:hivmeet/domain/usecases/resources/add_to_favorites.dart';
+import 'package:hivmeet/domain/usecases/interaction_history/get_my_likes.dart';
+import 'package:hivmeet/domain/usecases/interaction_history/get_my_passes.dart';
+import 'package:hivmeet/domain/usecases/interaction_history/revoke_interaction.dart';
+import 'package:hivmeet/core/events/app_events.dart';
+import 'package:hivmeet/domain/usecases/interaction_history/get_interaction_stats.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
+import 'package:hivmeet/presentation/blocs/matches/matches_bloc.dart';
+import 'package:hivmeet/presentation/blocs/interaction_history/interaction_history_bloc.dart';
 import 'package:hivmeet/data/repositories/match_repository_impl.dart';
 import 'package:hivmeet/data/datasources/remote/matching_api.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
+import 'package:hivmeet/domain/repositories/interaction_history_repository.dart';
+import 'package:hivmeet/data/repositories/interaction_history_repository_impl.dart';
 import 'package:hivmeet/data/datasources/remote/resources_api.dart';
 import 'package:hivmeet/data/repositories/resource_repository_impl.dart';
 import 'package:hivmeet/domain/repositories/resource_repository.dart';
@@ -89,6 +99,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<NetworkConnectivityService>(
     NetworkConnectivityService(),
+  );
+
+  getIt.registerLazySingleton<AppEvents>(
+    () => AppEvents(),
   );
 
   // 3. TokenManager sans ApiClient d'abord
@@ -307,7 +321,7 @@ Future<void> configureDependencies() async {
     ),
   );
 
-  getIt.registerFactory<DiscoveryBloc>(
+  getIt.registerLazySingleton<DiscoveryBloc>(
     () => DiscoveryBloc(
       getDiscoveryProfiles: getIt<GetDiscoveryProfiles>(),
       likeProfile: getIt<LikeProfile>(),
@@ -316,6 +330,9 @@ Future<void> configureDependencies() async {
       rewindSwipe: getIt<RewindSwipe>(),
       updateFilters: getIt<UpdateFilters>(),
       getDailyLikeLimit: getIt<GetDailyLikeLimit>(),
+      premiumRepository: getIt.isRegistered<PremiumRepository>()
+          ? getIt<PremiumRepository>()
+          : null,
     ),
   );
 
@@ -352,20 +369,62 @@ Future<void> configureDependencies() async {
     ),
   );
 
-  // 12. BLoCs pour les autres pages (enregistrement temporaire)
-  // TODO: Implémenter les repositories et use cases appropriés
-  // Pour l'instant, on commente les blocs complexes pour éviter l'écran blanc
+  // 12. BLoCs pour les autres pages
+  // MatchesBloc est activé car tous ses use cases sont disponibles
+  getIt.registerFactory<MatchesBloc>(
+    () => MatchesBloc(
+      getMatches: getIt<GetMatches>(),
+      deleteMatch: getIt<DeleteMatch>(),
+      getLikesReceived: getIt<GetLikesReceived>(),
+      getLikesReceivedCount: getIt<GetLikesReceivedCount>(),
+    ),
+  );
 
-  // Note: Les blocs suivants nécessitent des repositories qui ne sont pas encore implémentés
+  // 13. Interaction History Repository - API RÉELLE ACTIVÉE
+  getIt.registerLazySingleton<InteractionHistoryRepository>(
+    () => InteractionHistoryRepositoryImpl(getIt<ApiClient>()),
+  );
+
+  // MOCK: Décommenter pour utiliser les données de test
+  // getIt.registerLazySingleton<InteractionHistoryRepository>(
+  //   () => InteractionHistoryRepositoryMock(),
+  // );
+
+  // 14. Interaction History Use Cases
+  getIt.registerFactory<GetMyLikes>(
+    () => GetMyLikes(getIt<InteractionHistoryRepository>()),
+  );
+
+  getIt.registerFactory<GetMyPasses>(
+    () => GetMyPasses(getIt<InteractionHistoryRepository>()),
+  );
+
+  getIt.registerFactory<RevokeInteraction>(
+    () => RevokeInteraction(getIt<InteractionHistoryRepository>()),
+  );
+
+  getIt.registerFactory<GetInteractionStats>(
+    () => GetInteractionStats(getIt<InteractionHistoryRepository>()),
+  );
+
+  // 15. Interaction History BLoC (LazySingleton pour partager l'état entre les pages)
+  // ✅ IMPORTANT: Doit être LazySingleton comme DiscoveryBloc pour que les suppressions de likes/passes
+  //    persistent et que la UI se mette à jour immédiatement après revocation
+  getIt.registerLazySingleton<InteractionHistoryBloc>(
+    () => InteractionHistoryBloc(
+      getMyLikes: getIt<GetMyLikes>(),
+      getMyPasses: getIt<GetMyPasses>(),
+      revokeInteraction: getIt<RevokeInteraction>(),
+      getInteractionStats: getIt<GetInteractionStats>(),
+    ),
+  );
+
+  // Note: Les autres blocs suivants nécessitent des repositories qui ne sont pas encore implémentés
   // Ils seront réactivés une fois que les repositories seront créés
 
   /*
   getIt.registerFactory<DiscoveryBloc>(
     () => DiscoveryBloc(matchRepository, profileRepository),
-  );
-
-  getIt.registerFactory<MatchesBloc>(
-    () => MatchesBloc(matchRepository),
   );
 
   getIt.registerFactory<ConversationsBloc>(

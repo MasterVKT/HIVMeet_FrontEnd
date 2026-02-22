@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/routes.dart';
 import 'package:hivmeet/core/config/logging_config.dart';
@@ -35,6 +36,9 @@ void main() async {
 
   // Initialiser Firebase
   await Firebase.initializeApp();
+
+  // Initialiser la locale française pour timeago
+  timeago.setLocaleMessages('fr', timeago.FrMessages());
 
   // Configurer l'injection de dépendances
   await configureDependencies();
@@ -82,7 +86,8 @@ class HIVMeetApp extends StatelessWidget {
             // Rediriger les logs EGL vers un niveau plus élevé pour les masquer
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(1.0), // Éviter les problèmes de redimensionnement
+                textScaler: TextScaler.linear(
+                    1.0), // Éviter les problèmes de redimensionnement
               ),
               child: child!,
             );

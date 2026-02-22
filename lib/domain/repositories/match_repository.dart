@@ -10,6 +10,7 @@ abstract class MatchRepository {
   Future<Either<Failure, List<DiscoveryProfile>>> getDiscoveryProfiles({
     int limit = 20,
     String? lastProfileId,
+    bool forceRefresh = false,
   });
 
   Future<Either<Failure, DiscoveryProfile>> getDiscoveryProfile(
@@ -18,7 +19,7 @@ abstract class MatchRepository {
   // Swipe actions
   Future<Either<Failure, SwipeResult>> likeProfile(String profileId);
   Future<Either<Failure, SwipeResult>> superLikeProfile(String profileId);
-  Future<Either<Failure, void>> dislikeProfile(String profileId);
+  Future<Either<Failure, SwipeResult>> dislikeProfile(String profileId);
   Future<Either<Failure, SwipeResult>> rewindLastSwipe();
 
   // Matches

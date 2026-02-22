@@ -69,6 +69,35 @@ class Message extends Equatable {
     };
   }
 
+  /// Crée une copie de ce message avec les champs optionnels remplacés
+  Message copyWith({
+    String? id,
+    String? conversationId,
+    String? senderId,
+    String? content,
+    MessageType? type,
+    DateTime? createdAt,
+    bool? isRead,
+    bool? isDelivered,
+    String? mediaUrl,
+    Map<String, String>? reactions,
+    MessageStatus? status,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      senderId: senderId ?? this.senderId,
+      content: content ?? this.content,
+      type: type ?? this.type,
+      createdAt: createdAt ?? this.createdAt,
+      isRead: isRead ?? this.isRead,
+      isDelivered: isDelivered ?? this.isDelivered,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      reactions: reactions ?? this.reactions,
+      status: status ?? this.status,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

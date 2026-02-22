@@ -558,13 +558,15 @@ class _ChatPageState extends State<ChatPage>
         return MessageInput(
           onSendMessage: (content, type) {
             if (type == MessageType.text) {
-              context.read<ChatBloc>().add(SendTextMessage(content: content));
+              context
+                  .read<ChatBloc>()
+                  .add(SendTextMessageEvent(content: content));
             } else {
               // TODO: Handle media messages
             }
           },
           onSendMediaMessage: (file, type) {
-            context.read<ChatBloc>().add(SendMediaMessage(
+            context.read<ChatBloc>().add(SendMediaMessageEvent(
                   mediaFile: file,
                   type: type,
                 ));
@@ -686,7 +688,7 @@ class _ChatPageState extends State<ChatPage>
   }
 
   void _sendQuickMessage(String message) {
-    context.read<ChatBloc>().add(SendTextMessage(content: message));
+    context.read<ChatBloc>().add(SendTextMessageEvent(content: message));
   }
 
   void _openMediaViewer(Message message) {
@@ -702,7 +704,7 @@ class _ChatPageState extends State<ChatPage>
   }
 
   void _deleteMessage(Message message) {
-    context.read<ChatBloc>().add(DeleteMessage(messageId: message.id));
+    context.read<ChatBloc>().add(DeleteMessageEvent(messageId: message.id));
   }
 
   void _reportMessage(Message message) {

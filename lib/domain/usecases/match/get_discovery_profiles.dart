@@ -23,6 +23,7 @@ class GetDiscoveryProfiles {
     return await repository.getDiscoveryProfiles(
       limit: params.limit,
       lastProfileId: params.lastProfileId,
+      forceRefresh: params.forceRefresh,
     );
   }
 }
@@ -30,10 +31,12 @@ class GetDiscoveryProfiles {
 class GetDiscoveryProfilesParams extends Equatable {
   final int limit;
   final String? lastProfileId;
+  final bool forceRefresh;
 
   const GetDiscoveryProfilesParams({
     this.limit = 20,
     this.lastProfileId,
+    this.forceRefresh = false,
   });
 
   /// Factory pour chargement initial (première page)
@@ -52,6 +55,14 @@ class GetDiscoveryProfilesParams extends Equatable {
     );
   }
 
+  /// Factory pour rechargement forcé (après révocation)
+  factory GetDiscoveryProfilesParams.forceRefresh({int limit = 20}) {
+    return GetDiscoveryProfilesParams(
+      limit: limit,
+      forceRefresh: true,
+    );
+  }
+
   @override
-  List<Object?> get props => [limit, lastProfileId];
+  List<Object?> get props => [limit, lastProfileId, forceRefresh];
 }

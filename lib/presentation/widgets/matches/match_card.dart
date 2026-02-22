@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hivmeet/domain/entities/match.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 /// Widget pour afficher une carte de match
 ///
@@ -165,9 +164,8 @@ class MatchCard extends StatelessWidget {
           child: Text(
             '$displayName, $age',
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: match.hasUnreadMessages
-                  ? FontWeight.bold
-                  : FontWeight.w600,
+              fontWeight:
+                  match.hasUnreadMessages ? FontWeight.bold : FontWeight.w600,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -202,9 +200,8 @@ class MatchCard extends StatelessWidget {
         color: match.hasUnreadMessages
             ? theme.colorScheme.onSurface
             : theme.colorScheme.onSurface.withOpacity(0.6),
-        fontWeight: match.hasUnreadMessages
-            ? FontWeight.w500
-            : FontWeight.normal,
+        fontWeight:
+            match.hasUnreadMessages ? FontWeight.w500 : FontWeight.normal,
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
@@ -274,10 +271,12 @@ class MatchCard extends StatelessWidget {
       // Cette semaine: afficher le jour
       final weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
       return weekdays[dateTime.weekday - 1];
+    } else if (difference.inDays < 30) {
+      // Ce mois: afficher "il y a X jours"
+      return 'Il y a ${difference.inDays} j';
     } else {
-      // Plus ancien: utiliser timeago
-      timeago.setLocaleMessages('fr', timeago.FrMessages());
-      return timeago.format(dateTime, locale: 'fr');
+      // Plus ancien: afficher la date
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }
   }
 }

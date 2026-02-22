@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
-import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/search_filters.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
 import 'package:hivmeet/presentation/widgets/common/app_button.dart';
@@ -28,11 +28,13 @@ class _FiltersPageState extends State<FiltersPage> {
   @override
   void initState() {
     super.initState();
-    // TODO: Charger les préférences actuelles
-    _ageRange = const RangeValues(25, 40);
-    _maxDistance = 50;
-    _relationshipType = 'all';
-    _genders = ['all'];
+    // Charger les préférences actuelles depuis le profil ou valeurs par défaut raisonnables
+    // Pour l'instant, utiliser des valeurs par défaut larges pour voir TOUS les profils
+    _ageRange = const RangeValues(18, 99); // ✅ Tout le monde
+    _maxDistance = 100; // ✅ 100 km
+    _relationshipType = 'all'; // ✅ Tous types
+    _genders = ['all']; // ✅ Tous genres
+    print('🔄 FiltersPage: Initialisation avec filtres larges par défaut');
   }
 
   void _onChanged() {
@@ -366,14 +368,27 @@ class _FiltersPageState extends State<FiltersPage> {
   }
 
   void _applyFilters() {
-    final filters = SearchPreferences(
+    // ✅ Gérer "all" comme liste vide pour le backend
+    final relationshipTypes =
+        _relationshipType == 'all' ? <String>[] : [_relationshipType];
+    final genders = _genders.contains('all') ? <String>[] : _genders;
+
+    final filters = SearchFilters(
       minAge: _ageRange.start.round(),
       maxAge: _ageRange.end.round(),
-      maxDistance: _maxDistance,
-      interestedIn: _genders,
-      relationshipTypes: [_relationshipType],
-      showVerifiedOnly: _verifiedOnly,
+      maxDistance: _maxDistance.round(),
+      gender: genders.isNotEmpty ? genders.first : null,
+      interests: null,
+      relationshipTypes: relationshipTypes, // ✅ Maintenant envoyé
+      verifiedOnly: _verifiedOnly, // ✅ Maintenant envoyé
     );
+
+    print('🔄 Applying filters:');
+    print('   - Age: ${filters.minAge} - ${filters.maxAge}');
+    print('   - Distance: ${filters.maxDistance} km');
+    print('   - Genders: $genders');
+    print('   - Relationship types: $relationshipTypes');
+    print('   - Verified only: ${filters.verifiedOnly}');
 
     context.read<DiscoveryBloc>().add(UpdateFilters(filters: filters));
     context.pop();

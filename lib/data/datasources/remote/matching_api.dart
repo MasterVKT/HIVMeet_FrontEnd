@@ -24,7 +24,7 @@ class MatchingApi {
       queryParams.addAll(filters);
     }
 
-    return await _apiClient.get('/api/v1/discovery/profiles',
+    return await _apiClient.get('/discovery/profiles',
         queryParameters: queryParams);
   }
 
@@ -72,7 +72,7 @@ class MatchingApi {
       };
     }
 
-    return await _apiClient.put('/api/v1/user-profiles/me/', data: data);
+    return await _apiClient.put('/user-profiles/me/', data: data);
   }
 
   /// Liker un profil
@@ -81,8 +81,8 @@ class MatchingApi {
     required String profileId,
     String? message,
   }) async {
-    return await _apiClient.post('/api/v1/discovery/interactions/like', data: {
-      'profile_id': profileId,
+    return await _apiClient.post('/discovery/interactions/like', data: {
+      'target_user_id': profileId,
       if (message != null) 'message': message,
     });
   }
@@ -93,9 +93,8 @@ class MatchingApi {
     required String profileId,
     String? reason,
   }) async {
-    return await _apiClient
-        .post('/api/v1/discovery/interactions/dislike', data: {
-      'profile_id': profileId,
+    return await _apiClient.post('/discovery/interactions/dislike', data: {
+      'target_user_id': profileId,
       if (reason != null) 'reason': reason,
     });
   }
@@ -106,9 +105,8 @@ class MatchingApi {
     required String profileId,
     String? message,
   }) async {
-    return await _apiClient
-        .post('/api/v1/discovery/interactions/superlike', data: {
-      'profile_id': profileId,
+    return await _apiClient.post('/discovery/interactions/superlike', data: {
+      'target_user_id': profileId,
       if (message != null) 'message': message,
     });
   }
@@ -116,7 +114,7 @@ class MatchingApi {
   /// Annuler le dernier swipe
   /// POST /api/v1/discovery/interactions/rewind
   Future<Response<Map<String, dynamic>>> rewindLastSwipe() async {
-    return await _apiClient.post('/api/v1/discovery/interactions/rewind');
+    return await _apiClient.post('/discovery/interactions/rewind');
   }
 
   /// Récupérer les profils qui m'ont liké
@@ -126,7 +124,7 @@ class MatchingApi {
     int pageSize = 20,
   }) async {
     return await _apiClient
-        .get('/api/v1/discovery/interactions/liked-me', queryParameters: {
+        .get('/discovery/interactions/liked-me', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -138,7 +136,7 @@ class MatchingApi {
     int page = 1,
     int pageSize = 20,
   }) async {
-    return await _apiClient.get('/api/v1/matches/', queryParameters: {
+    return await _apiClient.get('/matches/', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -151,7 +149,7 @@ class MatchingApi {
     int pageSize = 20,
   }) async {
     return await _apiClient
-        .get('/api/v1/user-profiles/likes-received/', queryParameters: {
+        .get('/user-profiles/likes-received/', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -160,25 +158,25 @@ class MatchingApi {
   /// Récupérer le statut premium
   /// GET /api/v1/user-profiles/premium-status/
   Future<Response<Map<String, dynamic>>> getPremiumStatus() async {
-    return await _apiClient.get('/api/v1/user-profiles/premium-status/');
+    return await _apiClient.get('/user-profiles/premium-status/');
   }
 
   /// Récupérer le profil actuel
   /// GET /api/v1/user-profiles/me/
   Future<Response<Map<String, dynamic>>> getCurrentProfile() async {
-    return await _apiClient.get('/api/v1/user-profiles/me/');
+    return await _apiClient.get('/user-profiles/me/');
   }
 
   /// Activer le boost
   /// POST /api/v1/discovery/boost/activate
   Future<Response<Map<String, dynamic>>> activateBoost() async {
-    return await _apiClient.post('/api/v1/discovery/boost/activate');
+    return await _apiClient.post('/discovery/boost/activate');
   }
 
   /// Récupérer le statut du boost
   /// GET /api/v1/discovery/boost/status
   Future<Response<Map<String, dynamic>>> getBoostStatus() async {
-    return await _apiClient.get('/api/v1/discovery/boost/status');
+    return await _apiClient.get('/discovery/boost/status');
   }
 
   /// Mettre à jour les filtres de découverte
@@ -204,6 +202,6 @@ class MatchingApi {
     if (verifiedOnly != null) data['verified_only'] = verifiedOnly;
     if (onlineOnly != null) data['online_only'] = onlineOnly;
 
-    return await _apiClient.put('/api/v1/discovery/filters', data: data);
+    return await _apiClient.put('/discovery/filters', data: data);
   }
 }

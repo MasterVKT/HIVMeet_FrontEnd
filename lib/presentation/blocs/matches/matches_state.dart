@@ -58,7 +58,7 @@ class MatchesLoaded extends MatchesState {
     // Appliquer la recherche
     if (searchQuery.isNotEmpty) {
       filtered = filtered.where((m) {
-        final name = m.matchedUser?.name?.toLowerCase() ?? '';
+        final name = m.profile.displayName.toLowerCase();
         final query = searchQuery.toLowerCase();
         return name.contains(query);
       }).toList();

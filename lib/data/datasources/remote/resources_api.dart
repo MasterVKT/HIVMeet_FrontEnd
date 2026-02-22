@@ -26,20 +26,20 @@ class ResourcesApi {
     if (search != null) queryParams['search'] = search;
     if (language != null) queryParams['language'] = language;
 
-    return await _apiClient.get('/api/v1/content/resources',
+    return await _apiClient.get('/content/resources',
         queryParameters: queryParams);
   }
 
   /// Récupérer une ressource par ID
   /// GET /api/v1/content/resources/{resource_id}
   Future<Response<Map<String, dynamic>>> getResource(String resourceId) async {
-    return await _apiClient.get('/api/v1/content/resources/$resourceId');
+    return await _apiClient.get('/content/resources/$resourceId');
   }
 
   /// Récupérer les catégories de ressources
   /// GET /api/v1/content/resource-categories
   Future<Response<Map<String, dynamic>>> getResourceCategories() async {
-    return await _apiClient.get('/api/v1/content/resource-categories');
+    return await _apiClient.get('/content/resource-categories');
   }
 
   /// Marquer une ressource comme favorite
@@ -47,7 +47,7 @@ class ResourcesApi {
   Future<Response<Map<String, dynamic>>> favoriteResource(
       String resourceId) async {
     return await _apiClient
-        .post('/api/v1/content/resources/$resourceId/favorite');
+        .post('/content/resources/$resourceId/favorite');
   }
 
   /// Récupérer les ressources favorites
@@ -56,7 +56,7 @@ class ResourcesApi {
     int page = 1,
     int pageSize = 20,
   }) async {
-    return await _apiClient.get('/api/v1/content/favorites', queryParameters: {
+    return await _apiClient.get('/content/favorites', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -78,7 +78,7 @@ class ResourcesApi {
     if (category != null) queryParams['category'] = category;
     if (search != null) queryParams['search'] = search;
 
-    return await _apiClient.get('/api/v1/feed/posts',
+    return await _apiClient.get('/feed/posts',
         queryParameters: queryParams);
   }
 
@@ -96,13 +96,13 @@ class ResourcesApi {
     if (imageUrl != null) data['image_url'] = imageUrl;
     if (tags != null) data['tags'] = tags;
 
-    return await _apiClient.post('/api/v1/feed/posts', data: data);
+    return await _apiClient.post('/feed/posts', data: data);
   }
 
   /// Liker un post
   /// POST /api/v1/feed/posts/{post_id}/like
   Future<Response<Map<String, dynamic>>> likePost(String postId) async {
-    return await _apiClient.post('/api/v1/feed/posts/$postId/like');
+    return await _apiClient.post('/feed/posts/$postId/like');
   }
 
   /// Récupérer les commentaires d'un post
@@ -113,7 +113,7 @@ class ResourcesApi {
     int pageSize = 20,
   }) async {
     return await _apiClient
-        .get('/api/v1/feed/posts/$postId/comments', queryParameters: {
+        .get('/feed/posts/$postId/comments', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -125,7 +125,7 @@ class ResourcesApi {
     String postId, {
     required String content,
   }) async {
-    return await _apiClient.post('/api/v1/feed/posts/$postId/comments', data: {
+    return await _apiClient.post('/feed/posts/$postId/comments', data: {
       'content': content,
     });
   }
@@ -137,7 +137,7 @@ class ResourcesApi {
     required String reason,
     String? description,
   }) async {
-    return await _apiClient.post('/api/v1/feed/posts/$postId/report', data: {
+    return await _apiClient.post('/feed/posts/$postId/report', data: {
       'reason': reason,
       if (description != null) 'description': description,
     });
@@ -149,7 +149,7 @@ class ResourcesApi {
     String postId, {
     required String content,
   }) async {
-    return await _apiClient.post('/api/v1/feed/posts/$postId/comments', data: {
+    return await _apiClient.post('/feed/posts/$postId/comments', data: {
       'content': content,
     });
   }
@@ -157,14 +157,14 @@ class ResourcesApi {
   /// Récupérer les catégories de ressources
   /// GET /api/v1/content/categories
   Future<Response<Map<String, dynamic>>> getCategories() async {
-    return await _apiClient.get('/api/v1/content/categories');
+    return await _apiClient.get('/content/categories');
   }
 
   /// Marquer un article comme lu
   /// POST /api/v1/content/resources/{resource_id}/read
   Future<Response<Map<String, dynamic>>> markArticleAsRead(
       String resourceId) async {
-    return await _apiClient.post('/api/v1/content/resources/$resourceId/read');
+    return await _apiClient.post('/content/resources/$resourceId/read');
   }
 
   /// Ajouter aux favoris
@@ -172,7 +172,7 @@ class ResourcesApi {
   Future<Response<Map<String, dynamic>>> addToFavorites(
       String resourceId) async {
     return await _apiClient
-        .post('/api/v1/content/resources/$resourceId/favorite');
+        .post('/content/resources/$resourceId/favorite');
   }
 
   /// Retirer des favoris
@@ -180,7 +180,7 @@ class ResourcesApi {
   Future<Response<Map<String, dynamic>>> removeFromFavorites(
       String resourceId) async {
     return await _apiClient
-        .delete('/api/v1/content/resources/$resourceId/favorite');
+        .delete('/content/resources/$resourceId/favorite');
   }
 
   /// Récupérer les ressources récemment vues
@@ -190,7 +190,7 @@ class ResourcesApi {
     int pageSize = 20,
   }) async {
     return await _apiClient
-        .get('/api/v1/content/recently-viewed', queryParameters: {
+        .get('/content/recently-viewed', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -199,19 +199,19 @@ class ResourcesApi {
   /// Liker un post du feed
   /// POST /api/v1/feed/posts/{post_id}/like
   Future<Response<Map<String, dynamic>>> likeFeedPost(String postId) async {
-    return await _apiClient.post('/api/v1/feed/posts/$postId/like');
+    return await _apiClient.post('/feed/posts/$postId/like');
   }
 
   /// Ne plus liker un post du feed
   /// DELETE /api/v1/feed/posts/{post_id}/like
   Future<Response<Map<String, dynamic>>> unlikeFeedPost(String postId) async {
-    return await _apiClient.delete('/api/v1/feed/posts/$postId/like');
+    return await _apiClient.delete('/feed/posts/$postId/like');
   }
 
   /// Liker une ressource
   /// POST /api/v1/content/resources/{resource_id}/like
   Future<Response<Map<String, dynamic>>> likeResource(String resourceId) async {
-    return await _apiClient.post('/api/v1/content/resources/$resourceId/like');
+    return await _apiClient.post('/content/resources/$resourceId/like');
   }
 
   /// Bookmarker une ressource
@@ -219,7 +219,7 @@ class ResourcesApi {
   Future<Response<Map<String, dynamic>>> bookmarkResource(
       String resourceId) async {
     return await _apiClient
-        .post('/api/v1/content/resources/$resourceId/bookmark');
+        .post('/content/resources/$resourceId/bookmark');
   }
 
   /// Partager une ressource
@@ -234,14 +234,14 @@ class ResourcesApi {
     };
     if (recipientId != null) data['recipient_id'] = recipientId;
 
-    return await _apiClient.post('/api/v1/content/resources/$resourceId/share',
+    return await _apiClient.post('/content/resources/$resourceId/share',
         data: data);
   }
 
   /// Récupérer les statistiques de lecture
   /// GET /api/v1/content/reading-stats
   Future<Response<Map<String, dynamic>>> getReadingStats() async {
-    return await _apiClient.get('/api/v1/content/reading-stats');
+    return await _apiClient.get('/content/reading-stats');
   }
 
   /// Rechercher du contenu
@@ -264,7 +264,7 @@ class ResourcesApi {
     if (categoryId != null) queryParams['category_id'] = categoryId;
     if (language != null) queryParams['language'] = language;
 
-    return await _apiClient.get('/api/v1/content/search',
+    return await _apiClient.get('/content/search',
         queryParameters: queryParams);
   }
 }

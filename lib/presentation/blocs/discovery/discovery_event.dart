@@ -1,8 +1,8 @@
 // lib/presentation/blocs/discovery/discovery_event.dart
 
 import 'package:equatable/equatable.dart';
-import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/domain/entities/search_filters.dart';
 
 abstract class DiscoveryEvent extends Equatable {
   const DiscoveryEvent();
@@ -13,11 +13,15 @@ abstract class DiscoveryEvent extends Equatable {
 
 class LoadDiscoveryProfiles extends DiscoveryEvent {
   final int limit;
+  final bool forceRefresh;
 
-  const LoadDiscoveryProfiles({this.limit = 20});
+  const LoadDiscoveryProfiles({
+    this.limit = 20,
+    this.forceRefresh = false,
+  });
 
   @override
-  List<Object> get props => [limit];
+  List<Object> get props => [limit, forceRefresh];
 }
 
 class SwipeProfile extends DiscoveryEvent {
@@ -32,7 +36,7 @@ class SwipeProfile extends DiscoveryEvent {
 class RewindLastSwipe extends DiscoveryEvent {}
 
 class UpdateFilters extends DiscoveryEvent {
-  final SearchPreferences filters;
+  final SearchFilters filters;
 
   const UpdateFilters({required this.filters});
 

@@ -340,8 +340,13 @@ class AuthenticationService {
         }
       }
 
-      if (responseStatus == 200 && responseData != null) {
+      if (responseStatus == 200) {
         final data = responseData;
+
+        if (data == null) {
+          throw Exception('Réponse vide du serveur');
+        }
+
         final accessToken = data['access'] as String?;
         final refreshToken = data['refresh'] as String?;
 
@@ -352,24 +357,21 @@ class AuthenticationService {
         // Construire l'utilisateur depuis la réponse si disponible, sinon fallback Firebase
         domain.User user;
         if (data['user'] is Map<String, dynamic>) {
-          user = domain.User.fromJson(
-              data['user'] as Map<String, dynamic>);
+          user = domain.User.fromJson(data['user'] as Map<String, dynamic>);
         } else {
           user = domain.User(
             id: firebaseUser.uid,
             email: firebaseUser.email ?? '',
-            displayName:
-                firebaseUser.displayName ?? (firebaseUser.email ?? 'Utilisateur'),
+            displayName: firebaseUser.displayName ??
+                (firebaseUser.email ?? 'Utilisateur'),
             isEmailVerified: firebaseUser.emailVerified,
             isVerified: false,
             isPremium: false,
             lastActive: DateTime.now(),
             notificationSettings: const domain.NotificationSettings(),
             blockedUserIds: [],
-            createdAt:
-                firebaseUser.metadata.creationTime ?? DateTime.now(),
-            updatedAt:
-                firebaseUser.metadata.lastSignInTime ?? DateTime.now(),
+            createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
+            updatedAt: firebaseUser.metadata.lastSignInTime ?? DateTime.now(),
           );
         }
 
@@ -421,8 +423,6 @@ class AuthenticationService {
       _updateStatus(AuthenticationStatus.error);
     }
   }
-
-  
 
   /// Connexion avec email et mot de passe avec test de connectivité préalable
   Future<AuthenticationResult> signInWithEmailAndPassword({
@@ -480,7 +480,8 @@ class AuthenticationService {
         // À ce stade, si tout s'est bien passé, _currentUser est défini
         if (_currentUser != null &&
             _status == AuthenticationStatus.fullyAuthenticated) {
-          developer.log('✅ Authentification complète pour ${_currentUser!.email}',
+          developer.log(
+              '✅ Authentification complète pour ${_currentUser!.email}',
               name: 'AuthService');
           return AuthenticationResult.success(_currentUser!);
         }

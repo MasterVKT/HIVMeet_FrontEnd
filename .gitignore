@@ -56,3 +56,6 @@ android/.kotlin/
 .gradle/
 gradle.properties
 local.properties
+
+# Auto Claude data directory
+.auto-claude/

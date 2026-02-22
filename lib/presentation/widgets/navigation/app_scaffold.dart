@@ -61,7 +61,9 @@ class AppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🔍 DEBUG AppScaffold: build() appelé - currentIndex: $currentIndex');
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: appBar,
       body: body,
       floatingActionButton: floatingActionButton,

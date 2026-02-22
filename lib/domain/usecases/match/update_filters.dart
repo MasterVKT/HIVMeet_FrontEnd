@@ -4,7 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
-import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/domain/entities/search_filters.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
 
 /// Use Case pour mettre à jour les filtres de recherche
@@ -19,7 +19,8 @@ class UpdateFilters {
   UpdateFilters(this.repository);
 
   Future<Either<Failure, void>> call(UpdateFiltersParams params) async {
-    return await repository.updateSearchFilters(params.filters);
+    return await repository
+        .updateSearchFilters(params.filters.toSearchPreferences());
   }
 }
 

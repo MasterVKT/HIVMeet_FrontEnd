@@ -3,13 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hivmeet/core/di/injection.dart';
+import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_bloc.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_event.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_state.dart';
 import 'package:hivmeet/presentation/widgets/matches/matches_widgets.dart';
 import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
+import 'package:hivmeet/core/config/routes.dart';
 
 /// Page principale des matches
 ///
@@ -116,6 +117,12 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
             ),
           if (!_showSearch)
             IconButton(
+              icon: const Icon(Icons.history),
+              onPressed: () => context.push(AppRoutes.interactionHistory),
+              tooltip: 'Historique',
+            ),
+          if (!_showSearch)
+            IconButton(
               icon: const Icon(Icons.filter_list),
               onPressed: () {
                 // TODO: Ouvrir filtres avancés
@@ -141,7 +148,9 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
                 return MatchesFilterBar(
                   currentFilter: state.currentFilter,
                   onFilterChanged: (filter) {
-                    context.read<MatchesBloc>().add(FilterMatches(filter: filter));
+                    context
+                        .read<MatchesBloc>()
+                        .add(FilterMatches(filter: filter));
                   },
                   newMatchesCount: state.newMatchesCount,
                   activeMatchesCount: state.filteredMatches
@@ -184,7 +193,9 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
                   return MatchesErrorView(
                     message: state.message,
                     onRetry: () {
-                      context.read<MatchesBloc>().add(LoadMatches(refresh: true));
+                      context
+                          .read<MatchesBloc>()
+                          .add(LoadMatches(refresh: true));
                     },
                   );
                 }
@@ -204,7 +215,9 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
 
                   return RefreshIndicator(
                     onRefresh: () async {
-                      context.read<MatchesBloc>().add(LoadMatches(refresh: true));
+                      context
+                          .read<MatchesBloc>()
+                          .add(LoadMatches(refresh: true));
                       // Attendre que le chargement soit terminé
                       await Future.delayed(const Duration(milliseconds: 500));
                     },
@@ -230,7 +243,8 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
                           child: MatchCard(
                             match: match,
                             onTap: () => _onMatchTap(match),
-                            onLongPress: () => _showMatchOptions(context, match),
+                            onLongPress: () =>
+                                _showMatchOptions(context, match),
                           ),
                         );
                       },
@@ -244,7 +258,6 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(context),
     );
   }
 
@@ -345,7 +358,8 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Match avec ${match.profile.displayName} supprimé'),
+                  content:
+                      Text('Match avec ${match.profile.displayName} supprimé'),
                 ),
               );
             },

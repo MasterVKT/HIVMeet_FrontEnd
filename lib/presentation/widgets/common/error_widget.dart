@@ -21,49 +21,52 @@ class ErrorWidget extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon ?? Icons.error_outline,
-              size: 80,
-              color: AppColors.error,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Oops!',
-              style: GoogleFonts.openSans(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.charcoal,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon ?? Icons.error_outline,
+                size: 80,
+                color: AppColors.error,
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: GoogleFonts.openSans(
-                fontSize: 16,
-                color: AppColors.slate,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Réessayer'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryPurple,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
+              const SizedBox(height: 24),
+              Text(
+                'Oops!',
+                style: GoogleFonts.openSans(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.charcoal,
                 ),
               ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: GoogleFonts.openSans(
+                  fontSize: 16,
+                  color: AppColors.slate,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Réessayer'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryPurple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

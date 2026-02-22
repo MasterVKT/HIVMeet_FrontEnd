@@ -26,6 +26,10 @@ import 'package:hivmeet/presentation/pages/likes_received/likes_received_page.da
 import 'package:hivmeet/presentation/pages/about/about_page.dart';
 import 'package:hivmeet/presentation/pages/legal/privacy_page.dart';
 import 'package:hivmeet/presentation/pages/legal/terms_page.dart';
+import 'package:hivmeet/presentation/pages/interaction_history/interaction_history_page.dart';
+import 'package:hivmeet/presentation/pages/interaction_history/my_likes_page.dart';
+import 'package:hivmeet/presentation/pages/interaction_history/my_passes_page.dart';
+import 'package:hivmeet/presentation/pages/interaction_history/stats_page.dart';
 
 class AppRoutes {
   // Routes principales
@@ -61,6 +65,12 @@ class AppRoutes {
   static const String about = '/about';
   static const String privacy = '/privacy';
   static const String terms = '/terms';
+
+  // Routes d'historique d'interactions
+  static const String interactionHistory = '/interaction-history';
+  static const String myLikes = '/interaction-history/likes';
+  static const String myPasses = '/interaction-history/passes';
+  static const String interactionStats = '/interaction-history/stats';
 }
 
 class AppRouter {
@@ -83,6 +93,7 @@ class AppRouter {
         AppRoutes.premium,
         AppRoutes.verification,
         AppRoutes.likesReceived,
+        AppRoutes.interactionHistory,
       ];
 
       final isProtectedRoute = protectedRoutes
@@ -216,6 +227,24 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.terms,
         builder: (context, state) => const TermsPage(),
+      ),
+
+      // Pages d'historique d'interactions
+      GoRoute(
+        path: AppRoutes.interactionHistory,
+        builder: (context, state) => const InteractionHistoryPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.myLikes,
+        builder: (context, state) => const MyLikesPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.myPasses,
+        builder: (context, state) => const MyPassesPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.interactionStats,
+        builder: (context, state) => const StatsPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

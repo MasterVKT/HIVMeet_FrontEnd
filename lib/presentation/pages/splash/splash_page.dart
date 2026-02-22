@@ -20,6 +20,7 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -35,17 +36,19 @@ class _SplashPageState extends State<SplashPage>
     // Déclencher la vérification de l'authentification
     context.read<AuthBlocSimple>().add(AppStarted());
 
-    // Navigation forcée après 5 secondes SEULEMENT si aucun état n'a été reçu
-    Future.delayed(const Duration(seconds: 5), () {
+    // Navigation forcée après 10 secondes SEULEMENT si aucun état n'a été reçu
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted) {
         final currentState = context.read<AuthBlocSimple>().state;
         // Seulement forcer la navigation si on est toujours en état initial
         if (currentState is AuthInitial || currentState is AuthLoading) {
           print(
-              'Navigation forcée vers login après timeout - état: $currentState');
+              '⏱️ TIMEOUT: Navigation forcée vers login après 10s - état: $currentState');
+          print(
+              '⚠️ L\'authentification a pris trop de temps, vérifiez le backend');
           context.go('/login');
         } else {
-          print('Navigation forcée annulée - état reçu: $currentState');
+          print('✅ Navigation forcée annulée - état reçu: $currentState');
         }
       }
     });
@@ -59,19 +62,36 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
+    print('🔍 DEBUG SplashPage: build() appelé');
     return BlocListener<AuthBlocSimple, AuthState>(
       listener: (context, state) {
         print('🔄 DEBUG SplashPage: BlocListener state change: $state');
+
+        // Ne naviguer qu'une seule fois
+        if (_hasNavigated) {
+          print('⚠️ DEBUG SplashPage: Déjà navigué, navigation ignorée');
+          return;
+        }
+
+        // Ne naviguer que si on est toujours sur la SplashPage
+        if (!mounted) {
+          print('⚠️ DEBUG SplashPage: Widget non monté, navigation ignorée');
+          return;
+        }
+
         if (state is Authenticated) {
           print('✅ DEBUG SplashPage: Authenticated détecté, navigation...');
+          _hasNavigated = true;
           context.go('/discovery');
           print('✅ DEBUG SplashPage: Navigation vers /discovery effectuée');
         } else if (state is Unauthenticated) {
           print('❌ DEBUG SplashPage: Unauthenticated détecté');
+          _hasNavigated = true;
           context.go('/login');
           print('✅ DEBUG SplashPage: Navigation vers /login effectuée');
         } else if (state is AuthError) {
           print('❌ DEBUG SplashPage: AuthError détecté: ${state.message}');
+          _hasNavigated = true;
           context.go('/login');
           print('✅ DEBUG SplashPage: Navigation vers /login après erreur');
         } else if (state is AuthNetworkError) {

@@ -15,6 +15,10 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
   StreamSubscription<domain.User?>? _userSubscription;
   StreamSubscription<String?>? _errorSubscription;
 
+  // Protection contre les appels multiples de AppStarted
+  bool _isProcessingAppStarted = false;
+  DateTime? _lastAppStartedTime;
+
   AuthBlocSimple(this._authService) : super(AuthInitial()) {
     developer.log(
       '🔧 [BLOC] AuthBlocSimple initialisé avec service: ${_authService.runtimeType}',
@@ -105,20 +109,28 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
         name: 'AuthBloc');
 
     // Écouter les changements de statut d'authentification
+    // IMPORTANT: On ne peut pas utiliser emit() dans les listeners
+    // mais on peut déclencher un événement AppStarted pour rafraîchir l'état
     _statusSubscription = _authService.statusStream.listen(
-      _handleAuthStatusChange,
+      (status) {
+        developer.log('🔔 LISTENER DÉCLENCHÉ: status: $status',
+            name: 'AuthBloc');
+        _handleAuthStatusChangeInternal(status);
+      },
       onError: (error) {
         developer.log('❌ Erreur status stream: $error', name: 'AuthBloc');
-        emit(AuthError('Erreur de statut d\'authentification'));
       },
     );
 
     // Écouter les changements d'utilisateur
     _userSubscription = _authService.userStream.listen(
-      _handleUserChange,
+      (user) {
+        developer.log('👤 LISTENER USER: utilisateur changé: ${user?.email}',
+            name: 'AuthBloc');
+        _handleUserChangeInternal(user);
+      },
       onError: (error) {
         developer.log('❌ Erreur user stream: $error', name: 'AuthBloc');
-        emit(AuthError('Erreur utilisateur'));
       },
     );
 
@@ -126,126 +138,127 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
     _errorSubscription = _authService.errorStream.listen(
       (error) {
         developer.log('❌ LISTENER ERROR: $error', name: 'AuthBloc');
-        emit(AuthError('Erreur d\'authentification: $error'));
+        // Déclencher un AppStarted pour réévaluer l'état après une erreur
+        if (!isClosed) {
+          add(AppStarted());
+        }
       },
       onError: (error) {
         developer.log('❌ Erreur error stream: $error', name: 'AuthBloc');
-        emit(AuthError('Erreur dans le flux d\'erreurs'));
       },
     );
 
     developer.log('✅ Listener authStateChanges configuré', name: 'AuthBloc');
   }
 
-  void _handleAuthStatusChange(AuthenticationStatus status) {
-    developer.log('🔔 LISTENER DÉCLENCHÉ: authStateChanges status: $status',
+  void _handleAuthStatusChangeInternal(AuthenticationStatus status) {
+    // Cette méthode ne peut pas utiliser emit() directement
+    // Déclencher un événement AppStarted pour réévaluer l'état
+    developer.log(
+        '🔄 Changement de status interne: $status -> déclenchement AppStarted',
         name: 'AuthBloc');
 
-    switch (status) {
-      case AuthenticationStatus.disconnected:
-        developer.log('🔄 Status: disconnected -> Unauthenticated',
-            name: 'AuthBloc');
-        emit(Unauthenticated());
-        break;
-      case AuthenticationStatus.firebaseConnected:
-        developer.log('🔄 Status: firebaseConnected -> AuthLoading',
-            name: 'AuthBloc');
-        emit(AuthLoading());
-        break;
-      case AuthenticationStatus.tokensExchanged:
-        developer.log('🔄 Status: tokensExchanged -> continuer...',
-            name: 'AuthBloc');
-        // Attendre que l'utilisateur soit disponible
-        break;
-      case AuthenticationStatus.fullyAuthenticated:
-        developer.log('🔄 Status: fullyAuthenticated -> vérifier utilisateur',
-            name: 'AuthBloc');
-        final user = _authService.currentUser;
-        if (user != null) {
-          developer.log('✅ Utilisateur disponible -> Authenticated',
-              name: 'AuthBloc');
-          emit(Authenticated(user: user));
-        } else {
-          developer.log('❌ Pas d\'utilisateur malgré fullyAuthenticated',
-              name: 'AuthBloc');
-          emit(AuthError('Utilisateur non disponible après authentification'));
-        }
-        break;
-      case AuthenticationStatus.error:
-        developer.log('🔄 Status: error -> AuthError', name: 'AuthBloc');
-        emit(AuthError('Erreur d\'authentification'));
-        break;
-      case AuthenticationStatus.authenticating:
-        developer.log('🔄 Status: authenticating -> AuthLoading',
-            name: 'AuthBloc');
-        emit(AuthLoading());
-        break;
+    // Vérifier que le Bloc n'est pas fermé avant d'ajouter un événement
+    if (!isClosed) {
+      add(AppStarted());
+    } else {
+      developer.log('⚠️ Bloc fermé, événement AppStarted ignoré',
+          name: 'AuthBloc');
     }
   }
 
-  void _handleUserChange(domain.User? user) {
-    developer.log('👤 LISTENER USER: utilisateur changé: ${user?.email}',
+  void _handleUserChangeInternal(domain.User? user) {
+    // Cette méthode ne peut pas utiliser emit() directement
+    // Déclencher un événement AppStarted pour réévaluer l'état
+    developer.log(
+        '👤 Changement utilisateur interne: ${user?.email} -> déclenchement AppStarted',
         name: 'AuthBloc');
 
-    if (user != null &&
-        _authService.status == AuthenticationStatus.fullyAuthenticated) {
-      developer.log('✅ Utilisateur mis à jour -> Authenticated',
+    // Vérifier que le Bloc n'est pas fermé avant d'ajouter un événement
+    if (!isClosed) {
+      add(AppStarted());
+    } else {
+      developer.log('⚠️ Bloc fermé, événement AppStarted ignoré',
           name: 'AuthBloc');
-      emit(Authenticated(user: user));
     }
   }
 
   void _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
     developer.log('🚀 [BLOC] AppStarted reçu', name: 'AuthBloc');
 
-    // Émettre d'abord un état de chargement
-    emit(AuthLoading());
+    // Protection contre les appels répétés trop rapprochés (debounce de 500ms)
+    final now = DateTime.now();
+    if (_lastAppStartedTime != null &&
+        now.difference(_lastAppStartedTime!).inMilliseconds < 500) {
+      developer.log('⏭️ [BLOC] AppStarted ignoré (debounce)', name: 'AuthBloc');
+      return;
+    }
 
-    // Vérifier le statut actuel du service
-    final currentStatus = _authService.status;
-    final currentUser = _authService.currentUser;
+    _lastAppStartedTime = now;
 
-    developer.log('📊 Status initial: $currentStatus', name: 'AuthBloc');
-    developer.log('👤 Utilisateur initial: ${currentUser?.email ?? "null"}',
-        name: 'AuthBloc');
+    // Protection contre les appels concurrents
+    if (_isProcessingAppStarted) {
+      developer.log('⏭️ [BLOC] AppStarted ignoré (déjà en traitement)',
+          name: 'AuthBloc');
+      return;
+    }
 
-    switch (currentStatus) {
-      case AuthenticationStatus.fullyAuthenticated:
-        if (currentUser != null) {
-          developer.log('✅ Déjà authentifié -> Authenticated',
-              name: 'AuthBloc');
-          emit(Authenticated(user: currentUser));
-        } else {
-          developer.log('❌ Status authenticated mais pas d\'utilisateur',
-              name: 'AuthBloc');
+    _isProcessingAppStarted = true;
+
+    try {
+      // Émettre d'abord un état de chargement
+      emit(AuthLoading());
+
+      // Vérifier le statut actuel du service
+      final currentStatus = _authService.status;
+      final currentUser = _authService.currentUser;
+
+      developer.log('📊 Status initial: $currentStatus', name: 'AuthBloc');
+      developer.log('👤 Utilisateur initial: ${currentUser?.email ?? "null"}',
+          name: 'AuthBloc');
+
+      switch (currentStatus) {
+        case AuthenticationStatus.fullyAuthenticated:
+          if (currentUser != null) {
+            developer.log('✅ Déjà authentifié -> Authenticated',
+                name: 'AuthBloc');
+            emit(Authenticated(user: currentUser));
+          } else {
+            developer.log('❌ Status authenticated mais pas d\'utilisateur',
+                name: 'AuthBloc');
+            emit(Unauthenticated());
+          }
+          break;
+        case AuthenticationStatus.disconnected:
+          developer.log('🔄 Pas connecté -> Unauthenticated', name: 'AuthBloc');
           emit(Unauthenticated());
-        }
-        break;
-      case AuthenticationStatus.disconnected:
-        developer.log('🔄 Pas connecté -> Unauthenticated', name: 'AuthBloc');
-        emit(Unauthenticated());
-        break;
-      case AuthenticationStatus.authenticating:
-      case AuthenticationStatus.firebaseConnected:
-      case AuthenticationStatus.tokensExchanged:
-        developer.log('🔄 Status $currentStatus -> AuthLoading (en cours)',
-            name: 'AuthBloc');
-        // Garder AuthLoading et laisser les listeners gérer la suite
-        break;
-      default:
-        developer.log('🔄 Status $currentStatus -> AuthLoading',
-            name: 'AuthBloc');
-        emit(AuthLoading());
-
-        // Forcer la vérification de l'état d'authentification
-        try {
-          await _authService.checkAuthenticationStatus();
-        } catch (e) {
-          developer.log('❌ Erreur lors de la vérification: $e',
+          break;
+        case AuthenticationStatus.authenticating:
+        case AuthenticationStatus.firebaseConnected:
+        case AuthenticationStatus.tokensExchanged:
+          developer.log('🔄 Status $currentStatus -> AuthLoading (en cours)',
               name: 'AuthBloc');
-          emit(AuthError('Erreur lors de la vérification d\'authentification'));
-        }
-        break;
+          // Garder AuthLoading et laisser les listeners gérer la suite
+          // Le timeout est géré par le SplashPage (10 secondes)
+          break;
+        default:
+          developer.log('🔄 Status $currentStatus -> AuthLoading',
+              name: 'AuthBloc');
+          emit(AuthLoading());
+
+          // Forcer la vérification de l'état d'authentification
+          try {
+            await _authService.checkAuthenticationStatus();
+          } catch (e) {
+            developer.log('❌ Erreur lors de la vérification: $e',
+                name: 'AuthBloc');
+            emit(AuthError(
+                'Erreur lors de la vérification d\'authentification'));
+          }
+          break;
+      }
+    } finally {
+      _isProcessingAppStarted = false;
     }
   }
 

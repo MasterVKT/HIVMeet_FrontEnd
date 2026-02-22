@@ -1,5 +1,7 @@
 // lib/domain/usecases/message/send_message.dart
 
+import 'dart:io';
+
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
@@ -37,7 +39,7 @@ class SendMessage implements UseCase<Message, SendMessageParams> {
       conversationId: params.conversationId,
       content: params.content,
       type: params.type,
-      mediaUrl: params.mediaUrl,
+      mediaFile: params.mediaFile,
     );
   }
 }
@@ -47,13 +49,13 @@ class SendMessageParams extends Equatable {
   final String conversationId;
   final String content;
   final MessageType type;
-  final String? mediaUrl;
+  final File? mediaFile;
 
   const SendMessageParams({
     required this.conversationId,
     required this.content,
     this.type = MessageType.text,
-    this.mediaUrl,
+    this.mediaFile,
   });
 
   /// Factory pour message texte simple
@@ -71,7 +73,7 @@ class SendMessageParams extends Equatable {
   /// Factory pour message avec média
   factory SendMessageParams.media({
     required String conversationId,
-    required String mediaUrl,
+    required File mediaFile,
     required MessageType type,
     String content = '',
   }) {
@@ -79,10 +81,10 @@ class SendMessageParams extends Equatable {
       conversationId: conversationId,
       content: content,
       type: type,
-      mediaUrl: mediaUrl,
+      mediaFile: mediaFile,
     );
   }
 
   @override
-  List<Object?> get props => [conversationId, content, type, mediaUrl];
+  List<Object?> get props => [conversationId, content, type, mediaFile];
 }

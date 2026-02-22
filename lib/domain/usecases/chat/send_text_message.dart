@@ -1,6 +1,5 @@
 // lib/domain/usecases/chat/send_text_message.dart
 
-import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';

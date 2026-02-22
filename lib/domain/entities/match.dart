@@ -101,22 +101,89 @@ class DiscoveryProfile extends Equatable {
   });
 
   factory DiscoveryProfile.fromJson(Map<String, dynamic> json) {
+    // Gérer les deux formats de photos : main_photo_url/other_photos_urls OU photos[]
+    String mainPhotoUrl = '';
+    List<String> otherPhotosUrls = [];
+
+    // Priorité : main_photo_url / other_photos_urls (ancien format)
+    if (json.containsKey('main_photo_url')) {
+      final mainPhoto = json['main_photo_url'];
+      if (mainPhoto != null && mainPhoto is String && mainPhoto.isNotEmpty) {
+        mainPhotoUrl = mainPhoto;
+      }
+    }
+    if (json.containsKey('other_photos_urls')) {
+      final otherPhotos = json['other_photos_urls'];
+      if (otherPhotos != null && otherPhotos is List) {
+        otherPhotosUrls = otherPhotos.map((e) => e.toString()).toList();
+      }
+    }
+
+    // Fallback : photos[] (nouveau format backend)
+    if (mainPhotoUrl.isEmpty && json.containsKey('photos')) {
+      final photos = json['photos'];
+      if (photos != null && photos is List && photos.isNotEmpty) {
+        final photosList = photos.map((e) => e.toString()).toList();
+        mainPhotoUrl = photosList.first;
+        if (photosList.length > 1) {
+          otherPhotosUrls = photosList.sublist(1);
+        }
+      }
+    }
+
+    // Extraire l'ID
+    String id = '';
+    if (json.containsKey('user_id') && json['user_id'] != null) {
+      id = json['user_id'].toString();
+    } else if (json.containsKey('id') && json['id'] != null) {
+      id = json['id'].toString();
+    }
+
+    // Extraire le display_name
+    String displayName = '';
+    if (json.containsKey('display_name') && json['display_name'] != null) {
+      displayName = json['display_name'].toString();
+    }
+
+    // Extraire les interests
+    List<String> interests = [];
+    if (json.containsKey('interests') && json['interests'] is List) {
+      interests = (json['interests'] as List).map((e) => e.toString()).toList();
+    }
+
+    // Extraire le relationshipType
+    String relationshipType = 'long_term';
+    if (json.containsKey('relationship_types_sought') &&
+        json['relationship_types_sought'] is List) {
+      final types = json['relationship_types_sought'] as List;
+      if (types.isNotEmpty) {
+        relationshipType = types.first.toString();
+      }
+    } else if (json.containsKey('relationship_type') &&
+        json['relationship_type'] != null) {
+      relationshipType = json['relationship_type'].toString();
+    }
+
     return DiscoveryProfile(
-      id: json['id'] as String,
-      displayName: json['display_name'] as String,
+      id: id,
+      displayName: displayName,
       age: json['age'] as int,
-      mainPhotoUrl: json['main_photo_url'] as String,
-      otherPhotosUrls: (json['other_photos_urls'] as List).cast<String>(),
-      bio: json['bio'] as String,
-      city: json['city'] as String,
-      country: json['country'] as String,
-      distance: (json['distance'] as num?)?.toDouble(),
-      interests: (json['interests'] as List).cast<String>(),
-      relationshipType: json['relationship_type'] as String,
-      isVerified: json['is_verified'] as bool,
-      isPremium: json['is_premium'] as bool,
-      lastActive: DateTime.parse(json['last_active'] as String),
-      compatibilityScore: (json['compatibility_score'] as num).toDouble(),
+      mainPhotoUrl: mainPhotoUrl,
+      otherPhotosUrls: otherPhotosUrls,
+      bio: json['bio']?.toString() ?? '',
+      city: json['city']?.toString() ?? '',
+      country: json['country']?.toString() ?? 'FR',
+      distance: (json['distance_km'] as num?)?.toDouble() ??
+          (json['distance'] as num?)?.toDouble(),
+      interests: interests,
+      relationshipType: relationshipType,
+      isVerified: json['is_verified'] == true,
+      isPremium: json['is_premium'] == true,
+      lastActive: json.containsKey('last_active') && json['last_active'] != null
+          ? DateTime.parse(json['last_active'].toString())
+          : DateTime.now(),
+      compatibilityScore:
+          (json['compatibility_score'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -144,7 +211,19 @@ class DiscoveryProfile extends Equatable {
     return DateTime.now().difference(lastActive).inMinutes < 10;
   }
 
-  List<String> get allPhotos => [mainPhotoUrl, ...otherPhotosUrls];
+  List<String> get allPhotos {
+    // Filtrer les URLs vides et ajouter un placeholder si aucune photo
+    final photos = [mainPhotoUrl, ...otherPhotosUrls]
+        .where((url) => url.isNotEmpty)
+        .toList();
+
+    // Si aucune photo, retourner une liste avec un placeholder
+    if (photos.isEmpty) {
+      return ['placeholder'];
+    }
+
+    return photos;
+  }
 
   @override
   List<Object?> get props => [
@@ -231,6 +310,18 @@ class DailyLikeLimit extends Equatable {
   int get remaining => remainingLikes;
   int get limit => totalLikes;
 
+  DailyLikeLimit copyWith({
+    int? remainingLikes,
+    int? totalLikes,
+    DateTime? resetAt,
+  }) {
+    return DailyLikeLimit(
+      remainingLikes: remainingLikes ?? this.remainingLikes,
+      totalLikes: totalLikes ?? this.totalLikes,
+      resetAt: resetAt ?? this.resetAt,
+    );
+  }
+
   @override
   List<Object> get props => [remainingLikes, totalLikes, resetAt];
 }
@@ -239,11 +330,15 @@ class SwipeResult extends Equatable {
   final bool isMatch;
   final String? matchId;
   final Profile? matchedProfile;
+  final int? remainingLikes;
+  final int? remainingSuperLikes;
 
   const SwipeResult({
     required this.isMatch,
     this.matchId,
     this.matchedProfile,
+    this.remainingLikes,
+    this.remainingSuperLikes,
   });
 
   factory SwipeResult.fromJson(Map<String, dynamic> json) {
@@ -252,6 +347,8 @@ class SwipeResult extends Equatable {
       matchId: json['match_id'] as String?,
       matchedProfile:
           null, // TODO: Implémenter la sérialisation Profile si nécessaire
+      remainingLikes: json['remaining_likes'] as int?,
+      remainingSuperLikes: json['remaining_super_likes'] as int?,
     );
   }
 
@@ -260,11 +357,15 @@ class SwipeResult extends Equatable {
       'is_match': isMatch,
       'match_id': matchId,
       // matched_profile omis car Profile n'a pas de toJson()
+      if (remainingLikes != null) 'remaining_likes': remainingLikes,
+      if (remainingSuperLikes != null)
+        'remaining_super_likes': remainingSuperLikes,
     };
   }
 
   @override
-  List<Object?> get props => [isMatch, matchId, matchedProfile];
+  List<Object?> get props =>
+      [isMatch, matchId, matchedProfile, remainingLikes, remainingSuperLikes];
 }
 
 class BoostStatus extends Equatable {

@@ -101,8 +101,12 @@ class MatchRepositoryMock implements MatchRepository {
   }
 
   @override
-  Future<Either<Failure, void>> dislikeProfile(String profileId) async {
-    return const Right(null);
+  Future<Either<Failure, SwipeResult>> dislikeProfile(String profileId) async {
+    // Simuler une diminution du compteur de likes
+    return const Right(SwipeResult(
+      isMatch: false,
+      remainingLikes: 9, // Simuler des likes restants
+    ));
   }
 
   @override

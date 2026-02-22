@@ -1,5 +1,6 @@
 // lib/presentation/widgets/cards/swipe_card.dart
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
@@ -23,19 +24,29 @@ class SwipeCard extends StatefulWidget {
 
   @override
   State<SwipeCard> createState() => _SwipeCardState();
+
+  /// Méthode publique pour déclencher l'animation programmatiquement
+  static _SwipeCardState? of(BuildContext context) {
+    return context.findAncestorStateOfType<_SwipeCardState>();
+  }
 }
 
 class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   late AnimationController _swipeController;
   late AnimationController _pulseController;
+  late AnimationController _superLikeAnimController;
   late Animation<double> _swipeAnimation;
   late Animation<double> _pulseAnimation;
+  late Animation<double> _superLikeFadeAnimation;
+  late Animation<double> _superLikeGlowAnimation;
+  late Animation<double> _superLikeScaleAnimation;
 
   Offset _dragOffset = Offset.zero;
   double _rotation = 0.0;
   int _currentPhotoIndex = 0;
   bool _isDragging = false;
   SwipeDirection? _swipeDirection;
+  bool _isSuperLikeAnimating = false;
 
   @override
   void initState() {
@@ -47,6 +58,11 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
     );
 
     _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _superLikeAnimController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
@@ -64,6 +80,37 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     ));
 
+    _superLikeFadeAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _superLikeAnimController,
+      curve: Curves.easeInOut,
+    ));
+
+    _superLikeGlowAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _superLikeAnimController,
+      curve: Curves.easeOut,
+    ));
+
+    // Scale animation: starts at 1.0, grows to 1.15 during fade out, then back to 1.0
+    _superLikeScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.0, end: 1.15),
+        weight: 50,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.15, end: 1.0),
+        weight: 50,
+      ),
+    ]).animate(CurvedAnimation(
+      parent: _superLikeAnimController,
+      curve: Curves.easeInOut,
+    ));
+
     _pulseController.repeat(reverse: true);
   }
 
@@ -71,7 +118,51 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   void dispose() {
     _swipeController.dispose();
     _pulseController.dispose();
+    _superLikeAnimController.dispose();
     super.dispose();
+  }
+
+  /// Méthode publique pour animer le swipe programmatiquement (appelée par les boutons)
+  void triggerSwipe(SwipeDirection direction) {
+    if (widget.isPreview) return;
+
+    setState(() {
+      _swipeDirection = direction;
+      // Simuler un drag dans la bonne direction
+      switch (direction) {
+        case SwipeDirection.right:
+          _dragOffset = Offset(MediaQuery.of(context).size.width, 0);
+          _rotation = 0.3;
+          break;
+        case SwipeDirection.left:
+          _dragOffset = Offset(-MediaQuery.of(context).size.width, 0);
+          _rotation = -0.3;
+          break;
+        case SwipeDirection.up:
+          _dragOffset = Offset(0, -MediaQuery.of(context).size.height * 0.5);
+          _isSuperLikeAnimating = true;
+          break;
+        default:
+          break;
+      }
+    });
+
+    if (direction == SwipeDirection.up) {
+      // Animation spéciale pour super like
+      _animateSuperLike();
+    } else {
+      // Animation normale pour like/dislike
+      _animateSwipe(direction);
+    }
+  }
+
+  // Helper pour afficher le nom du profil avec fallback
+  String _getDisplayName() {
+    if (widget.profile.displayName.isNotEmpty) {
+      return widget.profile.displayName;
+    }
+    // Fallback : afficher "Profil" si pas de nom (backend problème temporaire)
+    return 'Profil';
   }
 
   @override
@@ -80,6 +171,71 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
     final cardHeight = size.height * 0.75;
     final cardWidth = size.width * 0.9;
 
+    // Pour les previews, retourner un widget simplifié sans animations
+    if (widget.isPreview) {
+      return Container(
+        width: cardWidth,
+        height: cardHeight,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 2,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // Fond simple sans image
+              Container(
+                color: Colors.grey.shade300,
+              ),
+              // Info minimale
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.6),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${widget.profile.displayName}, ${widget.profile.age}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Widget complet pour la carte principale
     return AnimatedBuilder(
       animation: _swipeAnimation,
       builder: (context, child) {
@@ -112,49 +268,103 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
               child: child,
             );
           },
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                children: [
-                  // Photo principale avec PageView
-                  _buildPhotoSection(cardHeight),
-
-                  // Indicateurs de photos
-                  if (widget.profile.allPhotos.length > 1)
-                    _buildPhotoIndicators(),
-
-                  // Overlay de swipe
-                  if (_isDragging && !widget.isPreview) _buildSwipeOverlay(),
-
-                  // Informations du profil
-                  _buildProfileInfo(),
-
-                  // Badges (verified, premium, online)
-                  _buildBadges(),
-
-                  // Actions rapides
-                  if (!widget.isPreview) _buildQuickActions(),
+          child: AnimatedBuilder(
+            animation: _superLikeAnimController,
+            builder: (context, child) {
+              // Effet super like: scale + fade out/in + glow doré dramatique
+              if (_isSuperLikeAnimating) {
+                return Opacity(
+                  opacity: _superLikeFadeAnimation.value,
+                  child: Transform.scale(
+                    scale: _superLikeScaleAnimation.value,
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) {
+                        return RadialGradient(
+                          colors: [
+                            Color(0xFFFFD700).withOpacity(
+                                _superLikeGlowAnimation.value * 1.0),
+                            Color(0xFFFFD700).withOpacity(
+                                _superLikeGlowAnimation.value * 0.6),
+                            Color(0xFFFFA500).withOpacity(
+                                _superLikeGlowAnimation.value * 0.3),
+                            Colors.transparent,
+                          ],
+                          stops: [0.0, 0.4, 0.7, 1.0],
+                          center: Alignment.center,
+                          radius: 1.8,
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.lighten,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xFFFFD700).withOpacity(
+                                  _superLikeGlowAnimation.value * 0.8),
+                              blurRadius: 50 * _superLikeGlowAnimation.value,
+                              spreadRadius: 15 * _superLikeGlowAnimation.value,
+                            ),
+                            BoxShadow(
+                              color: Color(0xFFFFA500).withOpacity(
+                                  _superLikeGlowAnimation.value * 0.4),
+                              blurRadius: 30 * _superLikeGlowAnimation.value,
+                              spreadRadius: 8 * _superLikeGlowAnimation.value,
+                            ),
+                          ],
+                        ),
+                        child: child,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return child!;
+            },
+            child: Container(
+              width: cardWidth,
+              height: cardHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                    offset: const Offset(0, 10),
+                  ),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    // Photo principale avec PageView
+                    _buildPhotoSection(cardHeight),
+
+                    // Indicateurs de photos
+                    if (widget.profile.allPhotos.length > 1)
+                      _buildPhotoIndicators(),
+
+                    // Overlay de swipe
+                    if (_isDragging && !widget.isPreview) _buildSwipeOverlay(),
+
+                    // Informations du profil
+                    _buildProfileInfo(),
+
+                    // Badges (verified, premium, online)
+                    _buildBadges(),
+
+                    // Actions rapides
+                    if (!widget.isPreview) _buildQuickActions(),
+                  ],
+                ),
+              ),
+            ), // Fermeture Container
+          ), // Fermeture AnimatedBuilder super like
+        ), // Fermeture AnimatedBuilder pulse
+      ), // Fermeture GestureDetector
+    ); // Fermeture AnimatedBuilder swipe
   }
 
   Widget _buildPhotoSection(double cardHeight) {
@@ -181,10 +391,37 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
           });
         },
         itemBuilder: (context, index) {
+          final photoUrl = widget.profile.allPhotos[index];
+
+          // Si c'est le placeholder, afficher une image par défaut
+          if (photoUrl == 'placeholder' || photoUrl.isEmpty) {
+            return Container(
+              color: AppColors.primaryPurple.withOpacity(0.1),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.person,
+                    size: 120,
+                    color: AppColors.primaryPurple.withOpacity(0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Pas de photo',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.slate,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return Hero(
             tag: '${widget.profile.id}_photo_$index',
             child: OptimizedImage(
-              imageUrl: widget.profile.allPhotos[index],
+              imageUrl: photoUrl,
               fit: BoxFit.cover,
               enableLazyLoading: false, // Désactiver temporairement pour debug
               fadeInDuration: const Duration(milliseconds: 200),
@@ -281,124 +518,131 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       bottom: 0,
       left: 0,
       right: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black.withOpacity(0.8),
-            ],
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16,
-            120), // Augmenter le padding bottom pour éviter les boutons
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${widget.profile.displayName}, ${widget.profile.age}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (widget.profile.distance != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${widget.profile.distance!.round()} km',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            if (widget.profile.bio.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                widget.profile.bio,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14, // Augmenter la taille pour la lisibilité
-                ),
-                maxLines: 3, // Augmenter à 3 lignes pour plus de contenu
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            if (widget.profile.interests.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 4,
-                runSpacing: 3,
-                children: widget.profile.interests.take(3).map((interest) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryPurple.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      interest,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            // Score de compatibilité
-            if (widget.profile.compatibilityScore > 0) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    Icons.favorite,
-                    size: 14,
-                    color: AppColors.primaryPurple,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    LocalizationService.translate(
-                      'discovery.compatibility',
-                      params: {
-                        'percent':
-                            widget.profile.compatibilityScore.round().toString()
-                      },
-                    ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.35),
+                  Colors.black.withOpacity(0.85),
                 ],
               ),
-            ],
-          ],
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16,
+                120), // Augmenter le padding bottom pour éviter les boutons
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${_getDisplayName()}, ${widget.profile.age}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (widget.profile.distance != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${widget.profile.distance!.round()} km',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (widget.profile.bio.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.profile.bio,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14, // Augmenter la taille pour la lisibilité
+                    ),
+                    maxLines: 3, // Augmenter à 3 lignes pour plus de contenu
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (widget.profile.interests.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 3,
+                    children: widget.profile.interests.take(3).map((interest) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryPurple.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          interest,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+                // Score de compatibilité
+                if (widget.profile.compatibilityScore > 0) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.favorite,
+                        size: 14,
+                        color: AppColors.primaryPurple,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        LocalizationService.translate(
+                          'discovery.compatibility',
+                          params: {
+                            'percent': widget.profile.compatibilityScore
+                                .round()
+                                .toString()
+                          },
+                        ),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -586,6 +830,21 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
     });
   }
 
+  void _animateSuperLike() {
+    HapticFeedback.mediumImpact();
+
+    // Phase 1: Fade out avec glow doré (500ms)
+    _superLikeAnimController.forward().then((_) {
+      // Phase 2: Callback immédiat
+      widget.onSwipe?.call(SwipeDirection.up);
+
+      // Phase 3: Fade in (500ms)
+      _superLikeAnimController.reverse().then((_) {
+        _resetPosition();
+      });
+    });
+  }
+
   void _animateBack() {
     _swipeController.forward().then((_) {
       _resetPosition();
@@ -597,6 +856,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       _dragOffset = Offset.zero;
       _rotation = 0.0;
       _swipeDirection = null;
+      _isSuperLikeAnimating = false;
     });
     _swipeController.reset();
   }

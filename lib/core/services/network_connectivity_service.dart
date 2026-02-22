@@ -155,7 +155,7 @@ class NetworkConnectivityService {
         developer.log('✅ Health OK', name: 'NetworkConnectivity');
       }
 
-      final response = await _dio.get('/api/v1/discovery/').timeout(
+      final response = await _dio.get('/api/v1/discovery/profiles').timeout(
             const Duration(seconds: 10),
           );
 

@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hivmeet/domain/entities/message.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 /// Widget pour afficher une carte de conversation
 ///
@@ -185,9 +184,8 @@ class ConversationCard extends StatelessWidget {
         color: conversation.unreadCount > 0
             ? theme.colorScheme.onSurface
             : theme.colorScheme.onSurface.withOpacity(0.6),
-        fontWeight: conversation.unreadCount > 0
-            ? FontWeight.w500
-            : FontWeight.normal,
+        fontWeight:
+            conversation.unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
@@ -196,7 +194,8 @@ class ConversationCard extends StatelessWidget {
 
   Widget _buildTrailing(BuildContext context) {
     final theme = Theme.of(context);
-    final timestamp = conversation.lastMessage?.createdAt ?? conversation.updatedAt;
+    final timestamp =
+        conversation.lastMessage?.createdAt ?? conversation.updatedAt;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -247,10 +246,12 @@ class ConversationCard extends StatelessWidget {
       // Cette semaine: afficher le jour
       final weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
       return weekdays[dateTime.weekday - 1];
+    } else if (difference.inDays < 30) {
+      // Ce mois: afficher "il y a X jours"
+      return 'Il y a ${difference.inDays} j';
     } else {
-      // Plus ancien: utiliser timeago
-      timeago.setLocaleMessages('fr', timeago.FrMessages());
-      return timeago.format(dateTime, locale: 'fr');
+      // Plus ancien: afficher la date
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }
   }
 }

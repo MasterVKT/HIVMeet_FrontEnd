@@ -7,17 +7,17 @@ import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 
-/// Use Case pour marquer les messages d'une conversation comme lus
+/// Use Case pour marquer un message comme lu
 ///
 /// Features:
-/// - Marque tous les messages non lus de la conversation
+/// - Marque un message spécifique comme lu
 /// - Met à jour le compteur unreadCount localement
 /// - Notifie le serveur pour synchronisation
 ///
 /// Usage:
 /// ```dart
 /// final result = await markAsRead(
-///   MarkAsReadParams(conversationId: 'conv_123')
+///   MarkAsReadParams(conversationId: 'conv_123', messageId: 'msg_456')
 /// );
 /// ```
 @injectable
@@ -28,16 +28,23 @@ class MarkAsRead implements UseCase<void, MarkAsReadParams> {
 
   @override
   Future<Either<Failure, void>> call(MarkAsReadParams params) async {
-    return await repository.markAsRead(params.conversationId);
+    return await repository.markAsRead(
+      conversationId: params.conversationId,
+      messageId: params.messageId,
+    );
   }
 }
 
 /// Paramètres pour marquer comme lu
 class MarkAsReadParams extends Equatable {
   final String conversationId;
+  final String messageId;
 
-  const MarkAsReadParams({required this.conversationId});
+  const MarkAsReadParams({
+    required this.conversationId,
+    required this.messageId,
+  });
 
   @override
-  List<Object> get props => [conversationId];
+  List<Object> get props => [conversationId, messageId];
 }

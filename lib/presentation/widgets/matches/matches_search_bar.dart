@@ -99,7 +99,7 @@ class _MatchesSearchBarState extends State<MatchesSearchBar> {
                 )
               : null,
           filled: true,
-          fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+          fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -217,7 +217,7 @@ class _ExpandableSearchBarState extends State<ExpandableSearchBar>
           height: 48,
           decoration: BoxDecoration(
             color: _isExpanded
-                ? theme.colorScheme.surfaceVariant.withOpacity(0.3)
+                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),

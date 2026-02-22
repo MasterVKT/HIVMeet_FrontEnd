@@ -44,3 +44,10 @@ class SetTypingStatus extends ChatEvent {
   @override
   List<Object> get props => [isTyping];
 }
+
+class DeleteMessageEvent extends ChatEvent {
+  final String messageId;
+  const DeleteMessageEvent({required this.messageId});
+  @override
+  List<Object> get props => [messageId];
+}

@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hivmeet/core/di/injection.dart';
+import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/widgets/conversations/conversations_widgets.dart';
@@ -117,9 +117,8 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
             ? null
             : BlocBuilder<ConversationsBloc, ConversationsState>(
                 builder: (context, state) {
-                  final totalUnread = state is ConversationsLoaded
-                      ? state.totalUnreadCount
-                      : 0;
+                  final totalUnread =
+                      state is ConversationsLoaded ? state.totalUnreadCount : 0;
 
                   return Row(
                     children: [
@@ -261,7 +260,8 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                           child: ConversationCard(
                             conversation: conversation,
                             participantName: _getParticipantName(conversation),
-                            participantPhotoUrl: null, // TODO: Fetch from profile
+                            participantPhotoUrl:
+                                null, // TODO: Fetch from profile
                             currentUserId:
                                 'current_user_id', // TODO: Get from auth
                             onTap: () => _onConversationTap(conversation),
@@ -280,7 +280,6 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(context),
     );
   }
 
@@ -295,7 +294,8 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
     );
   }
 
-  void _showConversationOptions(BuildContext context, Conversation conversation) {
+  void _showConversationOptions(
+      BuildContext context, Conversation conversation) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(

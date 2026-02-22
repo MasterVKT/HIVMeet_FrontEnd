@@ -15,7 +15,7 @@ class MessagingApi {
     int pageSize = 20,
     String status = "all", // "all|unread|archived"
   }) async {
-    return await _apiClient.get('/api/v1/conversations/', queryParameters: {
+    return await _apiClient.get('/conversations/', queryParameters: {
       'page': page,
       'page_size': pageSize,
       'status': status,

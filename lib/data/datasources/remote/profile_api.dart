@@ -11,20 +11,20 @@ class ProfileApi {
   /// Récupérer un profil par ID
   /// GET /api/v1/user-profiles/{user_id}/
   Future<Response<Map<String, dynamic>>> getProfile(String profileId) async {
-    return await _apiClient.get('/api/v1/user-profiles/$profileId/');
+    return await _apiClient.get('/user-profiles/$profileId/');
   }
 
   /// Récupérer le profil actuel
   /// GET /api/v1/user-profiles/me/
   Future<Response<Map<String, dynamic>>> getCurrentProfile() async {
-    return await _apiClient.get('/api/v1/user-profiles/me/');
+    return await _apiClient.get('/user-profiles/me/');
   }
 
   /// Mettre à jour le profil actuel
   /// PUT /api/v1/user-profiles/me/
   Future<Response<Map<String, dynamic>>> updateProfile(
       Map<String, dynamic> profileData) async {
-    return await _apiClient.put('/api/v1/user-profiles/me/', data: profileData);
+    return await _apiClient.put('/user-profiles/me/', data: profileData);
   }
 
   /// Ajouter une photo au profil
@@ -40,21 +40,19 @@ class ProfileApi {
       if (order != null) 'order': order,
     });
 
-    return await _apiClient.post('/api/v1/user-profiles/me/photos/',
-        data: formData);
+    return await _apiClient.post('/user-profiles/me/photos/', data: formData);
   }
 
   /// Supprimer une photo du profil
   /// DELETE /api/v1/user-profiles/me/photos/{photo_id}/
   Future<Response<Map<String, dynamic>>> deletePhoto(String photoId) async {
-    return await _apiClient.delete('/api/v1/user-profiles/me/photos/$photoId/');
+    return await _apiClient.delete('/user-profiles/me/photos/$photoId/');
   }
 
   /// Définir une photo comme principale
   /// PUT /api/v1/user-profiles/me/photos/{photo_id}/set-main/
   Future<Response<Map<String, dynamic>>> setMainPhoto(String photoId) async {
-    return await _apiClient
-        .put('/api/v1/user-profiles/me/photos/$photoId/set-main/');
+    return await _apiClient.put('/user-profiles/me/photos/$photoId/set-main/');
   }
 
   /// Mettre à jour la localisation du profil
@@ -65,7 +63,7 @@ class ProfileApi {
     String? city,
     String? country,
   }) async {
-    return await _apiClient.put('/api/v1/user-profiles/me/', data: {
+    return await _apiClient.put('/user-profiles/me/', data: {
       'location': {
         'latitude': latitude,
         'longitude': longitude,
@@ -78,7 +76,7 @@ class ProfileApi {
   /// Récupérer le statut de vérification
   /// GET /api/v1/user-profiles/me/verification/
   Future<Response<Map<String, dynamic>>> getVerificationStatus() async {
-    return await _apiClient.get('/api/v1/user-profiles/me/verification/');
+    return await _apiClient.get('/user-profiles/me/verification/');
   }
 
   /// Générer une URL d'upload pour la vérification
@@ -86,7 +84,7 @@ class ProfileApi {
   Future<Response<Map<String, dynamic>>> generateVerificationUploadUrl(
       String documentType) async {
     return await _apiClient.post(
-        '/api/v1/user-profiles/me/verification/generate-upload-url/',
+        '/user-profiles/me/verification/generate-upload-url/',
         data: {'document_type': documentType});
   }
 
@@ -98,7 +96,7 @@ class ProfileApi {
     String? selfieUrl,
   }) async {
     return await _apiClient
-        .post('/api/v1/user-profiles/me/verification/submit-documents/', data: {
+        .post('/user-profiles/me/verification/submit-documents/', data: {
       'front_document_url': frontDocumentUrl,
       'back_document_url': backDocumentUrl,
       if (selfieUrl != null) 'selfie_url': selfieUrl,
@@ -121,7 +119,7 @@ class ProfileApi {
       queryParams.addAll(filters);
     }
 
-    return await _apiClient.get('/api/v1/discovery/profiles',
+    return await _apiClient.get('/discovery/profiles',
         queryParameters: queryParams);
   }
 
@@ -169,7 +167,7 @@ class ProfileApi {
       };
     }
 
-    return await _apiClient.put('/api/v1/user-profiles/me/', data: data);
+    return await _apiClient.put('/user-profiles/me/', data: data);
   }
 
   /// Mettre à jour les paramètres de confidentialité
@@ -202,7 +200,7 @@ class ProfileApi {
       };
     }
 
-    return await _apiClient.put('/api/v1/user-profiles/me/', data: data);
+    return await _apiClient.put('/user-profiles/me/', data: data);
   }
 
   /// Récupérer les profils de découverte avec filtres
@@ -233,7 +231,7 @@ class ProfileApi {
     }
     if (verifiedOnly != null) queryParams['verified_only'] = verifiedOnly;
 
-    return await _apiClient.get('/api/v1/discovery/profiles',
+    return await _apiClient.get('/discovery/profiles',
         queryParameters: queryParams);
   }
 

@@ -6,7 +6,8 @@ import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
-import 'package:hivmeet/domain/usecases/chat/send_text_message.dart' as send_text;
+import 'package:hivmeet/domain/usecases/chat/send_text_message.dart'
+    as send_text;
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
@@ -56,6 +57,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<SendMediaMessageEvent>(_onSendMediaMessage);
     on<MarkAsReadEvent>(_onMarkAsRead);
     on<SetTypingStatus>(_onSetTypingStatus);
+    on<DeleteMessageEvent>(_onDeleteMessage);
   }
 
   Future<void> _onLoadConversation(
@@ -72,7 +74,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       (failure) => emit(ChatError(message: failure.message)),
       (messages) {
         _allMessages = messages;
-        _hasMore = messages.length >= 50; // Si on a 50 messages, il y en a peut-être plus
+        _hasMore = messages.length >=
+            50; // Si on a 50 messages, il y en a peut-être plus
 
         emit(ChatLoaded(
           messages: _allMessages,
@@ -265,5 +268,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (currentState is ChatLoaded) {
       emit(currentState.copyWith(isTyping: event.isTyping));
     }
+  }
+
+  Future<void> _onDeleteMessage(
+    DeleteMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+
+    // TODO: Implémenter le use case DeleteMessage
+    // Pour l'instant, suppression optimiste locale uniquement
+    _allMessages.removeWhere((msg) => msg.id == event.messageId);
+    emit(currentState.copyWith(messages: _allMessages));
   }
 }

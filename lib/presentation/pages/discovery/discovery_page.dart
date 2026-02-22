@@ -31,22 +31,31 @@ class DiscoveryPage extends StatefulWidget {
 
 class _DiscoveryPageState extends State<DiscoveryPage> {
   late DiscoveryBloc _discoveryBloc;
+  final GlobalKey<State<SwipeCard>> _swipeCardKey =
+      GlobalKey<State<SwipeCard>>();
 
   @override
   void initState() {
     super.initState();
     print('🔄 DEBUG DiscoveryPage: initState()');
     _discoveryBloc = getIt<DiscoveryBloc>();
-    print('🔄 DEBUG DiscoveryPage: DiscoveryBloc créé');
-    // Charger initialement 5 profils pour un affichage rapide
-    print('🔄 DEBUG DiscoveryPage: Ajout de LoadDiscoveryProfiles');
-    _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
+    print('🔄 DEBUG DiscoveryPage: DiscoveryBloc récupéré (singleton)');
+
+    // Charger les profils seulement si l'état est Initial
+    // (première utilisation ou après une révocation)
+    if (_discoveryBloc.state is DiscoveryInitial) {
+      print('🔄 DEBUG DiscoveryPage: État Initial, chargement des profils');
+      _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
+    } else {
+      print('✅ DEBUG DiscoveryPage: État déjà chargé, pas de rechargement');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<DiscoveryBloc>(
-      create: (context) => _discoveryBloc,
+    print('🔍 DEBUG DiscoveryPage: build() appelé');
+    return BlocProvider<DiscoveryBloc>.value(
+      value: _discoveryBloc,
       child: AppScaffold(
         currentIndex: 0, // Discovery tab
         appBar: AppBar(
@@ -63,65 +72,76 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           actions: [
             IconButton(
               icon: const Icon(Icons.tune, color: AppColors.primaryPurple),
-              onPressed: () => _showFiltersModal(context),
+              onPressed: () => _showFiltersModal(),
             ),
           ],
         ),
         body: Container(
           color: AppColors.primaryWhite,
           child: BlocConsumer<DiscoveryBloc, DiscoveryState>(
-          listener: _handleStateChanges,
-          builder: (context, state) {
-            print('🔄 DEBUG DiscoveryPage: State change: $state');
+            listener: _handleStateChanges,
+            builder: (context, state) {
+              print('🔄 DEBUG DiscoveryPage: State change: $state');
 
-            if (state is DiscoveryLoading) {
-              print('🔄 DEBUG DiscoveryPage: DiscoveryLoading state');
-              return const Center(
-                child: LoadingWidget(
-                  message: 'Chargement des profils...',
+              if (state is DiscoveryLoading) {
+                print('🔄 DEBUG DiscoveryPage: DiscoveryLoading state');
+                return const Center(
+                  child: LoadingWidget(
+                    message: 'Chargement des profils...',
+                  ),
+                );
+              }
+
+              if (state is DiscoveryError) {
+                print(
+                    '❌ DEBUG DiscoveryPage: DiscoveryError state: ${state.message}');
+                if (state.previousState != null) {
+                  return _buildDiscoveryContentWithMessage(
+                    state.previousState!,
+                    state.message,
+                  );
+                }
+
+                return custom.ErrorWidget(
+                  message: state.message,
+                  onRetry: () =>
+                      _discoveryBloc.add(const LoadDiscoveryProfiles()),
+                );
+              }
+
+              if (state is NoMoreProfiles) {
+                print('ℹ️ DEBUG DiscoveryPage: NoMoreProfiles state');
+                return _buildNoMoreProfilesState();
+              }
+
+              if (state is DiscoveryLoaded) {
+                print('✅ DEBUG DiscoveryPage: DiscoveryLoaded state');
+                return _buildDiscoveryContent(state);
+              }
+
+              if (state is DiscoveryLoadingMore) {
+                print('🔄 DEBUG DiscoveryPage: DiscoveryLoadingMore state');
+                return _buildDiscoveryContent(state.currentState);
+              }
+
+              if (state is DailyLimitReached) {
+                print('⚠️ DEBUG DiscoveryPage: DailyLimitReached state');
+                return _buildDailyLimitReachedState(state);
+              }
+
+              print('❓ DEBUG DiscoveryPage: État inconnu: $state');
+              // État par défaut - afficher le loader
+              return Container(
+                color: AppColors.primaryWhite,
+                child: const Center(
+                  child: LoadingWidget(
+                    message: 'Initialisation...',
+                  ),
                 ),
               );
-            }
-
-            if (state is DiscoveryError) {
-              print(
-                  '❌ DEBUG DiscoveryPage: DiscoveryError state: ${state.message}');
-              return custom.ErrorWidget(
-                message: state.message,
-                onRetry: () =>
-                    _discoveryBloc.add(const LoadDiscoveryProfiles()),
-              );
-            }
-
-            if (state is NoMoreProfiles) {
-              print('ℹ️ DEBUG DiscoveryPage: NoMoreProfiles state');
-              return _buildNoMoreProfilesState();
-            }
-
-            if (state is DiscoveryLoaded) {
-              print('✅ DEBUG DiscoveryPage: DiscoveryLoaded state');
-              return _buildDiscoveryContent(state);
-            }
-
-            if (state is DiscoveryLoadingMore) {
-              print('🔄 DEBUG DiscoveryPage: DiscoveryLoadingMore state');
-              return _buildDiscoveryContent(state.currentState);
-            }
-
-            if (state is DailyLimitReached) {
-              print('⚠️ DEBUG DiscoveryPage: DailyLimitReached state');
-              return _buildDailyLimitReachedState(state);
-            }
-
-            print('❓ DEBUG DiscoveryPage: État inconnu: $state');
-            return const Center(
-              child: LoadingWidget(
-                message: 'Initialisation...',
-              ),
-            );
-          },
+            },
+          ),
         ),
-      ),
       ),
     );
   }
@@ -132,39 +152,43 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         // Zone de swipe principale
         Center(
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Profils suivants en arrière-plan (complètement masqués)
-              ...state.nextProfiles.asMap().entries.map((entry) {
+              // Profil principal (non-positioned, centré)
+              SwipeCard(
+                key: _swipeCardKey,
+                profile: state.currentProfile,
+                onSwipe: _handleSwipe,
+                onTap: _showProfileDetail,
+              ),
+
+              // Profils suivants en arrière-plan (max 2 pour éviter les problèmes de rendu)
+              ...state.nextProfiles
+                  .take(2)
+                  .toList()
+                  .asMap()
+                  .entries
+                  .map((entry) {
                 final index = entry.key;
                 final profile = entry.value;
                 return Positioned(
-                  top: 50.0 +
-                      (index *
-                          20.0), // Augmenter encore plus l'espacement vertical
-                  left: 50.0 +
-                      (index *
-                          12.0), // Augmenter encore plus l'espacement horizontal
+                  top: 50.0 + (index * 20.0),
+                  left: 50.0 + (index * 12.0),
                   right: 50.0 - (index * 12.0),
-                  child: Transform.scale(
-                    scale:
-                        0.7 - (index * 0.15), // Réduire encore plus l'échelle
-                    child: Opacity(
-                      opacity: 0.1 - (index * 0.05), // Rendre presque invisible
-                      child: SwipeCard(
-                        profile: profile,
-                        isPreview: true,
+                  child: IgnorePointer(
+                    child: Transform.scale(
+                      scale: 0.85 - (index * 0.1),
+                      child: Opacity(
+                        opacity: 0.3 - (index * 0.15), // Opacité plus visible
+                        child: SwipeCard(
+                          profile: profile,
+                          isPreview: true,
+                        ),
                       ),
                     ),
                   ),
                 );
               }),
-
-              // Profil principal
-              SwipeCard(
-                profile: state.currentProfile,
-                onSwipe: _handleSwipe,
-                onTap: _showProfileDetail,
-              ),
             ],
           ),
         ),
@@ -186,6 +210,55 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
+  Widget _buildDiscoveryContentWithMessage(
+      DiscoveryLoaded state, String message) {
+    return Stack(
+      children: [
+        _buildDiscoveryContent(state),
+        Positioned(
+          top: 12,
+          left: 12,
+          right: 12,
+          child: SafeArea(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButtons(DiscoveryLoaded state) {
     return Positioned(
       bottom: 80, // Position plus basse pour éviter le chevauchement
@@ -198,7 +271,20 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ActionButton(
             icon: Icons.close,
             color: AppColors.error,
-            onPressed: () => _handleSwipe(SwipeDirection.left),
+            onPressed: () {
+              // Déclencher l'animation + le swipe
+              final swipeCardState = _swipeCardKey.currentState;
+              if (swipeCardState != null) {
+                try {
+                  (swipeCardState as dynamic).triggerSwipe(SwipeDirection.left);
+                } catch (e) {
+                  // Fallback si la méthode n'existe pas
+                  _handleSwipe(SwipeDirection.left);
+                }
+              } else {
+                _handleSwipe(SwipeDirection.left);
+              }
+            },
             size: 56, // Réduire légèrement la taille
           ),
 
@@ -206,7 +292,20 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ActionButton(
             icon: Icons.star,
             color: AppColors.warning,
-            onPressed: () => _handleSwipe(SwipeDirection.up),
+            onPressed: () {
+              // Déclencher l'animation + le swipe
+              final swipeCardState = _swipeCardKey.currentState;
+              if (swipeCardState != null) {
+                try {
+                  (swipeCardState as dynamic).triggerSwipe(SwipeDirection.up);
+                } catch (e) {
+                  // Fallback si la méthode n'existe pas
+                  _handleSwipe(SwipeDirection.up);
+                }
+              } else {
+                _handleSwipe(SwipeDirection.up);
+              }
+            },
             size: 56, // Uniformiser la taille
             isPremium: true,
           ),
@@ -215,7 +314,21 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ActionButton(
             icon: Icons.favorite,
             color: AppColors.success,
-            onPressed: () => _handleSwipe(SwipeDirection.right),
+            onPressed: () {
+              // Déclencher l'animation + le swipe
+              final swipeCardState = _swipeCardKey.currentState;
+              if (swipeCardState != null) {
+                try {
+                  (swipeCardState as dynamic)
+                      .triggerSwipe(SwipeDirection.right);
+                } catch (e) {
+                  // Fallback si la méthode n'existe pas
+                  _handleSwipe(SwipeDirection.right);
+                }
+              } else {
+                _handleSwipe(SwipeDirection.right);
+              }
+            },
             size: 56, // Réduire légèrement la taille
           ),
         ],
@@ -316,14 +429,69 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   Widget _buildNoMoreProfilesState() {
-    return EmptyStateWidget(
-      icon: Icons.people_outline,
-      title: LocalizationService.translate('discovery.no_more_profiles_title'),
-      message:
-          LocalizationService.translate('discovery.no_more_profiles_message'),
-      actionText: LocalizationService.translate('discovery.adjust_filters'),
-      onAction: _showFiltersModal,
-    );
+    print('🔄 DEBUG _buildNoMoreProfilesState: Début de construction');
+    try {
+      final title =
+          LocalizationService.translate('discovery.no_more_profiles_title');
+      final message =
+          LocalizationService.translate('discovery.no_more_profiles_message');
+      final actionText =
+          LocalizationService.translate('discovery.adjust_filters');
+
+      print(
+          '🔄 DEBUG _buildNoMoreProfilesState: title=$title, message=$message, actionText=$actionText');
+
+      return Container(
+        color: AppColors.primaryWhite,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              EmptyStateWidget(
+                icon: Icons.people_outline,
+                title: title,
+                message: message,
+                actionText: actionText,
+                onAction: _showFiltersModal,
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () {
+                  print('🔄 DEBUG: Réinitialisation des filtres demandée');
+                  _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Rechargement des profils...'),
+                      backgroundColor: AppColors.primaryPurple,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.refresh, size: 20),
+                label: const Text(
+                  'Recharger',
+                  style: TextStyle(fontSize: 16),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryPurple,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e, stackTrace) {
+      print('❌ ERROR _buildNoMoreProfilesState: $e');
+      print('Stack trace: $stackTrace');
+      return Center(
+        child: Text('Erreur: $e', style: const TextStyle(color: Colors.red)),
+      );
+    }
   }
 
   Widget _buildDailyLimitReachedState(DailyLimitReached state) {
@@ -382,6 +550,16 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   void _handleStateChanges(BuildContext context, DiscoveryState state) {
     if (state is MatchFound) {
       _showMatchFoundModal(state);
+    }
+
+    if (state is DiscoveryError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.message),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 

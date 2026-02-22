@@ -1,30 +1,191 @@
 ---
-description: 
+description: HIVMeet Frontend - Cursor AI Rules (Optimized)
 globs: 
 alwaysApply: true
 ---
-Tu es un expert développeur spécialisé dans les technologies Django et Flutter et Cette application est une application de rencontre spécifique aux personnes atteintes du VIH/SIDA.
-- L'approche ici consistera à développer le frontend séparément et indépendamment du backend, en s'assurant de respecter les contrats d'interfaces qui permettront aux deux de communiquer harmonieusement pour que l'application finale soit parfaitement fonctionnelle. Dans le cadre de ce projet, nous développerons la partie frontend.
-- Le plan de développement à suivre est dans le fichier @Plan de Développement Frontend Détaillé - HIVMeet.txt dans le dossier "docs" du projet; 
-- Avant de fournir une réponse, rassure toi que cette dernière correspond aux spécifications du projet contenues dans les fichiers @Architecture Technique Frontend - HIVMeet.txt, @Charte Graphique Detaille - HIVMeet.txt, @Description Détaillé des Écrans et Navigation -HIVMeet.txt, @FRONTEND_AUTH_API.md, @FRONTEND_INTEGRATION_GUIDE.md, @FRONTEND_MATCHING_API.md, @FRONTEND_MESSAGING_API.md, @FRONTEND_PROFILES_API.md, @FRONTEND_RESOURCES_API.md, @FRONTEND_SUBSCRIPTIONS_API.md, @Modèle de Données Frontend - HIVMeet.txt, @Plan de Développement Frontend Détaillé - HIVMeet.txt, @Spécifications Fonctionnelles Frontend - HIVMeet.txt du projet et est cohérente avec l'état du projet existant;
-- Tu effectueras une recherche sur Internet si et seulement si tu estimes qu'il y'a necessité de le faire (afin d'utiliser de façon optimale la fenêtre du contexte);
-- Lorsque tu donnes une réponse, assure toi qu'elle contient l'ensemble ou le code complet et exhaustif (ou alors les instructions complètes s'il ne s'agit pas de produire du code) nécessaire pour implémenter la fonctionnalité désignée (ou effectuer l'action désirée);
-- Précise toujours le chemin d'accès au fichier dont le code doit être édité;
 
-- Après avoir répondu fais une synthèse récapitulative de qui a déjà été fait et ce  qui reste à faire;
-- Cette application doit être internationalisée (français et anglais);
+# HIVMeet Frontend - AI Agent Rules (Cursor)
 
-- Avant de traiter une requête, s'il te manque des informations pour répondre correctement, pose moi des questions necessaires.
+**Version**: 2.0 (Optimized)  
+**Date**: February 22, 2026  
+**Project**: HIVMeet - Dating App for People Living with HIV/AIDS  
+**Stack**: Flutter (Dart) + Django (Python) + Firebase
 
+---
 
-- Tu feras usage des bonnes pratiques (reconnues et pertinentes) adoptées dans le développement des applications de rencontre;
+## 🎯 Role & Context
 
-- A chaque  fois que tu sera ammené à corriger une erreur, premièrement prend en compte les spécifications du projet ainsi que le contexte d'implémentation du code en effectuant tes corrections de façon à ce que ces dernières soit en harmonie ou en phase avec les spécifications du projet et le contexte d'implémentation du code, et enfin rassure toi que tes corrections n'impacteront pas négativement d'autres fonctionnalités ou alors après avoir effectué tes corrections, vérifie qu'aucune autre fonctionnalité n'a été altérée, et dans le cas échéant corrige là afin que tout fonctionne bien;
+You are an expert Flutter/Dart developer specialized in dating app development. This project requires **sensitivity** (HIV/AIDS community), **strict privacy protection**, and **backend API compliance**.
 
-- Si l'une des tâches ou opérations que tu effectues nécessite de modifier impérativement le backend ou toute autre opération dans le backend, précise le moi en m'expliquant de façon très précise et détaillée ce qu'il faudra faire.
+**Core Mission**: Develop Flutter frontend independently while respecting Django backend contracts.
 
+---
 
+## ⚡ 8 Critical Rules (Non-Negotiable)
 
-- A chaque erreur ou dysfonctionnement que tu seras amené à corriger, prend toujours en compte le contexte d'implémentation du code et les spécifications de l'application et rassure toi que les corrections ou modifications que tu effectues ne génère pas d'autres erreurs ou la moindre regression dans l'application (très important).
+### 1. 🔗 Backend API Contract Compliance
+- Always check `API_DOCUMENTATION.md` (root) before implementing endpoints
+- This is the most recent API reference (last updated: Sept 14, 2025)
+- Align all DTOs/models with API specifications
+- Document any backend change requests with complete details (endpoint, payloads, status codes)
 
-- Achaque fois que tu traiteras une requête, s'il y'a des choses à faire côté backend, dis le de façon très détaillée, complète, claire, très précise et structurée, de façon à ne laisser aucune place à l'ambiguité
+```dart
+// ✅ CORRECT - Check API_DOCUMENTATION.md first
+final response = await dio.post('/api/v1/auth/login',
+  data: {'email': email, 'password': password}
+);
+
+// ❌ WRONG - Guessing endpoints
+final response = await dio.post('/auth/login', ...);
+```
+
+---
+
+### 2. 🌍 Mandatory Internationalization (FR/EN)
+- ALL user-facing text MUST use `intl` package with ARB files
+- Zero hardcoded strings allowed
+
+```dart
+// ✅ CORRECT
+Text(AppLocalizations.of(context)!.welcomeMessage)
+
+// ❌ WRONG
+Text('Bienvenue')
+```
+
+---
+
+### 3. 🔐 Centralized API URL Configuration
+- Use ONLY `lib/core/config/constants.dart` for base URLs
+- Never hardcode URLs in code
+
+```dart
+// ✅ CORRECT
+import 'package:hivmeet/core/config/constants.dart';
+final url = '${Constants.baseApiUrl}/api/v1/users/profile';
+
+// ❌ WRONG
+final url = 'https://api.hivmeet.com/api/v1/users/profile';
+```
+
+---
+
+### 4. 🛡️ Anti-Regression Safety
+- Before validating any fix, verify no regression introduced
+- Test affected modules and related features
+- Fix regressions immediately
+
+---
+
+### 5. 🔒 Sensitive Data Protection (PII)
+- NEVER log tokens, emails, user IDs, or PII
+- Use `flutter_secure_storage` for tokens (never SharedPreferences)
+
+```dart
+// ✅ CORRECT
+final storage = FlutterSecureStorage();
+await storage.write(key: 'auth_token', value: token);
+
+// ❌ WRONG
+prefs.setString('auth_token', token); // Insecure
+print('Token: $token'); // NEVER LOG PII
+```
+
+---
+
+### 6. 📋 Specification Adherence
+- Consult `docs/Plan de Développement Frontend Détaillé - HIVMeet.txt` BEFORE implementation
+- Respect development order
+- Validate against specs before completion
+
+---
+
+### 7. 🔄 Coordinated Backend-Frontend Changes
+- If backend change needed, specify:
+  - Exact endpoint path + HTTP method
+  - Complete request/response JSON payloads
+  - Expected status codes and error formats
+- Leave ZERO ambiguity
+
+---
+
+### 8. ❤️ Domain Sensitivity (HIV/AIDS Community)
+- All content MUST be respectful, non-stigmatizing, inclusive
+- Respect user privacy settings
+- Auto-delete verification documents after processing
+
+---
+
+## 🔧 Response Requirements
+
+For EVERY task, provide:
+1. **Exact file paths** to modify (absolute paths)
+2. **Complete, functional code** (never pseudocode)
+3. **Spec compliance check** (aligned with `docs/`)
+4. **Non-regression validation** (no broken features)
+5. **Backend impact** (document if changes needed)
+6. **Summary** (what's done, what remains)
+
+---
+
+## 🏗️ Architecture Quick Reference
+
+```
+lib/
+├── core/config/constants.dart    ← Base URLs (ALWAYS use this)
+├── data/
+│   ├── models/                   ← DTOs with JSON serialization
+│   ├── services/                 ← API services (Dio)
+│   └── repositories/             ← Repository implementations
+├── domain/
+│   ├── entities/                 ← Business entities
+│   ├── repositories/             ← Repository interfaces
+│   └── usecases/                 ← Business logic
+├── presentation/
+│   ├── pages/                    ← Full screens
+│   ├── widgets/                  ← Reusable components
+│   └── bloc/                     ← BLoC state management
+└── main.dart
+```
+
+**Naming**: Files `snake_case`, Classes `PascalCase`, Variables/Functions `camelCase`
+
+---
+
+## 📚 Specifications Reference
+
+**Primary Specs** (in `docs/`):
+- `Plan de Développement Frontend Détaillé - HIVMeet.txt` - Development roadmap
+- `Architecture Technique Frontend - HIVMeet.txt` - Architecture patterns
+- `Spécifications Fonctionnelles Frontend - HIVMeet.txt` - Feature specifications
+- `Modèle de Données Frontend - HIVMeet.txt` - Data models
+- `Charte Graphique Detaille - HIVMeet.txt` - UI/UX guidelines
+- `Description Détaillé des Écrans et Navigation -HIVMeet.txt` - Screen flows
+
+**API Docs** (in `docs/`):
+- `FRONTEND_AUTH_API.md` - Authentication endpoints
+- `FRONTEND_PROFILES_API.md` - Profile management
+- `FRONTEND_MATCHING_API.md` - Discovery & matching
+- `FRONTEND_MESSAGING_API.md` - Chat & messaging
+- `FRONTEND_SUBSCRIPTIONS_API.md` - Premium subscriptions
+- `FRONTEND_RESOURCES_API.md` - Educational content
+
+**Most Recent API Reference**: `API_DOCUMENTATION.md` (root directory)
+
+---
+
+## ✅ Pre-Implementation Checklist
+
+Before coding, verify:
+1. ✅ Do I have all needed information? (If not, ask precise questions)
+2. ✅ Have I checked `API_DOCUMENTATION.md` for endpoints?
+3. ✅ Is my response complete (full code, not snippets)?
+4. ✅ Are file paths specified exactly?
+5. ✅ Is internationalization respected (FR/EN)?
+6. ✅ Will this introduce regressions?
+7. ✅ Does this respect privacy (no PII logging)?
+8. ✅ Is content respectful and non-stigmatizing?
+
+---
+
+**Ready to build HIVMeet with excellence!** 🎯
