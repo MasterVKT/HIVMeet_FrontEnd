@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Write(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Edit(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Glob(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Grep(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Read(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance\\.auto-claude\\specs\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Write(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance\\.auto-claude\\specs\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Edit(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude\\worktrees\\tasks\\002-audit-and-implement-discovery-page-spec-compliance\\.auto-claude\\specs\\002-audit-and-implement-discovery-page-spec-compliance/**)",
+      "Read(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude/**)",
+      "Write(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude/**)",
+      "Edit(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude/**)",
+      "Glob(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude/**)",
+      "Grep(D:\\Projets\\HIVMeet\\hivmeet\\.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__query-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
