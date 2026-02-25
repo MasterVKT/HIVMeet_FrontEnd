@@ -305,3 +305,161 @@ requirements_criticality_and_dependencies.md - 87 dependencies mapped, 9 impleme
 ## Next Steps:
 Ready for Phase 2: Implementation Inventory - Map requirements to actual codebase files
 
+
+===== Subtask 2.1 Completed =====
+Date: 2026-02-25
+Status: COMPLETED
+
+## Work Completed:
+1. Used glob to search for all Discovery-related files in standard locations
+2. Used grep to find class definitions and route references
+3. Read and analyzed all Discovery page files
+4. Documented complete file inventory with descriptions
+
+## Discovery-Related Files Found:
+
+### Pages (3 files):
+1. **lib/presentation/pages/discovery/discovery_page.dart** (615 lines)
+   - Main Discovery page with swipe functionality
+   - Uses AppScaffold with bottom navigation (index 0)
+   - Integrates DiscoveryBloc for state management
+   - Handles multiple states: Loading, Loaded, Error, NoMoreProfiles, DailyLimitReached
+   - Implements action buttons (Like, Dislike, Super Like)
+   - Shows daily limit indicator and rewind button
+   - Match found modal integration
+
+2. **lib/presentation/pages/discovery/filters_page.dart** (397 lines)
+   - Filter configuration page
+   - Age range slider (18-99)
+   - Distance slider (5-100 km)
+   - Relationship type selection (all, friendship, long_term, short_term, casual, networking)
+   - Gender preferences (all, male, female, non_binary)
+   - Verified-only toggle
+   - Premium filters section
+   - Applies filters via DiscoveryBloc UpdateFilters event
+
+3. **lib/presentation/pages/discovery/profile_detail_page.dart** (511 lines)
+   - Full profile detail view
+   - Photo gallery with PageView (supports multiple photos)
+   - Hero animations for photo transitions
+   - Profile info: name, age, distance, bio, interests
+   - Compatibility score display
+   - Badges: online, verified, premium
+   - Action buttons: Like, Dislike, Super Like
+   - Report and block functionality (TODOs)
+
+### Widgets (3 files):
+4. **lib/presentation/widgets/cards/swipe_card.dart** (1103 lines)
+   - Swipeable profile card component
+   - Pan gesture detection for swipe actions
+   - Animation controllers for swipe, pulse, super like
+   - Photo PageView with indicators
+   - Profile info overlay with backdrop blur
+   - Badges overlay (online, verified, premium)
+   - Quick action buttons (view profile, common interests)
+   - Swipe overlay feedback (Like/Dislike/Super Like)
+   - Preview mode for background cards
+   - Haptic feedback integration
+
+5. **lib/presentation/widgets/modals/filters_modal.dart** (421 lines)
+   - Bottom sheet modal for filters
+   - Similar to filters_page but in modal format
+   - Age range, distance, relationship type, interests, verified-only
+   - Reset and apply buttons
+   - Premium filters promotion section
+
+6. **lib/presentation/widgets/modals/match_found_modal.dart** (345 lines)
+   - Celebratory match notification dialog
+   - Animated hearts and profile photo
+   - Scale, rotation, and fade animations
+   - "Send Message" and "Continue Swiping" actions
+   - Elastic bounce animation on appearance
+
+### BLoCs (3 files):
+7. **lib/presentation/blocs/discovery/discovery_bloc.dart**
+   - State management for Discovery feature
+   - Events: LoadDiscoveryProfiles, SwipeProfile, UpdateFilters, RewindLastSwipe
+   - States: Initial, Loading, Loaded, Error, NoMoreProfiles, DailyLimitReached, MatchFound
+
+8. **lib/presentation/blocs/discovery/discovery_event.dart**
+   - Event definitions for Discovery BLoC
+
+9. **lib/presentation/blocs/discovery/discovery_state.dart**
+   - State definitions for Discovery BLoC
+
+### Use Cases (1 file):
+10. **lib/domain/usecases/match/get_discovery_profiles.dart**
+    - Use case for fetching discovery profiles
+    - Implements business logic for profile retrieval
+
+### Routes (lib/core/config/routes.dart):
+- `/discovery` → DiscoveryPage
+- `/discovery/filters` → FiltersPage
+- `/profile-detail` → ProfileDetailPage (takes DiscoveryProfile as extra parameter)
+
+### Tests (2 files):
+11. **test/presentation/blocs/discovery/discovery_bloc_test.dart**
+    - Unit tests for Discovery BLoC
+
+12. **test/presentation/pages/discovery/discovery_page_test.dart**
+    - Widget tests for Discovery page
+
+## Architecture Analysis:
+- ✅ Clean Architecture: Proper separation between presentation, domain, data layers
+- ✅ BLoC Pattern: State management using flutter_bloc
+- ✅ Routing: GoRouter integration with named routes
+- ✅ Widgets: Reusable components (SwipeCard, modals)
+- ✅ Animations: Multiple animation controllers for smooth UX
+- ✅ Internationalization: Uses LocalizationService.translate() throughout
+
+## Key Features Identified:
+- Swipe gestures (left/right/up)
+- Profile cards with multiple photos
+- Action buttons (Like, Dislike, Super Like)
+- Filters (age, distance, relationship type, interests, verified-only)
+- Daily like limits
+- Rewind functionality
+- Match detection and celebration
+- Premium features (Super Like, extended filters)
+- Profile detail view with Hero animations
+- Report and block (TODOs in profile_detail_page.dart)
+
+## Hardcoded Strings Found:
+⚠️ Several hardcoded strings detected that violate i18n requirement:
+- discovery_page.dart: Lines 40, 42, 50, 56, 64, 84, 86, 96, 113, 118, 122, 127, 132, etc.
+- filters_page.dart: Lines 37, 464 (debug prints and French text)
+- swipe_card.dart: Line 165, 410, 411 (fallback text)
+
+## TODOs Found:
+- profile_detail_page.dart: Line 428 - Implement swipe action from detail page
+- profile_detail_page.dart: Line 476 - Implement report functionality
+- profile_detail_page.dart: Line 499 - Implement block functionality
+
+## Next Steps:
+Ready for Subtask 2.2: Analyze BLoCs and state management implementation
+
+## File Locations Summary:
+```
+lib/presentation/
+├── pages/discovery/
+│   ├── discovery_page.dart
+│   ├── filters_page.dart
+│   └── profile_detail_page.dart
+├── widgets/
+│   ├── cards/swipe_card.dart
+│   └── modals/
+│       ├── filters_modal.dart
+│       └── match_found_modal.dart
+└── blocs/discovery/
+    ├── discovery_bloc.dart
+    ├── discovery_event.dart
+    └── discovery_state.dart
+
+lib/domain/usecases/match/
+└── get_discovery_profiles.dart
+
+test/presentation/
+├── blocs/discovery/discovery_bloc_test.dart
+└── pages/discovery/discovery_page_test.dart
+```
+
