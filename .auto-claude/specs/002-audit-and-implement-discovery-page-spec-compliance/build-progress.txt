@@ -579,3 +579,299 @@ discovery_state_management_inventory.md - Comprehensive 685-line documentation w
 ## Next Steps:
 Ready for Subtask 2.3: Map Discovery widgets and components
 
+
+## [2026-02-25 12:00] ✅ Task 2.3 Completed: Widget Inventory
+
+Successfully mapped and documented all Discovery page widgets:
+
+### Deliverables:
+- **discovery_widgets_inventory.md** (comprehensive widget documentation)
+
+### Widgets Inventoried (10 total):
+
+#### Discovery-Specific (4):
+1. SwipeCard - Profile card with gestures, animations, carousel
+2. ActionButton - Circular action buttons (like/dislike/super like)
+3. MatchFoundModal - Match celebration dialog with animations
+4. FiltersModal - Discovery filters bottom sheet
+
+#### Shared/Common (6):
+5. LoadingWidget - Loading state indicator
+6. ErrorWidget - Error state display
+7. EmptyStateWidget - Empty state display
+8. OptimizedImage - Network image with optimizations
+9. AppScaffold - Navigation wrapper with bottom bar
+
+### Key Findings:
+
+**Architecture:**
+- Widget tree depth: 4-5 levels
+- Reusability score: 60% (6/10 high reusability)
+- All widgets follow Clean Architecture pattern
+
+**Compliance Issues (9 total):**
+
+1. **P0 - i18n Violations (5):**
+   - ErrorWidget: Hardcoded "Oops!", "Réessayer"
+   - OptimizedImage: Hardcoded "Chargement...", "Photo de profil"
+   - AppScaffold: Hardcoded navigation labels (FR only)
+
+2. **P1 - Debug Code (1):**
+   - EmptyStateWidget: Yellow debug background + print statements
+
+3. **P2 - Incomplete TODOs (2):**
+   - FiltersModal: Gender selection not implemented
+   - FiltersModal: BLoC integration not implemented
+
+4. **P1 - Print Statements:**
+   - DiscoveryPage: Multiple debug print statements
+
+**Widget Quality:**
+- 4/9 widgets excellent quality (ActionButton, MatchFoundModal, LoadingWidget)
+- 2/9 widgets good quality (SwipeCard, FiltersModal)
+- 4/9 widgets need fixes (ErrorWidget, EmptyStateWidget, OptimizedImage, AppScaffold)
+
+### Documentation Highlights:
+- Complete widget hierarchy tree
+- Props documentation for all widgets
+- Dependency matrix (direct + indirect)
+- Reusability analysis
+- Compliance assessment against specs
+- Recommendations for fixes
+
+### Next Steps:
+- Task 2.4: Document Discovery services and repositories
+- Task 2.5: Inventory Discovery models and DTOs
+- Task 2.6: Map existing Discovery tests
+- Task 2.7: Create implementation file matrix
+
+
+## [2026-02-25 13:00] ✅ Task 2.4 Completed: Data Layer Inventory
+
+Successfully documented all data layer files for Discovery page:
+
+### Deliverables:
+- **discovery_data_layer_inventory.md** (685 lines, comprehensive data layer documentation)
+
+### Files Inventoried (13 total, 3,204 lines):
+
+#### Remote Data Sources (1):
+1. **matching_api.dart** (208 lines) - 14 API endpoint methods
+
+#### Repository Layer (2):
+2. **match_repository.dart** (55 lines) - Interface with 18 methods
+3. **match_repository_impl.dart** (690 lines) - Implementation
+
+#### Data Models (2):
+4. **match_model.dart** (117 lines) - Match and SwipeAction DTOs
+5. **profile_model.dart** (387 lines) - Profile and 6 sub-models
+
+#### Domain Entities (2):
+6. **match.dart** (409 lines) - DiscoveryProfile, Match, SwipeResult, DailyLikeLimit, BoostStatus
+7. **profile.dart** (399 lines) - Profile, Location, SearchPreferences, etc.
+
+#### Network Infrastructure (1):
+8. **api_client.dart** (389 lines) - HTTP client with interceptors
+
+#### Configuration (1):
+9. **app_config.dart** (150 lines) - Environment configuration
+
+#### Error Handling (2):
+10. **failures.dart** (257 lines) - 16 Failure types
+11. **exceptions.dart** (143 lines) - 13 Exception types
+
+### API Endpoints Documented (14 total):
+
+**Discovery:**
+- GET /discovery/profiles - Get discovery profiles
+- PUT /discovery/filters - Update discovery filters
+- POST /discovery/boost/activate - Activate boost
+- GET /discovery/boost/status - Get boost status
+
+**Interactions:**
+- POST /discovery/interactions/like - Like profile
+- POST /discovery/interactions/dislike - Dislike profile
+- POST /discovery/interactions/superlike - Super like profile
+- POST /discovery/interactions/rewind - Undo last swipe
+- GET /discovery/interactions/liked-me - Who liked me (premium)
+
+**Matches:**
+- GET /matches/ - Get matches
+
+**Profile:**
+- GET /user-profiles/me/ - Current profile
+- PUT /user-profiles/me/ - Update search preferences
+- GET /user-profiles/likes-received/ - Likes received
+- GET /user-profiles/premium-status/ - Premium status
+
+### Architecture Analysis:
+
+**✅ Compliant:**
+- Clean Architecture with clear layer separation
+- Repository pattern (interface + implementation + DI)
+- DTO pattern (Models separate from Entities)
+- Either<Failure, Success> error handling
+- ApiClient with interceptors (auth, language, 401 retry)
+- Centralized API URL configuration
+
+**❌ Not Implemented:**
+- No caching layer (all features)
+- No offline support
+- No local data sources for Discovery
+
+### Critical Compliance Issues (4 total):
+
+**🔴 P0-SEC-001: PII Logging in Production**
+- **Location:** match_repository_impl.dart (lines 25-62, 377-398)
+- **Issue:** Debug print() statements log user IDs, profile data, API responses
+- **Spec Violation:** CLAUDE.MD Rule #5 (PII Protection)
+- **Risk:** Privacy violation, GDPR non-compliance
+- **Impact:** HIGH - Exposes sensitive user data in logs
+
+**🔴 P0-I18N-001: Hardcoded Error Messages**
+- **Location:** failures.dart, exceptions.dart, api_client.dart, match_repository_impl.dart
+- **Issue:** All error messages hardcoded in French
+- **Examples:** "Vous avez atteint votre limite", "Délai d'attente dépassé"
+- **Spec Violation:** CLAUDE.MD Rule #2 (Mandatory i18n FR/EN)
+- **Impact:** HIGH - Breaks internationalization requirement
+
+**🟡 P1-IMPL-001: Incomplete Repository Methods (7 TODOs)**
+- **Methods:**
+  1. getDiscoveryProfile(id) - Returns error, not implemented
+  2. getMatch(id) - Returns error, not implemented
+  3. deleteMatch(id) - Placeholder implementation
+  4. watchMatches() - Throws UnimplementedError
+  5. getDailyLikeLimit() - Returns hardcoded mock data
+  6. getSuperLikesRemaining() - Returns hardcoded "5"
+  7. getSearchFilters() - Returns default values
+- **Impact:** MEDIUM - Missing features, inaccurate data display
+
+**🟠 P2-PERF-001: No Caching Layer**
+- **Issue:** No local cache for profiles, filters, or limits
+- **Impact:** 
+  - Slow Discovery page loads
+  - No offline support
+  - Increased API calls
+  - Poor UX on slow networks
+- **Recommendation:** Implement Hive cache in Phase 5
+
+### Network Infrastructure Features:
+
+**ApiClient Interceptors:**
+1. **Request Interceptor:**
+   - Automatic JWT token injection from TokenManager
+   - Language header (Accept-Language) from LocalizationService
+   - Excluded paths for public endpoints
+   - Proactive token refresh if expiring soon
+   - Debug logging (only in debug mode)
+
+2. **Response Interceptor:**
+   - Response logging
+
+3. **Error Interceptor:**
+   - Automatic 401 handling with token refresh
+   - Retry original request with new token
+   - Graceful failure if refresh fails
+
+### Error Handling Strategy:
+
+**Failure Hierarchy (16 types):**
+- ServerFailure, NetworkFailure, CacheFailure
+- AuthFailure (7 subtypes)
+- ValidationFailure, PermissionFailure
+- ProfileFailure (2 subtypes)
+- LimitFailure (4 subtypes: DailyLikeLimit, Message, Photo, DailyLimitReached)
+- MatchingFailure (2 subtypes: NoSwipeToRewind, AlreadyMatched)
+- PremiumFailure (PremiumRequired)
+- PaymentFailure, UnknownFailure
+
+**Exception Hierarchy (13 types):**
+- ServerException, CacheException, NetworkException
+- AuthException (8 subtypes)
+- ProfileException (2 subtypes)
+- LimitException (3 subtypes)
+
+**Error Flow:**
+```
+API Error (DioException)
+  → ApiClient catches → createApiException()
+  → MatchingApi throws ServerException
+  → Repository catches → Left(ServerFailure)
+  → BLoC receives Either<Failure, T>
+  → State: DiscoveryError(message)
+  → UI displays error
+```
+
+### Caching Strategy Analysis:
+
+**Current State:** ❌ No caching implemented
+
+**AppConfig Settings (exists but unused):**
+- Development: 1 min TTL
+- Staging: 5 min TTL
+- Production: 15 min TTL
+
+**Recommended Caching (P2 - Phase 5):**
+1. Profile Cache (Hive) - 15 min TTL
+2. Filter Cache (SharedPreferences)
+3. Daily Limit Cache (until resetAt timestamp)
+
+**Benefits:**
+- Instant load on return to Discovery
+- Offline profile viewing
+- Reduced API calls
+- Better perceived performance
+
+### Data Flow Diagrams:
+
+**Profile Fetching:**
+```
+DiscoveryPage → DiscoveryBloc → GetDiscoveryProfilesUseCase
+  → MatchRepository → MatchingApi → ApiClient
+  → Dio interceptors (auth, language, logging)
+  → Django Backend
+  → Response parsing
+  → Entity mapping
+  → State emission
+```
+
+**Like Action:**
+```
+User swipes right → SwipeCard
+  → SwipeProfile event → DiscoveryBloc
+  → LikeProfileUseCase → MatchRepository.likeProfile()
+  → MatchingApi.likeProfile()
+  → POST /discovery/interactions/like
+  → Response: { result: "match", match_id, counters }
+  → Repository parses → SwipeResult(isMatch: true)
+  → BLoC checks isMatch → emits MatchFound state
+  → UI shows MatchFoundModal
+```
+
+### Documentation Highlights:
+
+**Document Structure (13 sections):**
+1. Data Layer Architecture
+2. API Endpoints Catalog (14 endpoints)
+3. Remote Data Sources (MatchingApi)
+4. Local Data Sources (none for Discovery)
+5. Data Models (DTOs)
+6. Domain Entities
+7. Repository Layer (interface + impl)
+8. Network Infrastructure (ApiClient)
+9. Error Handling Strategy
+10. Caching Strategy (analysis + recommendations)
+11. Data Flow (diagrams)
+12. Compliance Analysis (4 critical issues)
+13. Recommendations (immediate, medium, long-term)
+
+**Appendices:**
+- Appendix A: File Inventory Summary
+- Appendix B: API Endpoint Reference
+
+### Next Steps:
+- Task 2.5: Inventory Discovery models and DTOs
+- Task 2.6: Map existing Discovery tests
+- Task 2.7: Create implementation file matrix
+- Phase 3: Gap Analysis (map critical issues to requirements)
+
