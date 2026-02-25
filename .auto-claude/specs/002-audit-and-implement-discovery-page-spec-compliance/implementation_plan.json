@@ -1,0 +1,1764 @@
+{
+  "workflow_type": "feature",
+  "project_name": "Audit and Implement Discovery Page Specification Compliance",
+  "project_id": "002-audit-and-implement-discovery-page-spec-compliance",
+  "description": "Comprehensive audit of Discovery page implementation against specifications from .claude/rules/, CLAUDE.md, and docs/, followed by gap remediation, testing, and deployment with full traceability.",
+  "start_date": "2026-02-24",
+  "target_completion_date": "2026-03-10",
+  "phases": [
+    {
+      "phase_number": 1,
+      "phase_name": "Specification Audit",
+      "phase_type": "investigation",
+      "description": "Extract and consolidate all Discovery page requirements from specification files including .claude/rules/, CLAUDE.md, and docs/ directory. Create a comprehensive requirements matrix.",
+      "estimated_duration": "1 day",
+      "dependencies": [],
+      "subtasks": [
+        {
+          "subtask_id": "1.1",
+          "title": "Audit .claude/rules/ directory for Discovery requirements",
+          "description": "Search and extract all Discovery page related rules, constraints, and requirements from .claude/rules/ files. Document business rules, validation rules, and architectural constraints.",
+          "status": "completed",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All .claude/rules/ files reviewed",
+            "Discovery-related rules extracted and categorized",
+            "Requirements documented with file references"
+          ],
+          "notes": "Extracted all Discovery page rules from .claude/rules/ and docs/ into comprehensive discovery_page_rules_extraction.md document. Documented business rules, validation rules, architectural constraints, API contracts, UI/UX requirements, internationalization, performance, security, testing, accessibility, and domain sensitivity requirements.",
+          "id": "1.1",
+          "updated_at": "2026-02-24T01:19:21.475446+00:00"
+        },
+        {
+          "subtask_id": "1.2",
+          "title": "Extract Discovery specifications from CLAUDE.md",
+          "description": "Parse CLAUDE.md for Discovery page requirements including UI/UX specifications, data models, API contracts, and user flows. Create structured requirements document.",
+          "status": "completed",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "CLAUDE.md fully reviewed",
+            "All Discovery sections extracted",
+            "Requirements cross-referenced with rules"
+          ],
+          "notes": "Successfully parsed CLAUDE.md for Discovery page requirements. Created comprehensive structured requirements document (claude_md_discovery_requirements.md) covering:\n- How 8 critical rules apply to Discovery page\n- API contract compliance for all Discovery endpoints\n- Mandatory i18n keys (FR/EN) with examples\n- Centralized API URL configuration patterns\n- Anti-regression testing protocol\n- PII protection rules (no logging sensitive data)\n- Specification adherence checklist\n- Backend change request template\n- Domain sensitivity guidelines (HIV/AIDS community)\n- Clean Architecture mapping for Discovery files\n- Response format requirements\n\nDocument complements Task 1.1's technical extraction with project-level framework constraints from CLAUDE.md. Total 10 sections covering all aspects of Discovery page implementation from CLAUDE.md perspective.",
+          "id": "1.2",
+          "updated_at": "2026-02-24T01:25:08.880785+00:00"
+        },
+        {
+          "subtask_id": "1.3",
+          "title": "Review docs/ directory for Discovery documentation",
+          "description": "Scan docs/ directory for any Discovery page documentation including user guides, technical specs, API documentation, and architecture diagrams.",
+          "status": "completed",
+          "estimated_hours": 1.5,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All docs/ files scanned",
+            "Discovery-related documentation identified",
+            "Documentation gaps noted"
+          ],
+          "notes": "Completed comprehensive scan of docs/ directory. Found 15 files with Discovery documentation. Created detailed audit report (discovery-documentation-audit.md) with file inventory, coverage matrix, and implementation recommendations. Key findings: excellent documentation coverage across implementation, API, UX, architecture, and functional specs. Primary references identified: DISCOVERY_PAGE_IMPLEMENTATION.md, FRONTEND_MATCHING_API.md, Document de Spécification Interface.",
+          "id": "1.3",
+          "updated_at": "2026-02-25T11:25:28.405752+00:00"
+        },
+        {
+          "subtask_id": "1.4",
+          "title": "Create comprehensive requirements matrix",
+          "description": "Consolidate all extracted requirements into a structured matrix with categories (functional, non-functional, UI/UX, data, API, security, accessibility, i18n). Include requirement IDs, sources, and priorities.",
+          "status": "completed",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "1.1",
+            "1.2",
+            "1.3"
+          ],
+          "verification_steps": [
+            "Requirements matrix created with all categories",
+            "Each requirement has unique ID and source reference",
+            "Priorities assigned to all requirements",
+            "No duplicate requirements",
+            "Requirements are testable and measurable"
+          ],
+          "notes": "Created comprehensive requirements matrix (discovery_page_requirements_matrix.md) consolidating all requirements from tasks 1.1, 1.2, and 1.3.\n\nMatrix includes:\n- 139 total requirements across 12 categories\n- Categories: FUNC (25), NFR (7), UI (18), DATA (8), API (13), SEC (8), A11Y (8), I18N (8), TEST (19), ARCH (10), DOMAIN (7), COMP (8)\n- Priority distribution: P0 (79), P1 (52), P2 (7), P3 (1)\n- Full traceability to source documents\n- Acceptance criteria for each requirement\n- Usage guide for implementation, gap analysis, testing, and QA phases\n\nDeliverable: discovery_page_requirements_matrix.md (139 requirements with IDs, priorities, sources, acceptance criteria)",
+          "id": "1.4",
+          "updated_at": "2026-02-25T11:30:54.910194+00:00"
+        },
+        {
+          "subtask_id": "1.5",
+          "title": "Identify critical vs nice-to-have requirements",
+          "description": "Categorize requirements by criticality (P0-Critical, P1-High, P2-Medium, P3-Low) based on user impact, business value, and technical dependencies.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "1.4"
+          ],
+          "verification_steps": [
+            "All requirements have priority assigned",
+            "Criticality criteria documented",
+            "Dependencies between requirements mapped"
+          ],
+          "notes": "",
+          "id": "1.5"
+        }
+      ],
+      "phase": 1,
+      "name": "Phase 1"
+    },
+    {
+      "phase_number": 2,
+      "phase_name": "Implementation Inventory",
+      "phase_type": "investigation",
+      "description": "Map all existing Discovery page implementation files including pages, blocs, widgets, services, repositories, models, and tests. Create comprehensive file inventory with responsibility mapping.",
+      "estimated_duration": "1 day",
+      "dependencies": [
+        1
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "2.1",
+          "title": "Locate Discovery page files",
+          "description": "Use glob and grep to find all Discovery-related page files. Check standard locations: lib/pages/discovery/, lib/screens/discovery/, lib/features/discovery/presentation/pages/.",
+          "status": "pending",
+          "estimated_hours": 1,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All Discovery page files identified",
+            "File paths documented",
+            "File purposes understood"
+          ],
+          "notes": "",
+          "id": "2.1"
+        },
+        {
+          "subtask_id": "2.2",
+          "title": "Inventory Discovery BLoC/state management files",
+          "description": "Find all state management files (BLoC, Cubit, Provider, Riverpod) related to Discovery. Map events, states, and business logic implementations.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All BLoC/state files identified",
+            "Events and states documented",
+            "Business logic patterns mapped"
+          ],
+          "notes": "",
+          "id": "2.2"
+        },
+        {
+          "subtask_id": "2.3",
+          "title": "Map Discovery widgets and components",
+          "description": "Identify all reusable widgets used in Discovery page. Document widget tree, props, and component hierarchy. Check lib/widgets/discovery/ and shared widget directories.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All Discovery widgets catalogued",
+            "Widget dependencies mapped",
+            "Reusable vs page-specific widgets identified"
+          ],
+          "notes": "",
+          "id": "2.3"
+        },
+        {
+          "subtask_id": "2.4",
+          "title": "Document Discovery services and repositories",
+          "description": "Locate data layer files: API services, repositories, data sources. Map API endpoints, data fetching logic, caching strategies, and error handling.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All services and repositories identified",
+            "API contracts documented",
+            "Data flow understood"
+          ],
+          "notes": "",
+          "id": "2.4"
+        },
+        {
+          "subtask_id": "2.5",
+          "title": "Inventory Discovery models and DTOs",
+          "description": "Find all data models, entities, and DTOs used by Discovery page. Document properties, serialization, validation logic, and transformations.",
+          "status": "pending",
+          "estimated_hours": 1.5,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All models documented",
+            "Data structure understood",
+            "Serialization logic identified"
+          ],
+          "notes": "",
+          "id": "2.5"
+        },
+        {
+          "subtask_id": "2.6",
+          "title": "Map existing Discovery tests",
+          "description": "Locate all test files: unit tests, widget tests, integration tests. Document test coverage, test scenarios, and identify untested areas.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All test files identified",
+            "Test coverage analysis completed",
+            "Coverage gaps documented"
+          ],
+          "notes": "",
+          "id": "2.6"
+        },
+        {
+          "subtask_id": "2.7",
+          "title": "Create implementation file matrix",
+          "description": "Consolidate all discovered files into structured matrix showing file paths, responsibilities, dependencies, and links to requirements from Phase 1.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "2.1",
+            "2.2",
+            "2.3",
+            "2.4",
+            "2.5",
+            "2.6"
+          ],
+          "verification_steps": [
+            "Complete file inventory created",
+            "All files categorized by type and responsibility",
+            "Dependencies between files mapped",
+            "Files linked to relevant requirements"
+          ],
+          "notes": "",
+          "id": "2.7"
+        }
+      ],
+      "phase": 2,
+      "name": "Phase 2"
+    },
+    {
+      "phase_number": 3,
+      "phase_name": "Gap Analysis",
+      "phase_type": "investigation",
+      "description": "Compare specification requirements against actual implementation. Categorize each requirement as Fully Implemented, Partially Implemented, Missing, or Incorrectly Implemented. Identify root causes and assess impact.",
+      "estimated_duration": "1.5 days",
+      "dependencies": [
+        1,
+        2
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "3.1",
+          "title": "Map requirements to implementation files",
+          "description": "For each requirement from Phase 1, identify which files from Phase 2 should implement it. Create traceability matrix linking requirements to code locations.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All requirements mapped to expected implementation locations",
+            "Traceability matrix created",
+            "Unmapped requirements identified"
+          ],
+          "notes": "",
+          "id": "3.1"
+        },
+        {
+          "subtask_id": "3.2",
+          "title": "Verify functional requirements implementation",
+          "description": "Check each functional requirement against actual code. Test user flows, data operations, business logic. Categorize as Implemented/Partial/Missing/Incorrect.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "3.1"
+          ],
+          "verification_steps": [
+            "All functional requirements verified",
+            "Implementation status documented",
+            "Evidence collected for each status"
+          ],
+          "notes": "",
+          "id": "3.2"
+        },
+        {
+          "subtask_id": "3.3",
+          "title": "Audit UI/UX requirements compliance",
+          "description": "Verify UI components, layouts, navigation, animations, and user interactions match specifications. Check responsive design, theming, and visual consistency.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "3.1"
+          ],
+          "verification_steps": [
+            "All UI/UX requirements checked",
+            "Visual compliance documented",
+            "UX flow issues identified"
+          ],
+          "notes": "",
+          "id": "3.3"
+        },
+        {
+          "subtask_id": "3.4",
+          "title": "Verify data and API requirements",
+          "description": "Check data models, API integration, error handling, caching, and offline support against specifications. Verify data validation and transformation logic.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "3.1"
+          ],
+          "verification_steps": [
+            "Data layer implementation verified",
+            "API contracts validated",
+            "Error handling assessed"
+          ],
+          "notes": "",
+          "id": "3.4"
+        },
+        {
+          "subtask_id": "3.5",
+          "title": "Audit non-functional requirements",
+          "description": "Verify accessibility (a11y), internationalization (i18n), performance, security, and privacy requirements. Check WCAG compliance, translation coverage, and security best practices.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "3.1"
+          ],
+          "verification_steps": [
+            "Accessibility compliance checked",
+            "i18n coverage verified",
+            "Performance metrics assessed",
+            "Security requirements validated"
+          ],
+          "notes": "",
+          "id": "3.5"
+        },
+        {
+          "subtask_id": "3.6",
+          "title": "Assess test coverage gaps",
+          "description": "Compare required test scenarios from specs against existing tests. Identify untested requirements, missing test types, and inadequate coverage areas.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "3.1"
+          ],
+          "verification_steps": [
+            "Test coverage gaps identified",
+            "Missing test types documented",
+            "Critical untested paths identified"
+          ],
+          "notes": "",
+          "id": "3.6"
+        },
+        {
+          "subtask_id": "3.7",
+          "title": "Create comprehensive gap analysis report",
+          "description": "Consolidate all findings into detailed report with: gap summary, implementation status by requirement, root cause analysis, impact assessment, and recommendations.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "3.2",
+            "3.3",
+            "3.4",
+            "3.5",
+            "3.6"
+          ],
+          "verification_steps": [
+            "Gap report completed with all findings",
+            "Each gap has root cause and impact documented",
+            "Recommendations provided for each gap",
+            "Report includes metrics and visualizations"
+          ],
+          "notes": "",
+          "id": "3.7"
+        }
+      ],
+      "phase": 3,
+      "name": "Phase 3"
+    },
+    {
+      "phase_number": 4,
+      "phase_name": "Prioritized Backlog",
+      "phase_type": "setup",
+      "description": "Create actionable backlog from gap analysis. Prioritize items by impact, effort, and dependencies. Estimate implementation effort and create execution roadmap.",
+      "estimated_duration": "0.5 days",
+      "dependencies": [
+        3
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "4.1",
+          "title": "Convert gaps to actionable work items",
+          "description": "Transform each identified gap into specific, actionable work items with clear acceptance criteria. Break down large gaps into smaller, manageable tasks.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All gaps converted to work items",
+            "Each item has clear acceptance criteria",
+            "Large items broken into sub-tasks"
+          ],
+          "notes": "",
+          "id": "4.1"
+        },
+        {
+          "subtask_id": "4.2",
+          "title": "Estimate effort and complexity for each item",
+          "description": "Assign effort estimates (hours) and complexity ratings (Low/Medium/High/Complex) to each work item. Consider technical debt, dependencies, and risk factors.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "4.1"
+          ],
+          "verification_steps": [
+            "All items have effort estimates",
+            "Complexity ratings assigned",
+            "Risk factors documented"
+          ],
+          "notes": "",
+          "id": "4.2"
+        },
+        {
+          "subtask_id": "4.3",
+          "title": "Prioritize backlog by impact and effort",
+          "description": "Apply prioritization framework considering: user impact, business value, technical dependencies, effort required. Use priority matrix (P0/P1/P2/P3) to rank items.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "4.2"
+          ],
+          "verification_steps": [
+            "All items prioritized",
+            "Priority rationale documented",
+            "Quick wins identified",
+            "Critical blockers highlighted"
+          ],
+          "notes": "",
+          "id": "4.3"
+        },
+        {
+          "subtask_id": "4.4",
+          "title": "Create implementation roadmap with phases",
+          "description": "Organize backlog into implementation waves/sprints respecting dependencies. Create timeline with milestones, identify parallelizable work, and plan for incremental delivery.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "4.3"
+          ],
+          "verification_steps": [
+            "Implementation roadmap created",
+            "Dependencies respected in scheduling",
+            "Parallel work streams identified",
+            "Milestones defined with deliverables"
+          ],
+          "notes": "",
+          "id": "4.4"
+        }
+      ],
+      "phase": 4,
+      "name": "Phase 4"
+    },
+    {
+      "phase_number": 5,
+      "phase_name": "Implementation",
+      "phase_type": "implementation",
+      "description": "Execute prioritized backlog on feature/discovery-page-fix branch. Implement missing features, fix incorrect implementations, and refactor as needed. Follow coding standards and best practices.",
+      "estimated_duration": "4 days",
+      "dependencies": [
+        4
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "5.1",
+          "title": "Create and checkout feature/discovery-page-fix branch",
+          "description": "Create new feature branch from latest master. Ensure clean working directory and verify branch setup with proper upstream tracking.",
+          "status": "pending",
+          "estimated_hours": 0.25,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Branch created from latest master",
+            "Working directory clean",
+            "Branch tracking configured"
+          ],
+          "notes": "",
+          "id": "5.1"
+        },
+        {
+          "subtask_id": "5.2",
+          "title": "Implement P0 critical gaps - functional requirements",
+          "description": "Address all P0 priority gaps in core functionality. Implement missing features, fix broken logic, and ensure critical user flows work correctly.",
+          "status": "pending",
+          "estimated_hours": 8,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.1"
+          ],
+          "verification_steps": [
+            "All P0 functional gaps resolved",
+            "Core features working as specified",
+            "Manual testing completed for critical paths"
+          ],
+          "notes": "",
+          "id": "5.2"
+        },
+        {
+          "subtask_id": "5.3",
+          "title": "Implement P0 critical gaps - data layer",
+          "description": "Fix critical data layer issues: API integration, data models, error handling, and data persistence. Ensure data integrity and proper error recovery.",
+          "status": "pending",
+          "estimated_hours": 6,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.1"
+          ],
+          "verification_steps": [
+            "Data layer gaps resolved",
+            "API integration working correctly",
+            "Error handling robust",
+            "Data validation in place"
+          ],
+          "notes": "",
+          "id": "5.3"
+        },
+        {
+          "subtask_id": "5.4",
+          "title": "Implement P1 high-priority UI/UX gaps",
+          "description": "Address UI/UX issues affecting user experience. Fix layouts, improve navigation, implement missing UI components, and ensure responsive design.",
+          "status": "pending",
+          "estimated_hours": 7,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.2",
+            "5.3"
+          ],
+          "verification_steps": [
+            "UI components match specifications",
+            "Responsive design working",
+            "Navigation flows correct",
+            "Visual consistency maintained"
+          ],
+          "notes": "",
+          "id": "5.4"
+        },
+        {
+          "subtask_id": "5.5",
+          "title": "Implement accessibility (a11y) requirements",
+          "description": "Add accessibility features: semantic labels, screen reader support, keyboard navigation, sufficient color contrast, and focus management.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.4"
+          ],
+          "verification_steps": [
+            "Semantic labels added to all interactive elements",
+            "Screen reader support verified",
+            "Keyboard navigation working",
+            "Color contrast meets WCAG AA standards"
+          ],
+          "notes": "",
+          "id": "5.5"
+        },
+        {
+          "subtask_id": "5.6",
+          "title": "Implement internationalization (i18n) requirements",
+          "description": "Add missing translation keys, implement locale-aware formatting, ensure RTL support, and verify translation coverage for all user-facing strings.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.4"
+          ],
+          "verification_steps": [
+            "All strings externalized",
+            "Translation keys added",
+            "Date/number formatting locale-aware",
+            "RTL layout support verified"
+          ],
+          "notes": "",
+          "id": "5.6"
+        },
+        {
+          "subtask_id": "5.7",
+          "title": "Implement P2 medium-priority gaps",
+          "description": "Address medium-priority improvements: performance optimizations, code quality improvements, additional error handling, and nice-to-have features.",
+          "status": "pending",
+          "estimated_hours": 5,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.2",
+            "5.3",
+            "5.4"
+          ],
+          "verification_steps": [
+            "P2 items implemented per roadmap",
+            "Performance benchmarks met",
+            "Code quality improved"
+          ],
+          "notes": "",
+          "id": "5.7"
+        },
+        {
+          "subtask_id": "5.8",
+          "title": "Refactor and optimize code",
+          "description": "Clean up technical debt, improve code organization, optimize performance, and ensure adherence to project coding standards and architecture patterns.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.2",
+            "5.3",
+            "5.4",
+            "5.5",
+            "5.6",
+            "5.7"
+          ],
+          "verification_steps": [
+            "Code follows project standards",
+            "No code duplication",
+            "Architecture patterns respected",
+            "Performance optimized"
+          ],
+          "notes": "",
+          "id": "5.8"
+        },
+        {
+          "subtask_id": "5.9",
+          "title": "Add inline documentation and comments",
+          "description": "Document complex logic, add JSDoc/DartDoc comments, update README sections, and ensure code is maintainable and self-documenting.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "5.8"
+          ],
+          "verification_steps": [
+            "Complex logic documented",
+            "Public APIs have complete documentation",
+            "Comments explain 'why' not 'what'"
+          ],
+          "notes": "",
+          "id": "5.9"
+        }
+      ],
+      "phase": 5,
+      "name": "Phase 5"
+    },
+    {
+      "phase_number": 6,
+      "phase_name": "Automated Testing",
+      "phase_type": "implementation",
+      "description": "Create comprehensive test suite covering unit tests, widget tests, and integration tests. Achieve minimum 80% code coverage for Discovery page code. Ensure all critical paths are tested.",
+      "estimated_duration": "3 days",
+      "dependencies": [
+        5
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "6.1",
+          "title": "Create unit tests for BLoC/state management",
+          "description": "Write comprehensive unit tests for all Discovery BLoC/Cubit classes. Test all events, states, state transitions, and business logic. Mock dependencies.",
+          "status": "pending",
+          "estimated_hours": 6,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All BLoC events tested",
+            "All states and transitions covered",
+            "Edge cases tested",
+            "Coverage >90% for state management"
+          ],
+          "notes": "",
+          "id": "6.1"
+        },
+        {
+          "subtask_id": "6.2",
+          "title": "Create unit tests for services and repositories",
+          "description": "Test all data layer logic: API calls, data transformations, caching, error handling. Mock network layer. Test offline scenarios and error recovery.",
+          "status": "pending",
+          "estimated_hours": 5,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All service methods tested",
+            "Repository CRUD operations covered",
+            "Error scenarios tested",
+            "Coverage >85% for data layer"
+          ],
+          "notes": "",
+          "id": "6.2"
+        },
+        {
+          "subtask_id": "6.3",
+          "title": "Create unit tests for models and business logic",
+          "description": "Test data models: serialization, deserialization, validation, equality, and any business logic in models. Test edge cases and invalid data handling.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All models have tests",
+            "Serialization tested both ways",
+            "Validation logic covered",
+            "Edge cases handled"
+          ],
+          "notes": "",
+          "id": "6.3"
+        },
+        {
+          "subtask_id": "6.4",
+          "title": "Create widget tests for Discovery page",
+          "description": "Test Discovery page rendering, user interactions, state updates, and error states. Test widget behavior with different data states (loading, success, error, empty).",
+          "status": "pending",
+          "estimated_hours": 6,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Page rendering tested in all states",
+            "User interactions tested",
+            "Error UI tested",
+            "Loading states verified"
+          ],
+          "notes": "",
+          "id": "6.4"
+        },
+        {
+          "subtask_id": "6.5",
+          "title": "Create widget tests for Discovery components",
+          "description": "Test all reusable widgets and components used in Discovery page. Test props, callbacks, edge cases, and accessibility features.",
+          "status": "pending",
+          "estimated_hours": 5,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All widgets have tests",
+            "Props and callbacks tested",
+            "Accessibility features verified",
+            "Edge cases covered"
+          ],
+          "notes": "",
+          "id": "6.5"
+        },
+        {
+          "subtask_id": "6.6",
+          "title": "Create integration tests for Discovery flows",
+          "description": "Create end-to-end integration tests for critical user journeys: page navigation, data loading, user interactions, error recovery. Test full stack integration.",
+          "status": "pending",
+          "estimated_hours": 6,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Critical user flows tested end-to-end",
+            "Navigation tested",
+            "Data persistence verified",
+            "Error scenarios covered"
+          ],
+          "notes": "",
+          "id": "6.6"
+        },
+        {
+          "subtask_id": "6.7",
+          "title": "Add accessibility tests",
+          "description": "Create automated tests for accessibility features: semantic labels, contrast ratios, keyboard navigation, screen reader support. Use accessibility testing tools.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Semantic labels tested",
+            "Keyboard navigation automated tests added",
+            "Accessibility checklist verified programmatically"
+          ],
+          "notes": "",
+          "id": "6.7"
+        },
+        {
+          "subtask_id": "6.8",
+          "title": "Verify code coverage and fill gaps",
+          "description": "Run coverage report, identify uncovered code paths, and add tests to achieve minimum 80% coverage. Focus on critical paths first.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "6.1",
+            "6.2",
+            "6.3",
+            "6.4",
+            "6.5",
+            "6.6",
+            "6.7"
+          ],
+          "verification_steps": [
+            "Coverage report generated",
+            "Minimum 80% coverage achieved",
+            "All critical paths 100% covered",
+            "Coverage gaps documented and justified"
+          ],
+          "notes": "",
+          "id": "6.8"
+        },
+        {
+          "subtask_id": "6.9",
+          "title": "Run full test suite and verify all tests pass",
+          "description": "Execute complete test suite (unit + widget + integration). Fix any failing tests. Ensure tests are deterministic and don't have flaky behavior.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "6.8"
+          ],
+          "verification_steps": [
+            "All tests pass consistently",
+            "No flaky tests",
+            "Test execution time reasonable",
+            "CI pipeline ready"
+          ],
+          "notes": "",
+          "id": "6.9"
+        }
+      ],
+      "phase": 6,
+      "name": "Phase 6"
+    },
+    {
+      "phase_number": 7,
+      "phase_name": "Manual QA",
+      "phase_type": "integration",
+      "description": "Execute comprehensive manual QA scenarios covering UX flows, edge cases, internationalization, accessibility, error handling, and cross-platform compatibility.",
+      "estimated_duration": "2 days",
+      "dependencies": [
+        6
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "7.1",
+          "title": "Execute core user flow scenarios",
+          "description": "Manually test all critical user journeys on Discovery page: navigation to page, content display, interactions, filters, search, and navigation away. Document any issues.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All user flows executed successfully",
+            "Issues documented with repro steps",
+            "Screenshots/recordings captured for issues"
+          ],
+          "notes": "",
+          "id": "7.1"
+        },
+        {
+          "subtask_id": "7.2",
+          "title": "Test internationalization (i18n) in multiple locales",
+          "description": "Test Discovery page in multiple languages (EN, FR, ES, etc.). Verify translations, locale-aware formatting, RTL layout, and text truncation handling.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Tested in at least 3 locales",
+            "RTL language tested",
+            "No hardcoded strings found",
+            "Formatting appropriate for each locale"
+          ],
+          "notes": "",
+          "id": "7.2"
+        },
+        {
+          "subtask_id": "7.3",
+          "title": "Test accessibility with assistive technologies",
+          "description": "Test with screen readers (TalkBack/VoiceOver), keyboard navigation, high contrast mode, large fonts, and other accessibility features. Follow WCAG 2.1 AA guidelines.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Screen reader testing completed",
+            "Keyboard navigation verified",
+            "High contrast mode tested",
+            "Large font sizes tested",
+            "WCAG AA compliance verified"
+          ],
+          "notes": "",
+          "id": "7.3"
+        },
+        {
+          "subtask_id": "7.4",
+          "title": "Test error handling and edge cases",
+          "description": "Test error scenarios: network failures, API errors, timeouts, invalid data, empty states, and boundary conditions. Verify error messages and recovery flows.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All error scenarios tested",
+            "Error messages appropriate and helpful",
+            "Recovery flows working",
+            "No crashes or unhandled exceptions"
+          ],
+          "notes": "",
+          "id": "7.4"
+        },
+        {
+          "subtask_id": "7.5",
+          "title": "Test on multiple devices and screen sizes",
+          "description": "Test on various devices: phones (small, medium, large), tablets, different OS versions. Verify responsive layouts, touch targets, and device-specific behaviors.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Tested on 3+ phone sizes",
+            "Tablet layout verified",
+            "Responsive design working",
+            "Touch targets adequate size"
+          ],
+          "notes": "",
+          "id": "7.5"
+        },
+        {
+          "subtask_id": "7.6",
+          "title": "Test performance and loading scenarios",
+          "description": "Test with slow networks, large datasets, poor connectivity, and app backgrounding/foregrounding. Verify loading indicators, performance, and memory usage.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Slow network scenarios tested",
+            "Large dataset handling verified",
+            "App state restoration working",
+            "No memory leaks detected"
+          ],
+          "notes": "",
+          "id": "7.6"
+        },
+        {
+          "subtask_id": "7.7",
+          "title": "Create QA test report with findings",
+          "description": "Document all QA findings in structured report: passed scenarios, failed scenarios, bugs found with severity, and recommendations for fixes.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "7.1",
+            "7.2",
+            "7.3",
+            "7.4",
+            "7.5",
+            "7.6"
+          ],
+          "verification_steps": [
+            "QA report completed",
+            "All findings documented with severity",
+            "Repro steps provided for issues",
+            "Sign-off recommendation included"
+          ],
+          "notes": "",
+          "id": "7.7"
+        },
+        {
+          "subtask_id": "7.8",
+          "title": "Fix critical QA issues and retest",
+          "description": "Address any critical or high-priority issues found during QA. Implement fixes, retest affected areas, and update QA report with retest results.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "7.7"
+          ],
+          "verification_steps": [
+            "All critical issues fixed",
+            "High-priority issues addressed or documented",
+            "Retesting completed",
+            "QA report updated with final status"
+          ],
+          "notes": "",
+          "id": "7.8"
+        }
+      ],
+      "phase": 7,
+      "name": "Phase 7"
+    },
+    {
+      "phase_number": 8,
+      "phase_name": "Regression Testing",
+      "phase_type": "integration",
+      "description": "Verify that Discovery page changes haven't broken other parts of the application. Test critical flows outside Discovery page and verify integration points.",
+      "estimated_duration": "1.5 days",
+      "dependencies": [
+        7
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "8.1",
+          "title": "Identify integration points and dependencies",
+          "description": "Map all integration points between Discovery page and other app features: navigation, shared services, global state, analytics, authentication, etc.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All integration points identified",
+            "Shared dependencies mapped",
+            "Regression test scope defined"
+          ],
+          "notes": "",
+          "id": "8.1"
+        },
+        {
+          "subtask_id": "8.2",
+          "title": "Test navigation to/from Discovery page",
+          "description": "Test all navigation paths: entry points to Discovery (deep links, tabs, buttons), navigation away from Discovery, back button behavior, and state preservation.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All navigation paths tested",
+            "Deep links working",
+            "State preservation verified",
+            "Back button behavior correct"
+          ],
+          "notes": "",
+          "id": "8.2"
+        },
+        {
+          "subtask_id": "8.3",
+          "title": "Test shared services and global state",
+          "description": "Verify shared services (auth, notifications, analytics, caching) work correctly with Discovery changes. Test global state management and side effects.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Shared services functioning correctly",
+            "Global state not corrupted",
+            "No unintended side effects",
+            "Analytics events firing correctly"
+          ],
+          "notes": "",
+          "id": "8.3"
+        },
+        {
+          "subtask_id": "8.4",
+          "title": "Run smoke tests on other critical features",
+          "description": "Execute smoke test suite on main app features: login, home, profile, messaging, settings. Verify no regressions in core functionality.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Smoke tests passed for all critical features",
+            "No regressions detected",
+            "App stability maintained"
+          ],
+          "notes": "",
+          "id": "8.4"
+        },
+        {
+          "subtask_id": "8.5",
+          "title": "Verify app build and deployment process",
+          "description": "Test full build process: clean build, release build, asset bundling. Verify no build errors, warnings, or configuration issues introduced.",
+          "status": "pending",
+          "estimated_hours": 1.5,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Clean build successful",
+            "Release build working",
+            "No new warnings or errors",
+            "Build size acceptable"
+          ],
+          "notes": "",
+          "id": "8.5"
+        },
+        {
+          "subtask_id": "8.6",
+          "title": "Run full automated test suite",
+          "description": "Execute complete test suite across entire codebase (not just Discovery). Verify all tests pass and no regressions in test suite.",
+          "status": "pending",
+          "estimated_hours": 1,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All tests passing",
+            "No new test failures",
+            "Test execution time acceptable",
+            "CI pipeline green"
+          ],
+          "notes": "",
+          "id": "8.6"
+        },
+        {
+          "subtask_id": "8.7",
+          "title": "Create regression test report",
+          "description": "Document regression testing results: areas tested, issues found, risk assessment, and sign-off recommendation for production deployment.",
+          "status": "pending",
+          "estimated_hours": 1.5,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "8.2",
+            "8.3",
+            "8.4",
+            "8.5",
+            "8.6"
+          ],
+          "verification_steps": [
+            "Regression report completed",
+            "All testing documented",
+            "Risk assessment provided",
+            "Sign-off recommendation clear"
+          ],
+          "notes": "",
+          "id": "8.7"
+        }
+      ],
+      "phase": 8,
+      "name": "Phase 8"
+    },
+    {
+      "phase_number": 9,
+      "phase_name": "PR & Documentation",
+      "phase_type": "cleanup",
+      "description": "Create comprehensive pull request with detailed description, traceability to requirements, test evidence, and QA sign-off. Update project documentation and create deployment guide.",
+      "estimated_duration": "1 day",
+      "dependencies": [
+        8
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "9.1",
+          "title": "Prepare comprehensive PR description",
+          "description": "Write detailed PR description including: summary of changes, requirements addressed, implementation approach, testing performed, breaking changes, and deployment notes.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "PR description complete and detailed",
+            "All sections filled out",
+            "Requirements linked",
+            "Testing evidence included"
+          ],
+          "notes": "",
+          "id": "9.1"
+        },
+        {
+          "subtask_id": "9.2",
+          "title": "Create requirements traceability matrix for PR",
+          "description": "Document which commits/files address which requirements from Phase 1. Create matrix showing requirement -> implementation -> test coverage mapping.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Traceability matrix created",
+            "All requirements traced to implementation",
+            "Test coverage mapped",
+            "Matrix included in PR"
+          ],
+          "notes": "",
+          "id": "9.2"
+        },
+        {
+          "subtask_id": "9.3",
+          "title": "Attach test evidence and QA reports",
+          "description": "Attach all testing artifacts to PR: coverage reports, QA test results, regression test results, screenshots, and any performance benchmarks.",
+          "status": "pending",
+          "estimated_hours": 1,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All test reports attached",
+            "Coverage report included",
+            "QA sign-off attached",
+            "Visual evidence provided"
+          ],
+          "notes": "",
+          "id": "9.3"
+        },
+        {
+          "subtask_id": "9.4",
+          "title": "Update project documentation",
+          "description": "Update relevant docs: feature documentation, API docs, architecture diagrams, user guides. Ensure documentation reflects new implementation.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All affected docs updated",
+            "Documentation accurate",
+            "Examples updated",
+            "Changelog updated"
+          ],
+          "notes": "",
+          "id": "9.4"
+        },
+        {
+          "subtask_id": "9.5",
+          "title": "Create deployment guide",
+          "description": "Document deployment process: prerequisites, migration steps, configuration changes, feature flags, rollback procedure, and monitoring checklist.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Deployment guide complete",
+            "All steps documented",
+            "Rollback procedure clear",
+            "Monitoring checklist included"
+          ],
+          "notes": "",
+          "id": "9.5"
+        },
+        {
+          "subtask_id": "9.6",
+          "title": "Update CHANGELOG.md",
+          "description": "Add entry to CHANGELOG.md following project conventions. Include version, date, added/changed/fixed/removed sections, and links to requirements.",
+          "status": "pending",
+          "estimated_hours": 0.5,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "CHANGELOG.md updated",
+            "Format follows conventions",
+            "All changes categorized",
+            "Links included"
+          ],
+          "notes": "",
+          "id": "9.6"
+        },
+        {
+          "subtask_id": "9.7",
+          "title": "Request code review and address feedback",
+          "description": "Create PR, request reviews from team members, address review comments, and iterate until approval. Ensure all CI checks pass.",
+          "status": "pending",
+          "estimated_hours": 4,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "9.1",
+            "9.2",
+            "9.3",
+            "9.4",
+            "9.5",
+            "9.6"
+          ],
+          "verification_steps": [
+            "PR created and linked to issues",
+            "Reviewers assigned",
+            "All comments addressed",
+            "CI checks passing",
+            "Required approvals obtained"
+          ],
+          "notes": "",
+          "id": "9.7"
+        },
+        {
+          "subtask_id": "9.8",
+          "title": "Merge PR to master",
+          "description": "After approval, merge PR using appropriate strategy (squash/merge). Verify merge successful, monitor CI/CD pipeline, and verify deployment to staging.",
+          "status": "pending",
+          "estimated_hours": 0.5,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "9.7"
+          ],
+          "verification_steps": [
+            "PR merged successfully",
+            "No merge conflicts",
+            "CI/CD pipeline successful",
+            "Staging deployment verified"
+          ],
+          "notes": "",
+          "id": "9.8"
+        }
+      ],
+      "phase": 9,
+      "name": "Phase 9"
+    },
+    {
+      "phase_number": 10,
+      "phase_name": "Post-Merge Monitoring",
+      "phase_type": "integration",
+      "description": "Monitor production deployment for 48-72 hours. Track error rates, performance metrics, user feedback, and critical flows. Be prepared for immediate rollback if issues detected.",
+      "estimated_duration": "3 days",
+      "dependencies": [
+        9
+      ],
+      "subtasks": [
+        {
+          "subtask_id": "10.1",
+          "title": "Set up monitoring dashboards",
+          "description": "Configure monitoring for Discovery page: error tracking, performance metrics, user analytics, API success rates. Set up alerts for anomalies.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Dashboards configured",
+            "Metrics being collected",
+            "Alerts set up",
+            "Baseline metrics captured"
+          ],
+          "notes": "",
+          "id": "10.1"
+        },
+        {
+          "subtask_id": "10.2",
+          "title": "Monitor error rates and crashes (Day 1)",
+          "description": "Track error rates, crash reports, and exception logs for first 24 hours. Compare against baseline. Investigate any spikes or new error patterns.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "10.1"
+          ],
+          "verification_steps": [
+            "Error rates monitored",
+            "No significant spikes detected",
+            "New errors investigated",
+            "Crash reports reviewed"
+          ],
+          "notes": "",
+          "id": "10.2"
+        },
+        {
+          "subtask_id": "10.3",
+          "title": "Monitor performance metrics (Day 1-2)",
+          "description": "Track page load times, API response times, memory usage, CPU usage. Compare against benchmarks. Identify any performance degradation.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "10.1"
+          ],
+          "verification_steps": [
+            "Performance metrics within acceptable range",
+            "No degradation detected",
+            "Slow queries identified and addressed"
+          ],
+          "notes": "",
+          "id": "10.3"
+        },
+        {
+          "subtask_id": "10.4",
+          "title": "Monitor user behavior and analytics (Day 1-3)",
+          "description": "Track user engagement, feature usage, funnel completion rates, and user feedback. Identify any unexpected behavior changes or usability issues.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "10.1"
+          ],
+          "verification_steps": [
+            "User metrics stable or improved",
+            "No drop in engagement",
+            "Funnel conversion rates maintained",
+            "User feedback reviewed"
+          ],
+          "notes": "",
+          "id": "10.4"
+        },
+        {
+          "subtask_id": "10.5",
+          "title": "Review user feedback and support tickets",
+          "description": "Monitor support channels, app reviews, and user feedback for issues related to Discovery page. Categorize and prioritize any reported problems.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "All feedback reviewed",
+            "Issues categorized by severity",
+            "Critical issues escalated",
+            "Response provided to users"
+          ],
+          "notes": "",
+          "id": "10.5"
+        },
+        {
+          "subtask_id": "10.6",
+          "title": "Execute smoke tests in production",
+          "description": "Perform manual smoke tests on production: verify critical flows working, test on multiple devices, verify data accuracy, test error scenarios.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Smoke tests passed in production",
+            "Critical flows verified",
+            "No obvious issues detected"
+          ],
+          "notes": "",
+          "id": "10.6"
+        },
+        {
+          "subtask_id": "10.7",
+          "title": "Prepare rollback plan and test rollback capability",
+          "description": "Document rollback procedure, verify rollback mechanism works, identify rollback triggers. Be ready for immediate rollback if critical issues found.",
+          "status": "pending",
+          "estimated_hours": 2,
+          "assigned_to": "auto-claude",
+          "dependencies": [],
+          "verification_steps": [
+            "Rollback procedure documented",
+            "Rollback capability verified",
+            "Rollback triggers defined",
+            "Team prepared for rollback"
+          ],
+          "notes": "",
+          "id": "10.7"
+        },
+        {
+          "subtask_id": "10.8",
+          "title": "Create post-deployment report and project closure",
+          "description": "After 72 hours, create final report: deployment summary, metrics summary, issues found and resolved, lessons learned, and project sign-off.",
+          "status": "pending",
+          "estimated_hours": 3,
+          "assigned_to": "auto-claude",
+          "dependencies": [
+            "10.2",
+            "10.3",
+            "10.4",
+            "10.5",
+            "10.6"
+          ],
+          "verification_steps": [
+            "Post-deployment report complete",
+            "All metrics documented",
+            "Lessons learned captured",
+            "Project officially closed",
+            "Success criteria met"
+          ],
+          "notes": "",
+          "id": "10.8"
+        }
+      ],
+      "phase": 10,
+      "name": "Phase 10"
+    }
+  ],
+  "verification_strategy": {
+    "risk_level": "high",
+    "description": "High-risk strategy due to comprehensive changes affecting critical user-facing feature. Multi-layered verification with automated testing, manual QA, regression testing, and production monitoring.",
+    "automated_testing": {
+      "required": true,
+      "minimum_coverage": 80,
+      "test_types": [
+        "unit",
+        "widget",
+        "integration",
+        "accessibility"
+      ],
+      "critical_paths_coverage": 100
+    },
+    "manual_qa": {
+      "required": true,
+      "scenarios": [
+        "Core user flows",
+        "Multi-locale testing (EN, FR, ES, RTL)",
+        "Accessibility with screen readers",
+        "Error handling and edge cases",
+        "Multi-device and screen size testing",
+        "Performance and loading scenarios"
+      ]
+    },
+    "regression_testing": {
+      "required": true,
+      "scope": "Full app smoke tests and integration point verification"
+    },
+    "code_review": {
+      "required": true,
+      "minimum_approvals": 2,
+      "reviewers": [
+        "senior_developer",
+        "qa_lead"
+      ]
+    },
+    "production_monitoring": {
+      "duration_hours": 72,
+      "metrics": [
+        "error_rates",
+        "performance",
+        "user_engagement",
+        "crash_reports"
+      ],
+      "rollback_triggers": [
+        "Error rate increase >20%",
+        "Critical crash affecting >5% users",
+        "Performance degradation >30%",
+        "Critical feature broken"
+      ]
+    }
+  },
+  "qa_acceptance": {
+    "required_signoffs": [
+      "qa_lead",
+      "product_owner",
+      "tech_lead"
+    ],
+    "acceptance_criteria": [
+      {
+        "criterion": "All P0 and P1 requirements implemented per specification",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Automated test coverage ≥80% with 100% critical path coverage",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "All manual QA scenarios passed without critical issues",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Accessibility compliance WCAG 2.1 AA verified",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Internationalization tested in 3+ locales including RTL",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Regression testing passed with no critical regressions",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Code review approved by minimum 2 reviewers",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Documentation updated and deployment guide created",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      },
+      {
+        "criterion": "Production monitoring successful for 72 hours post-deployment",
+        "status": "pending",
+        "verified_by": null,
+        "verification_date": null
+      }
+    ],
+    "blocking_issues_threshold": 0,
+    "critical_issues_threshold": 0,
+    "high_priority_issues_threshold": 2
+  },
+  "summary": {
+    "total_phases": 10,
+    "total_subtasks": 78,
+    "estimated_total_hours": 174.75,
+    "estimated_total_days": 22,
+    "critical_path": [
+      "Phase 1: Specification Audit",
+      "Phase 2: Implementation Inventory",
+      "Phase 3: Gap Analysis",
+      "Phase 4: Prioritized Backlog",
+      "Phase 5: Implementation",
+      "Phase 6: Automated Testing",
+      "Phase 7: Manual QA",
+      "Phase 8: Regression Testing",
+      "Phase 9: PR & Documentation",
+      "Phase 10: Post-Merge Monitoring"
+    ],
+    "parallelism_opportunities": [
+      {
+        "phase": 1,
+        "parallel_subtasks": [
+          "1.1",
+          "1.2",
+          "1.3"
+        ],
+        "description": "Specification extraction from different sources can be done in parallel"
+      },
+      {
+        "phase": 2,
+        "parallel_subtasks": [
+          "2.1",
+          "2.2",
+          "2.3",
+          "2.4",
+          "2.5",
+          "2.6"
+        ],
+        "description": "File inventory for different layers can be done simultaneously"
+      },
+      {
+        "phase": 3,
+        "parallel_subtasks": [
+          "3.2",
+          "3.3",
+          "3.4",
+          "3.5",
+          "3.6"
+        ],
+        "description": "Gap analysis for different requirement categories can be parallelized after mapping"
+      },
+      {
+        "phase": 5,
+        "parallel_subtasks": [
+          "5.2",
+          "5.3"
+        ],
+        "description": "P0 functional and data layer gaps can be addressed in parallel"
+      },
+      {
+        "phase": 5,
+        "parallel_subtasks": [
+          "5.5",
+          "5.6"
+        ],
+        "description": "Accessibility and internationalization can be implemented concurrently"
+      },
+      {
+        "phase": 6,
+        "parallel_subtasks": [
+          "6.1",
+          "6.2",
+          "6.3",
+          "6.4",
+          "6.5",
+          "6.6",
+          "6.7"
+        ],
+        "description": "Different test types can be written in parallel"
+      },
+      {
+        "phase": 7,
+        "parallel_subtasks": [
+          "7.1",
+          "7.2",
+          "7.3",
+          "7.4",
+          "7.5",
+          "7.6"
+        ],
+        "description": "Different QA scenarios can be tested simultaneously by different team members"
+      },
+      {
+        "phase": 8,
+        "parallel_subtasks": [
+          "8.2",
+          "8.3",
+          "8.4"
+        ],
+        "description": "Different regression test areas can be tested in parallel"
+      },
+      {
+        "phase": 10,
+        "parallel_subtasks": [
+          "10.2",
+          "10.3",
+          "10.4",
+          "10.5"
+        ],
+        "description": "Different monitoring activities can be performed concurrently"
+      }
+    ],
+    "risk_mitigation": [
+      {
+        "risk": "Incomplete specification discovery",
+        "mitigation": "Phase 1 includes comprehensive search across multiple sources with cross-verification",
+        "severity": "high"
+      },
+      {
+        "risk": "Breaking existing functionality",
+        "mitigation": "Phase 8 dedicated to regression testing with full app smoke tests",
+        "severity": "high"
+      },
+      {
+        "risk": "Production issues post-deployment",
+        "mitigation": "Phase 10 provides 72-hour monitoring with rollback plan and clear triggers",
+        "severity": "high"
+      },
+      {
+        "risk": "Insufficient test coverage",
+        "mitigation": "Phase 6 requires minimum 80% coverage with 100% critical path coverage",
+        "severity": "medium"
+      },
+      {
+        "risk": "Accessibility non-compliance",
+        "mitigation": "Dedicated accessibility testing in Phase 6 and 7 with WCAG 2.1 AA verification",
+        "severity": "medium"
+      },
+      {
+        "risk": "Missing internationalization",
+        "mitigation": "Phase 7.2 specifically tests multiple locales including RTL languages",
+        "severity": "medium"
+      }
+    ],
+    "success_metrics": [
+      "100% of P0 requirements implemented and verified",
+      "≥95% of P1 requirements implemented",
+      "Test coverage ≥80% overall, 100% for critical paths",
+      "Zero critical or blocking issues at QA sign-off",
+      "WCAG 2.1 AA compliance verified",
+      "No critical regressions in existing features",
+      "Production error rate remains within baseline ±10%",
+      "User engagement metrics stable or improved post-deployment"
+    ]
+  },
+  "metadata": {
+    "created_date": "2026-02-24",
+    "created_by": "auto-claude",
+    "last_updated": "2026-02-24",
+    "plan_version": "1.0.0",
+    "related_documents": [
+      ".claude/rules/",
+      "CLAUDE.md",
+      "docs/",
+      ".auto-claude/specs/002-audit-and-implement-discovery-page-spec-compliance/"
+    ],
+    "tags": [
+      "discovery-page",
+      "compliance-audit",
+      "feature-enhancement",
+      "high-priority",
+      "quality-assurance"
+    ]
+  },
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "xstateState": "coding",
+  "executionPhase": "coding",
+  "updated_at": "2026-02-25T11:31:07.516Z",
+  "feature": "Unnamed Feature",
+  "lastEvent": {
+    "eventId": "db3ecf2b-89cd-4b25-b557-c522437143d5",
+    "sequence": 0,
+    "type": "PLANNING_COMPLETE",
+    "timestamp": "2026-02-24T01:15:48.025734+00:00"
+  },
+  "last_updated": "2026-02-25T11:25:28.405752+00:00"
+}
