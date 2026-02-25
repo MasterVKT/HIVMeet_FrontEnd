@@ -1073,3 +1073,117 @@ FIX EFFORT: 24-33 hours total (P0: 12-16h, P1: 7-10h, P2: 5-7h)
 STATUS: COMPLETED
 Git Commit: 3046f98
 
+
+================================================================================
+SUBTASK 3.6 COMPLETED - Test Coverage Gap Analysis
+Date: 2026-02-25
+================================================================================
+
+DELIVERABLE: TEST_COVERAGE_GAP_ANALYSIS.md (comprehensive test gap analysis)
+
+RESULTS: 5.6% Test Coverage (2/36 required test files implemented)
+
+TEST COVERAGE STATUS:
+✅ BLoC Tests: COMPREHENSIVE (discovery_bloc_test.dart - 16 scenarios)
+⚠️ Widget Tests: MINIMAL (discovery_page_test.dart - 5 scenarios)
+🔴 Use Case Tests: MISSING (0/5 files)
+🔴 Model Tests: MISSING (0/2 files)
+🔴 Integration Tests: MISSING (0/4 files)
+🔴 E2E Tests: MISSING (0/4 files)
+🔴 Accessibility Tests: MISSING (0 scenarios)
+🔴 i18n Tests: MISSING (0 scenarios)
+
+CRITICAL GAPS IDENTIFIED (28 missing test files):
+
+P0 - CRITICAL (5 gaps):
+1. SwipeCard Widget Tests (15 scenarios) - Core interaction untested
+2. Discovery Flow Integration Test (10 scenarios) - End-to-end validation missing
+3. Use Case Tests (5 files, 20 scenarios) - Business logic untested
+4. Model Tests (2 files, 20 scenarios) - Data parsing untested
+5. Coverage Report - No visibility into actual coverage
+
+P1 - HIGH (12 gaps):
+6. Action Button Widget Tests (14 scenarios)
+7. Match Modal Widget Tests (15 scenarios)
+8. Filters Page Widget Tests (20 scenarios)
+9. Filter Integration Tests (10 scenarios)
+10. Daily Limit Integration Tests (10 scenarios)
+11. Super Like Integration Tests (10 scenarios)
+12. Accessibility Tests (10 scenarios) - WCAG compliance at risk
+13. i18n Tests (15 scenarios) - Mandatory requirement (CLAUDE.md Rule #2)
+14. Profile Detail Page Widget Tests
+15. FiltersModal Widget Tests
+16. E2E Tests (4 files, 48 scenarios)
+17. Service/Repository Tests (2 files, 30 scenarios)
+
+REQUIREMENT COMPLIANCE:
+- TEST-001 (BLoC Events): ✅ FULLY IMPLEMENTED (16 tests)
+- TEST-002 (BLoC States): ✅ FULLY IMPLEMENTED (state transitions)
+- TEST-003 (Use Cases): 🔴 MISSING (0/5 files)
+- TEST-004 (Models): 🔴 MISSING (0/2 files)
+- TEST-005 (DiscoveryPage): ⚠️ PARTIAL (5 tests, interactions missing)
+- TEST-006 (SwipeCard): 🔴 MISSING (CRITICAL)
+- TEST-007 (Photo Carousel): 🔴 MISSING
+- TEST-008 (Action Buttons): 🔴 MISSING
+- TEST-009 (Match Modal): 🔴 MISSING
+- TEST-010 (Filters Page): 🔴 MISSING
+- TEST-011 (Discovery Flow): 🔴 MISSING (CRITICAL)
+- TEST-012 (Filter Flow): 🔴 MISSING
+- TEST-013 (Daily Limit): 🔴 MISSING
+- TEST-014 (E2E): 🔴 MISSING
+- TEST-015 (100% Critical): 🔴 BELOW TARGET (~30% estimated)
+- TEST-016 (>90% BLoC/UseCases): ⚠️ PARTIAL (BLoC ok, UseCases missing)
+- TEST-017 (>80% Data Layer): 🔴 BELOW TARGET (~0%)
+- TEST-018 (>80% Overall): 🔴 BELOW TARGET (~25% estimated)
+- TEST-019 (Accessibility): 🔴 MISSING
+
+ESTIMATED COVERAGE:
+- Presentation (BLoCs): 90% ✅
+- Presentation (Pages): 30% 🔴
+- Presentation (Widgets): 5% 🔴
+- Domain (Use Cases): 0% 🔴
+- Domain (Entities): 0% 🔴
+- Data (Services): 0% 🔴
+- Data (Repositories): 0% 🔴
+- Data (Models): 0% 🔴
+- OVERALL: ~25% 🔴 (Target: 80%)
+
+TESTING EFFORT ESTIMATES:
+- P0 Tests (Critical): 16.5-22.5 hours
+- P1 Tests (High): 24-31 hours
+- P2 Tests (Medium): 22-28 hours
+- Total: 63-82 hours
+
+PHASE 6 TESTING STRATEGY:
+Week 1: P0 tests (use cases, models, SwipeCard, integration)
+Week 2: P1 tests (widgets, accessibility, i18n)
+Week 3: P2 tests (services, repos, E2E)
+
+RECOMMENDATIONS:
+1. Implement SwipeCard widget tests immediately (CRITICAL)
+2. Implement Discovery flow integration test (CRITICAL)
+3. Implement all use case tests (HIGH)
+4. Implement model serialization tests (HIGH)
+5. Generate coverage report with flutter test --coverage
+6. Address accessibility and i18n test gaps (mandatory)
+7. Reach 80% overall coverage before Phase 7 (Manual QA)
+
+DOCUMENT STRUCTURE:
+- Executive Summary with statistics
+- Detailed requirement-by-requirement analysis (TEST-001 to TEST-019)
+- Missing test files inventory (28 files)
+- Test scenarios gap analysis by type
+- Coverage metrics analysis (estimated vs. target)
+- Test type adequacy assessment
+- Recommendations with effort estimates
+- Risk assessment from test gaps
+- Conclusion with next steps
+
+DELIVERABLE: TEST_COVERAGE_GAP_ANALYSIS.md (comprehensive 1,400+ line analysis)
+
+STATUS: COMPLETED
+
+NEXT STEPS:
+- Phase 3.7: Create comprehensive gap analysis report (consolidate all Phase 3 findings)
+- Phase 4: Convert test gaps to prioritized backlog items
+
