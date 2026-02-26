@@ -69,7 +69,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             Semantics(
               button: true,
               label: AccessibilityHelper.getActionButtonLabel('filters'),
-              hint: 'Ouvrir les options de filtrage pour affiner la recherche de profils',
+              hint: LocalizationService.translate('discovery.filters_hint'),
               child: IconButton(
                 icon: const Icon(Icons.tune, color: AppColors.primaryPurple),
                 onPressed: () => _showFiltersModal(),
@@ -93,7 +93,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               }
 
               if (state is DiscoveryError) {
-                    '❌ DEBUG DiscoveryPage: DiscoveryError state: ${state.message}');
                 if (state.previousState != null) {
                   return _buildDiscoveryContentWithMessage(
                     state.previousState!,
@@ -380,16 +379,16 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       child: Semantics(
         button: true,
         label: AccessibilityHelper.getActionButtonLabel('rewind', isPremium: true),
-        hint: 'Annule la dernière action de balayage',
+        hint: LocalizationService.translate('discovery.rewind_hint'),
         child: FloatingActionButton(
           mini: true,
           backgroundColor: AppColors.primaryPurple,
           onPressed: () => _discoveryBloc.add(RewindLastSwipe()),
           tooltip: LocalizationService.translate('discovery.rewind'),
-          child: const Icon(
+          child: Icon(
             Icons.undo,
             color: Colors.white,
-            semanticLabel: 'Annuler',
+            semanticLabel: LocalizationService.translate('discovery.undo_label'),
           ),
         ),
       ),

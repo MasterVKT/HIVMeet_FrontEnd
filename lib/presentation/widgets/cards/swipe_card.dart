@@ -164,7 +164,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       return widget.profile.displayName;
     }
     // Fallback : afficher "Profil" si pas de nom (backend problème temporaire)
-    return 'Profil';
+    return LocalizationService.translate('discovery.profile_fallback_name');
   }
 
   @override
@@ -242,7 +242,9 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
 
     // Generate semantic label for screen reader
     final semanticLabel = AccessibilityHelper.getProfileCardSemanticLabel(
-      name: widget.profile.displayName.isNotEmpty ? widget.profile.displayName : 'Profil',
+      name: widget.profile.displayName.isNotEmpty
+          ? widget.profile.displayName
+          : LocalizationService.translate('discovery.profile_fallback_name'),
       age: widget.profile.age,
       distance: '${widget.profile.distanceKm.toStringAsFixed(1)}',
       bio: widget.profile.bio,
@@ -257,7 +259,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       label: semanticLabel,
       button: true,
       enabled: !widget.isPreview,
-      onTapHint: 'Appuyez pour voir le profil complet',
+      onTapHint: LocalizationService.translate('discovery.tap_to_view_profile'),
       child: AnimatedBuilder(
         animation: _swipeAnimation,
         builder: (context, child) {
@@ -430,7 +432,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Pas de photo',
+                    LocalizationService.translate('discovery.no_photo'),
                     style: TextStyle(
                       fontSize: 18,
                       color: AppColors.slate,

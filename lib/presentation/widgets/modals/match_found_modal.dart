@@ -109,12 +109,14 @@ class _MatchFoundModalState extends State<MatchFoundModal>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AccessibilityHelper.announce(
         context,
-        'C\'est un match ! Vous avez tous les deux aimé vos profils. ${widget.matchedProfile.displayName}'
+        LocalizationService.translate('discovery.match_announcement',
+            params: {'name': widget.matchedProfile.displayName})
       );
     });
 
     return Semantics(
-      label: 'C\'est un match ! Vous avez tous les deux aimé vos profils. ${widget.matchedProfile.displayName}',
+      label: LocalizationService.translate('discovery.match_announcement',
+          params: {'name': widget.matchedProfile.displayName}),
       dialog: true,
       child: Dialog(
         backgroundColor: Colors.transparent,
@@ -164,13 +166,13 @@ class _MatchFoundModalState extends State<MatchFoundModal>
           const Spacer(),
           Semantics(
             button: true,
-            label: 'Fermer',
-            hint: 'Fermer cette fenêtre et continuer à explorer',
+            label: LocalizationService.translate('discovery.match_close_label'),
+            hint: LocalizationService.translate('discovery.match_close_hint'),
             child: IconButton(
               onPressed: widget.onContinue,
               icon: const Icon(Icons.close),
               color: AppColors.slate,
-              tooltip: 'Fermer',
+              tooltip: LocalizationService.translate('discovery.match_close_label'),
             ),
           ),
         ],
@@ -329,8 +331,8 @@ class _MatchFoundModalState extends State<MatchFoundModal>
           Expanded(
             child: Semantics(
               button: true,
-              label: 'Continuer à explorer',
-              hint: 'Fermer cette fenêtre et continuer à voir d\'autres profils',
+              label: LocalizationService.translate('discovery.match_continue_label'),
+              hint: LocalizationService.translate('discovery.match_continue_hint'),
               child: OutlinedButton(
                 onPressed: widget.onContinue,
                 style: OutlinedButton.styleFrom(
@@ -351,8 +353,9 @@ class _MatchFoundModalState extends State<MatchFoundModal>
           Expanded(
             child: Semantics(
               button: true,
-              label: 'Envoyer un message',
-              hint: 'Ouvrir la conversation avec ${widget.matchedProfile.displayName}',
+              label: LocalizationService.translate('discovery.match_message_label'),
+              hint: LocalizationService.translate('discovery.match_message_hint',
+                  params: {'name': widget.matchedProfile.displayName}),
               child: ElevatedButton(
                 onPressed: widget.onSendMessage,
                 style: ElevatedButton.styleFrom(

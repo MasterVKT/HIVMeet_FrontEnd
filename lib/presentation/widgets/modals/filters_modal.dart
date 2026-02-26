@@ -135,14 +135,16 @@ class _FiltersModalState extends State<FiltersModal> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${_ageRange.start.round()} ans',
+              LocalizationService.translate('discovery.age_years',
+                  params: {'age': _ageRange.start.round().toString()}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
               ),
             ),
             Text(
-              '${_ageRange.end.round()} ans',
+              LocalizationService.translate('discovery.age_years',
+                  params: {'age': _ageRange.end.round().toString()}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
@@ -184,14 +186,16 @@ class _FiltersModalState extends State<FiltersModal> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '1 km',
+              LocalizationService.translate('discovery.distance_km',
+                  params: {'km': '1'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
               ),
             ),
             Text(
-              '${_distance.round()} km',
+              LocalizationService.translate('discovery.distance_km',
+                  params: {'km': _distance.round().toString()}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -199,7 +203,8 @@ class _FiltersModalState extends State<FiltersModal> {
               ),
             ),
             Text(
-              '100 km',
+              LocalizationService.translate('discovery.distance_km',
+                  params: {'km': '100'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
@@ -258,18 +263,18 @@ class _FiltersModalState extends State<FiltersModal> {
 
   Widget _buildInterestsFilter() {
     final availableInterests = [
-      'Musique',
-      'Sport',
-      'Voyage',
-      'Cinéma',
-      'Lecture',
-      'Cuisine',
-      'Art',
-      'Nature',
-      'Technologie',
-      'Mode',
-      'Photographie',
-      'Danse',
+      LocalizationService.translate('discovery.interest_music'),
+      LocalizationService.translate('discovery.interest_sport'),
+      LocalizationService.translate('discovery.interest_travel'),
+      LocalizationService.translate('discovery.interest_cinema'),
+      LocalizationService.translate('discovery.interest_reading'),
+      LocalizationService.translate('discovery.interest_cooking'),
+      LocalizationService.translate('discovery.interest_art'),
+      LocalizationService.translate('discovery.interest_nature'),
+      LocalizationService.translate('discovery.interest_tech'),
+      LocalizationService.translate('discovery.interest_fashion'),
+      LocalizationService.translate('discovery.interest_photo'),
+      LocalizationService.translate('discovery.interest_dance'),
     ];
 
     return Column(
