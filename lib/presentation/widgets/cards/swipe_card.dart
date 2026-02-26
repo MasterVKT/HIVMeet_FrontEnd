@@ -49,11 +49,13 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   SwipeDirection? _swipeDirection;
   bool _isSuperLikeAnimating = false;
 
+  bool _shouldReduceMotion = false;
+
   @override
   void initState() {
     super.initState();
 
-    // Use shorter animation durations if animations should be reduced for accessibility
+    // Animation controllers - durations will be updated in didChangeDependencies
     _swipeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -112,8 +114,44 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       parent: _superLikeAnimController,
       curve: Curves.easeInOut,
     ));
+  }
 
-    _pulseController.repeat(reverse: true);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Check if animations should be reduced for accessibility
+    final shouldReduce = AccessibilityHelper.shouldReduceMotion(context);
+
+    if (shouldReduce != _shouldReduceMotion) {
+      _shouldReduceMotion = shouldReduce;
+
+      // Update animation durations based on accessibility settings
+      _swipeController.duration = AccessibilityHelper.getAnimationDuration(
+        context,
+        standard: const Duration(milliseconds: 300),
+        reduced: const Duration(milliseconds: 100),
+      );
+
+      _pulseController.duration = AccessibilityHelper.getAnimationDuration(
+        context,
+        standard: const Duration(milliseconds: 1000),
+        reduced: Duration.zero, // Disable pulse animation when motion is reduced
+      );
+
+      _superLikeAnimController.duration = AccessibilityHelper.getAnimationDuration(
+        context,
+        standard: const Duration(milliseconds: 1000),
+        reduced: const Duration(milliseconds: 200),
+      );
+
+      // Only repeat pulse animation if motion is not reduced
+      if (!_shouldReduceMotion && !widget.isPreview) {
+        _pulseController.repeat(reverse: true);
+      } else {
+        _pulseController.stop();
+      }
+    }
   }
 
   @override

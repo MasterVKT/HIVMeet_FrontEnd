@@ -36,7 +36,6 @@ class _FiltersPageState extends State<FiltersPage> {
     _maxDistance = 100; // ✅ 100 km
     _relationshipType = 'all'; // ✅ Tous types
     _genders = ['all']; // ✅ Tous genres
-    print('🔄 FiltersPage: Initialisation avec filtres larges par défaut');
   }
 
   void _onChanged() {
@@ -494,13 +493,6 @@ class _FiltersPageState extends State<FiltersPage> {
       relationshipTypes: relationshipTypes, // ✅ Maintenant envoyé
       verifiedOnly: _verifiedOnly, // ✅ Maintenant envoyé
     );
-
-    print('🔄 Applying filters:');
-    print('   - Age: ${filters.minAge} - ${filters.maxAge}');
-    print('   - Distance: ${filters.maxDistance} km');
-    print('   - Genders: $genders');
-    print('   - Relationship types: $relationshipTypes');
-    print('   - Verified only: ${filters.verifiedOnly}');
 
     context.read<DiscoveryBloc>().add(UpdateFilters(filters: filters));
     context.pop();

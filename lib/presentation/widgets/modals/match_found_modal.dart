@@ -42,28 +42,39 @@ class _MatchFoundModalState extends State<MatchFoundModal>
   }
 
   void _initializeAnimations() {
-    // Use shorter durations if animations should be reduced for accessibility
+    // Check if animations should be reduced for accessibility
+    final shouldReduce = AccessibilityHelper.shouldReduceMotion(context);
+
+    // Use shorter/zero durations if animations should be reduced for accessibility
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: shouldReduce
+        ? const Duration(milliseconds: 100)
+        : const Duration(milliseconds: 600),
       vsync: this,
     );
 
     _rotationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: shouldReduce
+        ? Duration.zero // Disable rotation animation when motion is reduced
+        : const Duration(milliseconds: 800),
       vsync: this,
     );
 
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: shouldReduce
+        ? const Duration(milliseconds: 100)
+        : const Duration(milliseconds: 400),
       vsync: this,
     );
+
+    final shouldReduce = AccessibilityHelper.shouldReduceMotion(context);
 
     _scaleAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _scaleController,
-      curve: Curves.elasticOut,
+      curve: shouldReduce ? Curves.easeOut : Curves.elasticOut,
     ));
 
     _rotationAnimation = Tween<double>(
@@ -84,13 +95,23 @@ class _MatchFoundModalState extends State<MatchFoundModal>
   }
 
   void _startAnimations() {
+    final shouldReduce = AccessibilityHelper.shouldReduceMotion(context);
+
     _scaleController.forward();
-    Future.delayed(const Duration(milliseconds: 200), () {
+
+    if (shouldReduce) {
+      // For reduced motion, start all animations immediately without delays
       _rotationController.forward();
-    });
-    Future.delayed(const Duration(milliseconds: 400), () {
       _fadeController.forward();
-    });
+    } else {
+      // For normal motion, stagger animations for visual effect
+      Future.delayed(const Duration(milliseconds: 200), () {
+        _rotationController.forward();
+      });
+      Future.delayed(const Duration(milliseconds: 400), () {
+        _fadeController.forward();
+      });
+    }
   }
 
   @override
