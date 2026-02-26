@@ -22,34 +22,26 @@ class MatchRepositoryImpl implements MatchRepository {
     bool forceRefresh = false,
   }) async {
     try {
-      print(
           '🔄 DEBUG MatchRepositoryImpl: getDiscoveryProfiles - limit: $limit, forceRefresh: $forceRefresh');
-      print(
           '   ℹ️  Les filtres sauvegardés doivent être appliqués automatiquement par le backend');
       final response = await _matchingApi.getDiscoveryProfiles(
         page: 1,
         pageSize: limit,
       );
 
-      print(
           '🔄 DEBUG MatchRepositoryImpl: Réponse reçue - status: ${response.statusCode}');
       final payload = response.data!;
-      print('🔄 DEBUG MatchRepositoryImpl: Payload complet: $payload');
 
       // Logs de diagnostic pour comprendre pourquoi count=0
       if (payload['count'] != null) {
-        print('   📊 Count backend: ${payload['count']}');
       }
       if (payload['filters'] != null) {
-        print('   🔍 Filtres appliqués: ${payload['filters']}');
       }
       if (payload['excluded_profiles'] != null) {
-        print('   🚫 Profils exclus: ${payload['excluded_profiles']}');
       }
 
       final list =
           (payload['results'] ?? payload['data'] ?? payload['profiles'] ?? []);
-      print(
           '🔄 DEBUG MatchRepositoryImpl: Liste extraite: ${list.length} éléments');
 
       final profiles = (list as List)
@@ -58,13 +50,10 @@ class MatchRepositoryImpl implements MatchRepository {
           .toList()
           .cast<DiscoveryProfile>(); // Cast explicite pour le type
 
-      print('✅ DEBUG MatchRepositoryImpl: Profils mappés: ${profiles.length}');
       return Right(profiles);
     } on ServerException catch (e) {
-      print('❌ DEBUG MatchRepositoryImpl: ServerException: ${e.message}');
       return Left(ServerFailure(message: e.message));
     } catch (e) {
-      print('❌ DEBUG MatchRepositoryImpl: Exception: $e');
       return Left(
           ServerFailure(message: 'Erreur lors du chargement des profils: $e'));
     }
@@ -300,16 +289,38 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, DailyLikeLimit>> getDailyLikeLimit() async {
     try {
-      // TODO: Implement API call
+      final response = await _matchingApi.getPremiumStatus();
+
+      // Parse the response to extract daily limit information
+      final data = response.data;
+      if (data == null) {
+        return const Left(ServerFailure(message: 'Server returned null data'));
+      }
+
+      // Extract limit data from premium status response
+      final dailyLikesUsed = data['daily_likes_used'] as int? ?? 0;
+      final dailyLikesLimit = data['daily_likes_limit'] as int? ?? 50;
+      final remainingLikes = dailyLikesLimit - dailyLikesUsed;
+
+      // Parse reset time or default to next midnight
+      DateTime resetAt;
+      if (data['daily_likes_reset_at'] != null) {
+        resetAt = DateTime.parse(data['daily_likes_reset_at'] as String);
+      } else {
+        final now = DateTime.now();
+        resetAt = DateTime(now.year, now.month, now.day + 1);
+      }
+
       final limit = DailyLikeLimit(
-        remainingLikes: 10,
-        totalLikes: 50,
-        resetAt: DateTime.now().add(const Duration(days: 1)),
+        remainingLikes: remainingLikes.clamp(0, dailyLikesLimit),
+        totalLikes: dailyLikesLimit,
+        resetAt: resetAt,
       );
+
       return Right(limit);
     } catch (e) {
-      return Left(
-          ServerFailure(message: 'Erreur lors du chargement des limites: $e'));
+      return const Left(
+          ServerFailure(message: 'Error loading daily limits'));
     }
   }
 
@@ -374,14 +385,7 @@ class MatchRepositoryImpl implements MatchRepository {
   Future<Either<Failure, void>> updateSearchFilters(
       SearchPreferences filters) async {
     try {
-      print(
           '🔄 DEBUG MatchRepositoryImpl: Mise à jour des filtres de recherche');
-      print('   - Âge: ${filters.minAge} - ${filters.maxAge}');
-      print('   - Distance max: ${filters.maxDistance.round()} km');
-      print('   - Genres: ${filters.interestedIn}');
-      print('   - Types de relation: ${filters.relationshipTypes}');
-      print('   - Vérifiés uniquement: ${filters.showVerifiedOnly}');
-      print('   - En ligne uniquement: ${filters.showOnlineOnly}');
 
       await _matchingApi.updateDiscoveryFilters(
         ageMin: filters.minAge,
@@ -393,12 +397,9 @@ class MatchRepositoryImpl implements MatchRepository {
         onlineOnly: filters.showOnlineOnly,
       );
 
-      print('✅ DEBUG MatchRepositoryImpl: Filtres mis à jour avec succès');
-      print(
           '   ⚠️  Le backend doit maintenant appliquer ces filtres automatiquement');
       return const Right(null);
     } catch (e) {
-      print('❌ DEBUG MatchRepositoryImpl: Erreur mise à jour filtres: $e');
       return Left(ServerFailure(message: e.toString()));
     }
   }
@@ -554,7 +555,6 @@ class MatchRepositoryImpl implements MatchRepository {
         lastActive = DateTime.now();
       }
     } catch (e) {
-      print('❌ DEBUG: Erreur parsing last_active: $e');
       lastActive = DateTime.now();
     }
 

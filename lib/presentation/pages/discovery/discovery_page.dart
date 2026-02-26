@@ -37,23 +37,18 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   @override
   void initState() {
     super.initState();
-    print('🔄 DEBUG DiscoveryPage: initState()');
     _discoveryBloc = getIt<DiscoveryBloc>();
-    print('🔄 DEBUG DiscoveryPage: DiscoveryBloc récupéré (singleton)');
 
     // Charger les profils seulement si l'état est Initial
     // (première utilisation ou après une révocation)
     if (_discoveryBloc.state is DiscoveryInitial) {
-      print('🔄 DEBUG DiscoveryPage: État Initial, chargement des profils');
       _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
     } else {
-      print('✅ DEBUG DiscoveryPage: État déjà chargé, pas de rechargement');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    print('🔍 DEBUG DiscoveryPage: build() appelé');
     return BlocProvider<DiscoveryBloc>.value(
       value: _discoveryBloc,
       child: AppScaffold(
@@ -81,19 +76,16 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           child: BlocConsumer<DiscoveryBloc, DiscoveryState>(
             listener: _handleStateChanges,
             builder: (context, state) {
-              print('🔄 DEBUG DiscoveryPage: State change: $state');
 
               if (state is DiscoveryLoading) {
-                print('🔄 DEBUG DiscoveryPage: DiscoveryLoading state');
-                return const Center(
+                return Center(
                   child: LoadingWidget(
-                    message: 'Chargement des profils...',
+                    message: LocalizationService.translate('discovery.loading_profiles'),
                   ),
                 );
               }
 
               if (state is DiscoveryError) {
-                print(
                     '❌ DEBUG DiscoveryPage: DiscoveryError state: ${state.message}');
                 if (state.previousState != null) {
                   return _buildDiscoveryContentWithMessage(
@@ -110,32 +102,27 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               }
 
               if (state is NoMoreProfiles) {
-                print('ℹ️ DEBUG DiscoveryPage: NoMoreProfiles state');
                 return _buildNoMoreProfilesState();
               }
 
               if (state is DiscoveryLoaded) {
-                print('✅ DEBUG DiscoveryPage: DiscoveryLoaded state');
                 return _buildDiscoveryContent(state);
               }
 
               if (state is DiscoveryLoadingMore) {
-                print('🔄 DEBUG DiscoveryPage: DiscoveryLoadingMore state');
                 return _buildDiscoveryContent(state.currentState);
               }
 
               if (state is DailyLimitReached) {
-                print('⚠️ DEBUG DiscoveryPage: DailyLimitReached state');
                 return _buildDailyLimitReachedState(state);
               }
 
-              print('❓ DEBUG DiscoveryPage: État inconnu: $state');
               // État par défaut - afficher le loader
               return Container(
                 color: AppColors.primaryWhite,
-                child: const Center(
+                child: Center(
                   child: LoadingWidget(
-                    message: 'Initialisation...',
+                    message: LocalizationService.translate('common.initializing'),
                   ),
                 ),
               );
@@ -429,7 +416,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   Widget _buildNoMoreProfilesState() {
-    print('🔄 DEBUG _buildNoMoreProfilesState: Début de construction');
     try {
       final title =
           LocalizationService.translate('discovery.no_more_profiles_title');
@@ -438,7 +424,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       final actionText =
           LocalizationService.translate('discovery.adjust_filters');
 
-      print(
           '🔄 DEBUG _buildNoMoreProfilesState: title=$title, message=$message, actionText=$actionText');
 
       return Container(
@@ -458,20 +443,19 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () {
-                  print('🔄 DEBUG: Réinitialisation des filtres demandée');
                   _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('Rechargement des profils...'),
+                      content: Text(LocalizationService.translate('discovery.reloading_profiles')),
                       backgroundColor: AppColors.primaryPurple,
                       duration: const Duration(seconds: 2),
                     ),
                   );
                 },
                 icon: const Icon(Icons.refresh, size: 20),
-                label: const Text(
-                  'Recharger',
-                  style: TextStyle(fontSize: 16),
+                label: Text(
+                  LocalizationService.translate('common.retry'),
+                  style: const TextStyle(fontSize: 16),
                 ),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.primaryPurple,
@@ -486,10 +470,11 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         ),
       );
     } catch (e, stackTrace) {
-      print('❌ ERROR _buildNoMoreProfilesState: $e');
-      print('Stack trace: $stackTrace');
       return Center(
-        child: Text('Erreur: $e', style: const TextStyle(color: Colors.red)),
+        child: Text(
+          LocalizationService.translate('common.error_occurred'),
+          style: const TextStyle(color: Colors.red),
+        ),
       );
     }
   }
