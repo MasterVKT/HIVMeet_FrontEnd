@@ -12,6 +12,7 @@ import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_state.dart';
+import 'package:hivmeet/presentation/pages/discovery/discovery_constants.dart';
 import 'package:hivmeet/presentation/widgets/cards/swipe_card.dart';
 import 'package:hivmeet/presentation/widgets/common/loading_widget.dart';
 import 'package:hivmeet/presentation/widgets/common/error_widget.dart'
@@ -32,8 +33,6 @@ class DiscoveryPage extends StatefulWidget {
 
 class _DiscoveryPageState extends State<DiscoveryPage> {
   late DiscoveryBloc _discoveryBloc;
-  final GlobalKey<State<SwipeCard>> _swipeCardKey =
-      GlobalKey<State<SwipeCard>>();
 
   @override
   void initState() {
@@ -43,8 +42,11 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     // Charger les profils seulement si l'état est Initial
     // (première utilisation ou après une révocation)
     if (_discoveryBloc.state is DiscoveryInitial) {
-      _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
-    } else {
+      _discoveryBloc.add(
+        const LoadDiscoveryProfiles(
+          limit: DiscoveryConstants.defaultProfileLoadLimit,
+        ),
+      );
     }
   }
 
@@ -149,30 +151,40 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             children: [
               // Profil principal (non-positioned, centré)
               SwipeCard(
-                key: _swipeCardKey,
                 profile: state.currentProfile,
                 onSwipe: _handleSwipe,
                 onTap: _showProfileDetail,
               ),
 
-              // Profils suivants en arrière-plan (max 2 pour éviter les problèmes de rendu)
+              // Profils suivants en arrière-plan
               ...state.nextProfiles
-                  .take(2)
+                  .take(DiscoveryConstants.maxPreviewCards)
                   .toList()
                   .asMap()
                   .entries
                   .map((entry) {
                 final index = entry.key;
                 final profile = entry.value;
+                final topOffset = DiscoveryConstants.previewCardTopOffset +
+                    (index * DiscoveryConstants.previewCardTopOffsetIncrement);
+                final leftOffset = DiscoveryConstants.previewCardLeftOffset +
+                    (index * DiscoveryConstants.previewCardLeftOffsetIncrement);
+                final rightOffset = DiscoveryConstants.previewCardLeftOffset -
+                    (index * DiscoveryConstants.previewCardLeftOffsetIncrement);
+                final scale = DiscoveryConstants.previewCardBaseScale -
+                    (index * DiscoveryConstants.previewCardScaleDecrement);
+                final opacity = DiscoveryConstants.previewCardBaseOpacity -
+                    (index * DiscoveryConstants.previewCardOpacityDecrement);
+
                 return Positioned(
-                  top: 50.0 + (index * 20.0),
-                  left: 50.0 + (index * 12.0),
-                  right: 50.0 - (index * 12.0),
+                  top: topOffset,
+                  left: leftOffset,
+                  right: rightOffset,
                   child: IgnorePointer(
                     child: Transform.scale(
-                      scale: 0.85 - (index * 0.1),
+                      scale: scale,
                       child: Opacity(
-                        opacity: 0.3 - (index * 0.15), // Opacité plus visible
+                        opacity: opacity,
                         child: SwipeCard(
                           profile: profile,
                           isPreview: true,
@@ -254,9 +266,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _buildActionButtons(DiscoveryLoaded state) {
     return Positioned(
-      bottom: 80, // Position plus basse pour éviter le chevauchement
-      left: 20, // Ajouter des marges latérales
-      right: 20,
+      bottom: DiscoveryConstants.actionButtonsBottomPadding,
+      left: DiscoveryConstants.actionButtonsHorizontalPadding,
+      right: DiscoveryConstants.actionButtonsHorizontalPadding,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -264,21 +276,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ActionButton(
             icon: Icons.close,
             color: AppColors.error,
-            onPressed: () {
-              // Déclencher l'animation + le swipe
-              final swipeCardState = _swipeCardKey.currentState;
-              if (swipeCardState != null) {
-                try {
-                  (swipeCardState as dynamic).triggerSwipe(SwipeDirection.left);
-                } catch (e) {
-                  // Fallback si la méthode n'existe pas
-                  _handleSwipe(SwipeDirection.left);
-                }
-              } else {
-                _handleSwipe(SwipeDirection.left);
-              }
-            },
-            size: 56, // Réduire légèrement la taille
+            onPressed: () => _handleSwipe(SwipeDirection.left),
+            size: DiscoveryConstants.actionButtonSize,
             tooltip: LocalizationService.translate('discovery.dislike'),
             semanticLabel: AccessibilityHelper.getActionButtonLabel('dislike'),
           ),
@@ -287,21 +286,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ActionButton(
             icon: Icons.star,
             color: AppColors.warning,
-            onPressed: () {
-              // Déclencher l'animation + le swipe
-              final swipeCardState = _swipeCardKey.currentState;
-              if (swipeCardState != null) {
-                try {
-                  (swipeCardState as dynamic).triggerSwipe(SwipeDirection.up);
-                } catch (e) {
-                  // Fallback si la méthode n'existe pas
-                  _handleSwipe(SwipeDirection.up);
-                }
-              } else {
-                _handleSwipe(SwipeDirection.up);
-              }
-            },
-            size: 56, // Uniformiser la taille
+            onPressed: () => _handleSwipe(SwipeDirection.up),
+            size: DiscoveryConstants.actionButtonSize,
             isPremium: true,
             tooltip: LocalizationService.translate('discovery.super_like'),
             semanticLabel: AccessibilityHelper.getActionButtonLabel('superlike', isPremium: true),
@@ -311,22 +297,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ActionButton(
             icon: Icons.favorite,
             color: AppColors.success,
-            onPressed: () {
-              // Déclencher l'animation + le swipe
-              final swipeCardState = _swipeCardKey.currentState;
-              if (swipeCardState != null) {
-                try {
-                  (swipeCardState as dynamic)
-                      .triggerSwipe(SwipeDirection.right);
-                } catch (e) {
-                  // Fallback si la méthode n'existe pas
-                  _handleSwipe(SwipeDirection.right);
-                }
-              } else {
-                _handleSwipe(SwipeDirection.right);
-              }
-            },
-            size: 56, // Réduire légèrement la taille
+            onPressed: () => _handleSwipe(SwipeDirection.right),
+            size: DiscoveryConstants.actionButtonSize,
             tooltip: LocalizationService.translate('discovery.like'),
             semanticLabel: AccessibilityHelper.getActionButtonLabel('like'),
           ),
@@ -337,9 +309,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _buildDailyLimitIndicator(DailyLikeLimit limit) {
     return Positioned(
-      top: 70, // Position optimisée
-      left: 20,
-      right: 120, // Laisser plus d'espace pour le bouton rewind
+      top: DiscoveryConstants.dailyLimitIndicatorTop,
+      left: DiscoveryConstants.dailyLimitIndicatorLeft,
+      right: DiscoveryConstants.dailyLimitIndicatorRight,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -374,8 +346,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _buildRewindButton() {
     return Positioned(
-      top: 70, // Aligner avec l'indicateur de likes
-      right: 20,
+      top: DiscoveryConstants.dailyLimitIndicatorTop,
+      right: DiscoveryConstants.actionButtonsHorizontalPadding,
       child: Semantics(
         button: true,
         label: AccessibilityHelper.getActionButtonLabel('rewind', isPremium: true),
@@ -397,7 +369,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _buildLoadingMoreIndicator() {
     return Positioned(
-      bottom: 200,
+      bottom: DiscoveryConstants.loadingMoreIndicatorBottom,
       left: 0,
       right: 0,
       child: Center(
@@ -461,12 +433,16 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () {
-                  _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
+                  _discoveryBloc.add(
+                    const LoadDiscoveryProfiles(
+                      limit: DiscoveryConstants.defaultProfileLoadLimit,
+                    ),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(LocalizationService.translate('discovery.reloading_profiles')),
                       backgroundColor: AppColors.primaryPurple,
-                      duration: const Duration(seconds: 2),
+                      duration: DiscoveryConstants.reloadMessageDuration,
                     ),
                   );
                 },
@@ -560,7 +536,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         SnackBar(
           content: Text(state.message),
           backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 3),
+          duration: DiscoveryConstants.snackBarDuration,
         ),
       );
     }
