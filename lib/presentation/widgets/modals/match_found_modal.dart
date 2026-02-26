@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/utils/accessibility_helper.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 
 class MatchFoundModal extends StatefulWidget {
@@ -41,6 +42,7 @@ class _MatchFoundModalState extends State<MatchFoundModal>
   }
 
   void _initializeAnimations() {
+    // Use shorter durations if animations should be reduced for accessibility
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -101,26 +103,40 @@ class _MatchFoundModalState extends State<MatchFoundModal>
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.primaryWhite,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(),
-            Flexible(
-              child: _buildContent(),
-            ),
-            _buildActions(),
-          ],
+    final shouldReduceMotion = AccessibilityHelper.shouldReduceMotion(context);
+
+    // Announce match to screen reader
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AccessibilityHelper.announce(
+        context,
+        'C\'est un match ! Vous avez tous les deux aimé vos profils. ${widget.matchedProfile.displayName}'
+      );
+    });
+
+    return Semantics(
+      label: 'C\'est un match ! Vous avez tous les deux aimé vos profils. ${widget.matchedProfile.displayName}',
+      dialog: true,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.primaryWhite,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(),
+              Flexible(
+                child: _buildContent(),
+              ),
+              _buildActions(),
+            ],
+          ),
         ),
       ),
     );
@@ -146,10 +162,16 @@ class _MatchFoundModalState extends State<MatchFoundModal>
             ),
           ),
           const Spacer(),
-          IconButton(
-            onPressed: widget.onContinue,
-            icon: const Icon(Icons.close),
-            color: AppColors.slate,
+          Semantics(
+            button: true,
+            label: 'Fermer',
+            hint: 'Fermer cette fenêtre et continuer à explorer',
+            child: IconButton(
+              onPressed: widget.onContinue,
+              icon: const Icon(Icons.close),
+              color: AppColors.slate,
+              tooltip: 'Fermer',
+            ),
           ),
         ],
       ),
@@ -305,35 +327,45 @@ class _MatchFoundModalState extends State<MatchFoundModal>
       child: Row(
         children: [
           Expanded(
-            child: OutlinedButton(
-              onPressed: widget.onContinue,
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.primaryPurple),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
+            child: Semantics(
+              button: true,
+              label: 'Continuer à explorer',
+              hint: 'Fermer cette fenêtre et continuer à voir d\'autres profils',
+              child: OutlinedButton(
+                onPressed: widget.onContinue,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.primaryPurple),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
                 ),
-              ),
-              child: Text(
-                LocalizationService.translate('discovery.continue_swiping'),
-                style: TextStyle(color: AppColors.primaryPurple),
+                child: Text(
+                  LocalizationService.translate('discovery.continue_swiping'),
+                  style: TextStyle(color: AppColors.primaryPurple),
+                ),
               ),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: ElevatedButton(
-              onPressed: widget.onSendMessage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryPurple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
+            child: Semantics(
+              button: true,
+              label: 'Envoyer un message',
+              hint: 'Ouvrir la conversation avec ${widget.matchedProfile.displayName}',
+              child: ElevatedButton(
+                onPressed: widget.onSendMessage,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
                 ),
-              ),
-              child: Text(
-                LocalizationService.translate('discovery.send_message'),
+                child: Text(
+                  LocalizationService.translate('discovery.send_message'),
+                ),
               ),
             ),
           ),

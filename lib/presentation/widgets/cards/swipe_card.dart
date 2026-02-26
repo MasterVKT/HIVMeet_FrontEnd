@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/utils/accessibility_helper.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/widgets/common/optimized_image.dart';
 
@@ -52,6 +53,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
+    // Use shorter animation durations if animations should be reduced for accessibility
     _swipeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -235,39 +237,60 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       );
     }
 
-    // Widget complet pour la carte principale
-    return AnimatedBuilder(
-      animation: _swipeAnimation,
-      builder: (context, child) {
-        final swipeProgress = _swipeAnimation.value;
-        final currentOffset = Offset.lerp(
-          _dragOffset,
-          _getSwipeEndOffset(size),
-          swipeProgress,
-        )!;
-        final currentRotation = _rotation * (1.0 - swipeProgress * 0.5);
+    // Check if animations should be reduced for accessibility
+    final shouldReduceMotion = AccessibilityHelper.shouldReduceMotion(context);
 
-        return Transform.translate(
-          offset: currentOffset,
-          child: Transform.rotate(
-            angle: currentRotation,
-            child: child,
-          ),
-        );
-      },
-      child: GestureDetector(
-        onTap: widget.isPreview ? null : widget.onTap,
-        onPanStart: widget.isPreview ? null : _onPanStart,
-        onPanUpdate: widget.isPreview ? null : _onPanUpdate,
-        onPanEnd: widget.isPreview ? null : _onPanEnd,
-        child: AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: widget.isPreview ? 1.0 : _pulseAnimation.value,
+    // Generate semantic label for screen reader
+    final semanticLabel = AccessibilityHelper.getProfileCardSemanticLabel(
+      name: widget.profile.displayName.isNotEmpty ? widget.profile.displayName : 'Profil',
+      age: widget.profile.age,
+      distance: '${widget.profile.distanceKm.toStringAsFixed(1)}',
+      bio: widget.profile.bio,
+      isVerified: widget.profile.isVerified,
+      isPremium: widget.profile.isPremium,
+      isOnline: widget.profile.isOnline,
+      compatibilityScore: widget.profile.compatibilityScore,
+    );
+
+    // Widget complet pour la carte principale
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      enabled: !widget.isPreview,
+      onTapHint: 'Appuyez pour voir le profil complet',
+      child: AnimatedBuilder(
+        animation: _swipeAnimation,
+        builder: (context, child) {
+          final swipeProgress = _swipeAnimation.value;
+          final currentOffset = Offset.lerp(
+            _dragOffset,
+            _getSwipeEndOffset(size),
+            swipeProgress,
+          )!;
+          final currentRotation = shouldReduceMotion ? 0.0 : _rotation * (1.0 - swipeProgress * 0.5);
+
+          return Transform.translate(
+            offset: currentOffset,
+            child: Transform.rotate(
+              angle: currentRotation,
               child: child,
-            );
-          },
+            ),
+          );
+        },
+        child: GestureDetector(
+          onTap: widget.isPreview ? null : widget.onTap,
+          onPanStart: widget.isPreview ? null : _onPanStart,
+          onPanUpdate: widget.isPreview ? null : _onPanUpdate,
+          onPanEnd: widget.isPreview ? null : _onPanEnd,
+          child: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                // Disable pulse animation if reduced motion is enabled
+                scale: (widget.isPreview || shouldReduceMotion) ? 1.0 : _pulseAnimation.value,
+                child: child,
+              );
+            },
           child: AnimatedBuilder(
             animation: _superLikeAnimController,
             builder: (context, child) {

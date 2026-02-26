@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/utils/accessibility_helper.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
@@ -65,9 +66,15 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.tune, color: AppColors.primaryPurple),
-              onPressed: () => _showFiltersModal(),
+            Semantics(
+              button: true,
+              label: AccessibilityHelper.getActionButtonLabel('filters'),
+              hint: 'Ouvrir les options de filtrage pour affiner la recherche de profils',
+              child: IconButton(
+                icon: const Icon(Icons.tune, color: AppColors.primaryPurple),
+                onPressed: () => _showFiltersModal(),
+                tooltip: LocalizationService.translate('discovery.filters'),
+              ),
             ),
           ],
         ),
@@ -273,6 +280,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               }
             },
             size: 56, // Réduire légèrement la taille
+            tooltip: LocalizationService.translate('discovery.dislike'),
+            semanticLabel: AccessibilityHelper.getActionButtonLabel('dislike'),
           ),
 
           // Bouton super like (premium)
@@ -295,6 +304,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             },
             size: 56, // Uniformiser la taille
             isPremium: true,
+            tooltip: LocalizationService.translate('discovery.super_like'),
+            semanticLabel: AccessibilityHelper.getActionButtonLabel('superlike', isPremium: true),
           ),
 
           // Bouton like
@@ -317,6 +328,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               }
             },
             size: 56, // Réduire légèrement la taille
+            tooltip: LocalizationService.translate('discovery.like'),
+            semanticLabel: AccessibilityHelper.getActionButtonLabel('like'),
           ),
         ],
       ),
@@ -364,13 +377,20 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     return Positioned(
       top: 70, // Aligner avec l'indicateur de likes
       right: 20,
-      child: FloatingActionButton(
-        mini: true,
-        backgroundColor: AppColors.primaryPurple,
-        onPressed: () => _discoveryBloc.add(RewindLastSwipe()),
-        child: const Icon(
-          Icons.undo,
-          color: Colors.white,
+      child: Semantics(
+        button: true,
+        label: AccessibilityHelper.getActionButtonLabel('rewind', isPremium: true),
+        hint: 'Annule la dernière action de balayage',
+        child: FloatingActionButton(
+          mini: true,
+          backgroundColor: AppColors.primaryPurple,
+          onPressed: () => _discoveryBloc.add(RewindLastSwipe()),
+          tooltip: LocalizationService.translate('discovery.rewind'),
+          child: const Icon(
+            Icons.undo,
+            color: Colors.white,
+            semanticLabel: 'Annuler',
+          ),
         ),
       ),
     );

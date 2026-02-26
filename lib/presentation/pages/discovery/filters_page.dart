@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/utils/accessibility_helper.dart';
 import 'package:hivmeet/domain/entities/search_filters.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
@@ -87,16 +88,24 @@ class _FiltersPageState extends State<FiltersPage> {
                 Text('${_ageRange.end.round()} ans'),
               ],
             ),
-            RangeSlider(
-              values: _ageRange,
-              min: 18,
-              max: 99,
-              divisions: 81,
-              activeColor: AppColors.primaryPurple,
-              onChanged: (values) {
-                setState(() => _ageRange = values);
-                _onChanged();
-              },
+            Semantics(
+              label: AccessibilityHelper.getRangeSliderSemanticLabel(
+                label: 'Tranche d\'âge',
+                startValue: _ageRange.start,
+                endValue: _ageRange.end,
+                unit: 'ans',
+              ),
+              child: RangeSlider(
+                values: _ageRange,
+                min: 18,
+                max: 99,
+                divisions: 81,
+                activeColor: AppColors.primaryPurple,
+                onChanged: (values) {
+                  setState(() => _ageRange = values);
+                  _onChanged();
+                },
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
@@ -134,16 +143,25 @@ class _FiltersPageState extends State<FiltersPage> {
                   ),
               ],
             ),
-            Slider(
-              value: _maxDistance,
-              min: 5,
-              max: 100,
-              divisions: 19,
-              activeColor: AppColors.primaryPurple,
-              onChanged: (value) {
-                setState(() => _maxDistance = value);
-                _onChanged();
-              },
+            Semantics(
+              label: AccessibilityHelper.getSliderSemanticLabel(
+                label: 'Distance maximale',
+                value: _maxDistance,
+                unit: 'kilomètres',
+                minValue: 5,
+                maxValue: 100,
+              ),
+              child: Slider(
+                value: _maxDistance,
+                min: 5,
+                max: 100,
+                divisions: 19,
+                activeColor: AppColors.primaryPurple,
+                onChanged: (value) {
+                  setState(() => _maxDistance = value);
+                  _onChanged();
+                },
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
@@ -174,28 +192,35 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Verified only
             Card(
-              child: SwitchListTile(
-                title: const Text('Profils vérifiés uniquement'),
-                subtitle: const Text(
-                    'Ne voir que les profils avec badge de vérification'),
-                secondary: Container(
-                  padding: EdgeInsets.all(AppSpacing.sm),
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryPurple,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 20,
-                    color: Colors.white,
-                  ),
+              child: Semantics(
+                label: AccessibilityHelper.getToggleSemanticLabel(
+                  label: 'Profils vérifiés uniquement',
+                  value: _verifiedOnly,
                 ),
-                value: _verifiedOnly,
-                activeColor: AppColors.primaryPurple,
-                onChanged: (value) {
-                  setState(() => _verifiedOnly = value);
-                  _onChanged();
-                },
+                hint: 'Ne voir que les profils avec badge de vérification',
+                child: SwitchListTile(
+                  title: const Text('Profils vérifiés uniquement'),
+                  subtitle: const Text(
+                      'Ne voir que les profils avec badge de vérification'),
+                  secondary: Container(
+                    padding: EdgeInsets.all(AppSpacing.sm),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryPurple,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                  value: _verifiedOnly,
+                  activeColor: AppColors.primaryPurple,
+                  onChanged: (value) {
+                    setState(() => _verifiedOnly = value);
+                    _onChanged();
+                  },
+                ),
               ),
             ),
 
