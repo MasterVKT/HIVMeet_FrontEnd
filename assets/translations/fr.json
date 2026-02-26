@@ -65,7 +65,8 @@
     "dislike_button_label": "Passer au profil suivant",
     "super_like_button_label": "Super liker le profil",
     "rewind_button_label": "Annuler le dernier swipe",
-    "photo_navigation_label": "Photo {current} sur {total}"
+    "photo_navigation_label": "Photo {current} sur {total}",
+    "estimated_profiles_count": "~{min}-{max} profils disponibles"
   },
   "errors": {
     "network_error": "Erreur réseau",

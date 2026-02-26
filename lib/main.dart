@@ -79,6 +79,8 @@ class HIVMeetApp extends StatelessWidget {
         title: 'HIVMeet',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system, // Follow system theme
         routerConfig: AppRouter.router,
         builder: (context, child) {
           // Filtrer les logs EGL en mode debug

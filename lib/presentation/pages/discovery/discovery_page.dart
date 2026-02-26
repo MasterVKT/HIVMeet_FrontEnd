@@ -424,7 +424,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       final actionText =
           LocalizationService.translate('discovery.adjust_filters');
 
-          '🔄 DEBUG _buildNoMoreProfilesState: title=$title, message=$message, actionText=$actionText');
 
       return Container(
         color: AppColors.primaryWhite,

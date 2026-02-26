@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/search_filters.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
@@ -283,9 +284,45 @@ class _FiltersPageState extends State<FiltersPage> {
             ),
           ],
         ),
-        child: AppButton(
-          text: 'Appliquer les filtres',
-          onPressed: _hasChanges ? _applyFilters : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Profile count indicator
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primaryPurple.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 20,
+                    color: AppColors.primaryPurple,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _getEstimatedProfileCount(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryPurple,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppButton(
+              text: 'Appliquer les filtres',
+              onPressed: _hasChanges ? _applyFilters : null,
+            ),
+          ],
         ),
       ),
     );
@@ -364,6 +401,56 @@ class _FiltersPageState extends State<FiltersPage> {
           },
         );
       }).toList(),
+    );
+  }
+
+  /// Calculate estimated profile count based on filter settings
+  /// Returns a localized string with the estimated count
+  /// TODO: Replace with actual API call to get real-time profile count
+  String _getEstimatedProfileCount() {
+    // Calculate a rough estimate based on filter restrictiveness
+    int baseCount = 100; // Base estimate for wide filters
+
+    // Reduce count based on age range restrictiveness
+    int ageRange = _ageRange.end.round() - _ageRange.start.round();
+    if (ageRange < 10) {
+      baseCount = (baseCount * 0.3).round();
+    } else if (ageRange < 20) {
+      baseCount = (baseCount * 0.6).round();
+    }
+
+    // Reduce count based on distance
+    if (_maxDistance < 25) {
+      baseCount = (baseCount * 0.4).round();
+    } else if (_maxDistance < 50) {
+      baseCount = (baseCount * 0.7).round();
+    }
+
+    // Reduce count if verified only
+    if (_verifiedOnly) {
+      baseCount = (baseCount * 0.5).round();
+    }
+
+    // Reduce count if specific relationship type
+    if (_relationshipType != 'all') {
+      baseCount = (baseCount * 0.6).round();
+    }
+
+    // Reduce count if specific genders selected
+    if (!_genders.contains('all') && _genders.length < 3) {
+      baseCount = (baseCount * 0.7).round();
+    }
+
+    // Ensure minimum of 5
+    baseCount = baseCount < 5 ? 5 : baseCount;
+
+    // Return estimate range
+    int minCount = (baseCount * 0.8).round();
+    int maxCount = (baseCount * 1.2).round();
+
+    return LocalizationService.translate(
+      'discovery.estimated_profiles_count',
+      params: {'min': minCount.toString(), 'max': maxCount.toString()},
     );
   }
 

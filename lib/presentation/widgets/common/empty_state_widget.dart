@@ -22,38 +22,41 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🔄 DEBUG EmptyStateWidget: build - title=$title');
-    print('🔄 DEBUG EmptyStateWidget: icon=$icon, message=$message');
-    print(
-        '🔄 DEBUG EmptyStateWidget: actionText=$actionText, onAction=${onAction != null}');
-
-    return Container(
-      color: Colors.yellow.withOpacity(0.3), // DEBUG: fond jaune visible
-      child: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Icône avec fond circulaire coloré
-                Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryPurple.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primaryPurple.withOpacity(0.3),
-                      width: 2,
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Enhanced icon with gradient background and shadow
+              Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primaryPurple.withOpacity(0.15),
+                      AppColors.lightPurple.withOpacity(0.05),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryPurple.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 70,
-                    color: AppColors.primaryPurple,
-                  ),
+                  ],
                 ),
+                child: Icon(
+                  icon,
+                  size: 70,
+                  color: AppColors.primaryPurple,
+                ),
+              ),
                 const SizedBox(height: 32),
                 // Titre
                 Text(
@@ -108,8 +111,7 @@ class EmptyStateWidget extends StatelessWidget {
                     ),
                   ),
                 ],
-              ],
-            ),
+            ],
           ),
         ),
       ),
