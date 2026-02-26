@@ -100,11 +100,9 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     LoadDiscoveryProfiles event,
     Emitter<DiscoveryState> emit,
   ) async {
-        '🔄 DEBUG DiscoveryBloc: _onLoadDiscoveryProfiles - limit: ${event.limit}');
     emit(DiscoveryLoading());
 
     try {
-          '🔄 DEBUG DiscoveryBloc: Appel _getDiscoveryProfiles use case (forceRefresh: ${event.forceRefresh})');
       // Charger les profils en premier (priorité)
       final params = event.forceRefresh
           ? GetDiscoveryProfilesParams.forceRefresh(limit: event.limit)
@@ -113,7 +111,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
 
       result.fold(
         (failure) {
-              '❌ DEBUG DiscoveryBloc: Échec récupération profils: ${failure.message}');
           emit(DiscoveryError(message: failure.message));
         },
         (profiles) async {
@@ -150,14 +147,11 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     SwipeProfile event,
     Emitter<DiscoveryState> emit,
   ) async {
-        '👉 DEBUG DiscoveryBloc: _onSwipeProfile - direction: ${event.direction}');
-
     if (_profiles.isEmpty || _currentIndex >= _profiles.length) {
       return;
     }
 
     final currentProfile = _profiles[_currentIndex];
-        '👉 DEBUG DiscoveryBloc: Swiping profil: ${currentProfile.id} (${currentProfile.displayName})');
 
     if (event.direction == SwipeDirection.right &&
         _dailyLimit != null &&
@@ -203,7 +197,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
           ));
           return;
         }
-            '✅ DEBUG DiscoveryBloc: Dislike réussi pour ${currentProfile.id}');
         result = either.getOrElse(() => const SwipeResult(isMatch: false));
         break;
       case SwipeDirection.up:
@@ -214,7 +207,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
           await subscriptionResult.fold(
             (failure) {
               // Log l'erreur mais continue (le backend fera la vraie vérification)
-                  '⚠️ DEBUG: Could not check subscription: ${failure.message}');
             },
             (subscription) async {
               if (subscription == null) {
@@ -238,8 +230,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
                     previousState: _safePreviousState()));
                 return;
               }
-
-                  '✅ DEBUG: Super likes available: ${usage?.superLikesRemaining ?? "unknown"}');
             },
           );
 
@@ -253,7 +243,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         final either = await _superLikeProfile(params);
         if (either.isLeft()) {
           final failure = either.fold((l) => l, (r) => null);
-              '❌ DEBUG DiscoveryBloc: SuperLike failed - ${failure?.toString()}');
 
           // Message d'erreur plus explicite basé sur le type de failure
           String errorMessage =
@@ -298,27 +287,19 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     // ✅ IMPORTANT: Retirer le profil immédiatement de la liste pour l'UI
     // Cela évite de reswiper le même profil et de créer des doublons
     _profiles.removeAt(_currentIndex);
-        '🗑️ DEBUG DiscoveryBloc: Profil ${currentProfile.id} retiré de la liste. Reste ${_profiles.length} profils.');
 
     // Charger plus de profils si on est près de la fin (SANS changer _currentIndex)
     if (_profiles.length <= 2 && _profiles.isNotEmpty) {
-          '📥 DEBUG DiscoveryBloc: Liste faible (${_profiles.length} profils), chargement de plus...');
       _loadMoreProfiles();
     }
 
     // Mettre à jour la limite quotidienne avec les valeurs du backend
-        '🔍 DEBUG DiscoveryBloc: result.remainingLikes = ${result.remainingLikes}, _dailyLimit = $_dailyLimit');
     if (result.remainingLikes != null) {
       if (_dailyLimit != null) {
         _dailyLimit = _dailyLimit!.copyWith(
           remainingLikes: result.remainingLikes!,
         );
-            '✅ DEBUG DiscoveryBloc: Compteur de likes mis à jour: ${_dailyLimit!.remainingLikes}/${_dailyLimit!.totalLikes}');
-      } else {
-            '⚠️ DEBUG DiscoveryBloc: _dailyLimit est null, impossible de mettre à jour le compteur');
       }
-    } else {
-          '⚠️ DEBUG DiscoveryBloc: result.remainingLikes est null, le compteur ne sera pas mis à jour');
     }
 
     _emitLoaded(emit);
@@ -348,16 +329,13 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     Emitter<DiscoveryState> emit,
   ) async {
     try {
-
       final params = usecases.UpdateFiltersParams(filters: event.filters);
       final either = await _updateFilters(params);
       either.fold(
         (failure) {
-              '❌ DEBUG DiscoveryBloc: Échec mise à jour filtres: ${failure.message}');
           emit(DiscoveryError(message: failure.message));
         },
         (_) {
-              '✅ DEBUG DiscoveryBloc: Filtres mis à jour, rechargement des profils...');
           add(const LoadDiscoveryProfiles());
         },
       );
@@ -378,14 +356,11 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
   }
 
   void _emitLoaded(Emitter<DiscoveryState> emit) {
-        '🔄 DEBUG DiscoveryBloc: _emitLoaded - _currentIndex: $_currentIndex, _profiles.length: ${_profiles.length}');
-
     if (_currentIndex >= _profiles.length) {
       emit(NoMoreProfiles());
       return;
     }
 
-        '✅ DEBUG DiscoveryBloc: DiscoveryLoaded émis avec profil: ${_profiles[_currentIndex].displayName}');
     emit(DiscoveryLoaded(
       currentProfile: _profiles[_currentIndex],
       nextProfiles: _profiles.sublist(
@@ -422,7 +397,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       final result = await _getDiscoveryProfiles(params);
       result.fold(
         (failure) {
-              'Erreur chargement profils supplémentaires: ${failure.message}');
           // Revenir à l'état précédent en cas d'erreur
           if (state is DiscoveryLoadingMore) {
             emit((state as DiscoveryLoadingMore).currentState);
@@ -453,7 +427,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       final result = await _getDiscoveryProfiles(params);
       result.fold(
         (failure) {
-              'Erreur chargement profils supplémentaires: ${failure.message}');
+          // Error loading additional profiles, silently fail
         },
         (newProfilesList) {
           if (newProfilesList.isNotEmpty) {
@@ -463,7 +437,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
                 newProfilesList.where((p) => !existingIds.contains(p.id));
 
             _profiles.addAll(uniqueNewProfiles);
-                '📥 DEBUG DiscoveryBloc: ${newProfilesList.length} nouveaux profils chargés, ${uniqueNewProfiles.length} ajoutés (${existingIds.length} doublons ignorés). Total: ${_profiles.length}');
 
             // Émettre un nouvel état si on est toujours en mode chargé
             if (state is DiscoveryLoaded) {

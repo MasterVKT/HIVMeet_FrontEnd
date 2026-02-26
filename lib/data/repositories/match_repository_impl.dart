@@ -22,27 +22,15 @@ class MatchRepositoryImpl implements MatchRepository {
     bool forceRefresh = false,
   }) async {
     try {
-          '🔄 DEBUG MatchRepositoryImpl: getDiscoveryProfiles - limit: $limit, forceRefresh: $forceRefresh');
-          '   ℹ️  Les filtres sauvegardés doivent être appliqués automatiquement par le backend');
       final response = await _matchingApi.getDiscoveryProfiles(
         page: 1,
         pageSize: limit,
       );
 
-          '🔄 DEBUG MatchRepositoryImpl: Réponse reçue - status: ${response.statusCode}');
       final payload = response.data!;
-
-      // Logs de diagnostic pour comprendre pourquoi count=0
-      if (payload['count'] != null) {
-      }
-      if (payload['filters'] != null) {
-      }
-      if (payload['excluded_profiles'] != null) {
-      }
 
       final list =
           (payload['results'] ?? payload['data'] ?? payload['profiles'] ?? []);
-          '🔄 DEBUG MatchRepositoryImpl: Liste extraite: ${list.length} éléments');
 
       final profiles = (list as List)
           .map((json) =>
@@ -327,11 +315,20 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, int>> getSuperLikesRemaining() async {
     try {
-      // TODO: Implement API call
-      return const Right(5);
+      final response = await _matchingApi.getPremiumStatus();
+
+      final data = response.data;
+      if (data == null) {
+        return const Left(ServerFailure(message: 'Server returned null data'));
+      }
+
+      // Extract super likes remaining from premium status response
+      final superLikesRemaining = data['super_likes_remaining'] as int? ?? 0;
+
+      return Right(superLikesRemaining);
     } catch (e) {
-      return Left(ServerFailure(
-          message: 'Erreur lors du chargement des super likes: $e'));
+      return const Left(
+          ServerFailure(message: 'Error loading super likes remaining'));
     }
   }
 

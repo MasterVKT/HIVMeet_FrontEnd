@@ -1,0 +1,107 @@
+#!/bin/bash
+# Pre-commit hook to detect potential PII logging in Dart files
+#
+# This hook prevents commits that contain print() statements logging
+# sensitive user information (PII) such as user IDs, profile data, emails, tokens, etc.
+#
+# Usage: Copy this file to .git/hooks/pre-commit (or use git config core.hooksPath .githooks)
+
+set -e
+
+echo "🔍 Checking for PII logging in Dart files..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Flag to track if violations are found
+violations_found=0
+
+# Get list of staged Dart files (excluding test files)
+staged_dart_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.dart$' | grep -v '_test\.dart$' | grep -v '/test/' || true)
+
+if [ -z "$staged_dart_files" ]; then
+  echo -e "${GREEN}✅ No Dart files to check${NC}"
+  exit 0
+fi
+
+echo "Checking files:"
+echo "$staged_dart_files"
+echo ""
+
+# Check for print() statements with PII patterns
+for file in $staged_dart_files; do
+  # Skip if file doesn't exist (e.g., deleted files)
+  if [ ! -f "$file" ]; then
+    continue
+  fi
+
+  # Pattern 1: print() with user_id, userId, or profile.id
+  if grep -n "print.*user_id\|print.*userId\|print.*profile\.id\|print.*profileId" "$file" | grep -v "// SAFE:" > /dev/null 2>&1; then
+    echo -e "${RED}❌ PII DETECTED in $file:${NC}"
+    grep -n "print.*user_id\|print.*userId\|print.*profile\.id\|print.*profileId" "$file" | grep -v "// SAFE:"
+    violations_found=1
+  fi
+
+  # Pattern 2: print() with email
+  if grep -n "print.*email\|print.*Email" "$file" | grep -v "// SAFE:" > /dev/null 2>&1; then
+    echo -e "${RED}❌ PII DETECTED in $file:${NC}"
+    grep -n "print.*email\|print.*Email" "$file" | grep -v "// SAFE:"
+    violations_found=1
+  fi
+
+  # Pattern 3: print() with token
+  if grep -n "print.*token\|print.*Token" "$file" | grep -v "// SAFE:" > /dev/null 2>&1; then
+    echo -e "${RED}❌ PII DETECTED in $file:${NC}"
+    grep -n "print.*token\|print.*Token" "$file" | grep -v "// SAFE:"
+    violations_found=1
+  fi
+
+  # Pattern 4: print() with name (profile.name, displayName, etc.)
+  if grep -n "print.*profile\.name\|print.*displayName\|print.*\.name\)" "$file" | grep -v "// SAFE:" > /dev/null 2>&1; then
+    echo -e "${RED}❌ PII DETECTED in $file:${NC}"
+    grep -n "print.*profile\.name\|print.*displayName\|print.*\.name\)" "$file" | grep -v "// SAFE:"
+    violations_found=1
+  fi
+
+  # Pattern 5: print() with API response data (could contain PII)
+  if grep -n "print.*response\.data\|print.*payload\|print.*json\[" "$file" | grep -v "// SAFE:" > /dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  WARNING: Potential PII in API response logging in $file:${NC}"
+    grep -n "print.*response\.data\|print.*payload\|print.*json\[" "$file" | grep -v "// SAFE:"
+    echo -e "${YELLOW}Please verify this doesn't log sensitive user data${NC}"
+  fi
+done
+
+if [ $violations_found -eq 1 ]; then
+  echo ""
+  echo -e "${RED}===============================================${NC}"
+  echo -e "${RED}COMMIT BLOCKED: PII logging detected!${NC}"
+  echo -e "${RED}===============================================${NC}"
+  echo ""
+  echo "Print statements logging PII were found in your changes."
+  echo ""
+  echo "PII includes:"
+  echo "  - User IDs (user_id, userId, profile.id)"
+  echo "  - Names (profile.name, displayName)"
+  echo "  - Email addresses"
+  echo "  - Authentication tokens"
+  echo "  - API response data containing user information"
+  echo ""
+  echo "Actions to fix:"
+  echo "  1. Remove the print() statements entirely, OR"
+  echo "  2. Sanitize the output to not include PII, OR"
+  echo "  3. Add '// SAFE:' comment if you verified the statement is safe"
+  echo ""
+  echo "Example of safe logging:"
+  echo "  print('Profile action completed'); // SAFE: No PII logged"
+  echo ""
+  echo "To bypass this check (NOT RECOMMENDED):"
+  echo "  git commit --no-verify"
+  echo ""
+  exit 1
+fi
+
+echo -e "${GREEN}✅ No PII logging detected${NC}"
+exit 0
