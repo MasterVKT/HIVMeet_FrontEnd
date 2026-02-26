@@ -24,6 +24,37 @@ import 'package:hivmeet/presentation/widgets/modals/match_found_modal.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
 
+/// Discovery Page - Main profile discovery interface.
+///
+/// This is the primary feature of HIVMeet where users discover and swipe
+/// on potential matches. The page displays profile cards that can be:
+/// - Swiped right to like
+/// - Swiped left to dislike
+/// - Swiped up to super like (premium)
+///
+/// **Features:**
+/// - Card stack with smooth swipe animations
+/// - Preview of next 2 profiles (scaled/faded background)
+/// - Action buttons for users who prefer tapping over swiping
+/// - Daily like limit indicator (free users only)
+/// - Rewind button (premium users only)
+/// - Filters button to adjust discovery criteria
+/// - Match detection and celebration modal
+///
+/// **Architecture:**
+/// - Stateful widget for local UI state
+/// - BLoC pattern for business logic and state management
+/// - Responsive to all DiscoveryState changes
+///
+/// **Accessibility:**
+/// - Screen reader support with semantic labels
+/// - Alternative to swipe gestures (action buttons)
+/// - High contrast colors
+/// - Touch targets ≥44x44 dp
+///
+/// **Internationalization:**
+/// - All text fully translated (FR/EN)
+/// - Uses LocalizationService for all strings
 class DiscoveryPage extends StatefulWidget {
   const DiscoveryPage({super.key});
 
@@ -141,22 +172,59 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
+  /// Builds the main discovery interface with profile cards.
+  ///
+  /// This method creates a complex layered layout with:
+  /// 1. Center-aligned card stack (current + preview profiles)
+  /// 2. Bottom action buttons (like/dislike/super like)
+  /// 3. Top daily limit indicator (if applicable)
+  /// 4. Loading more indicator (during pagination)
+  /// 5. Rewind button (if available)
+  ///
+  /// **Card Stack Algorithm:**
+  /// - Main profile: Center-aligned, fully interactive (swipeable)
+  /// - Preview profiles (0-2): Positioned behind with:
+  ///   * Incremental top/left offset (creates "stacked" appearance)
+  ///   * Decreasing scale (0.85, 0.75, ...)
+  ///   * Decreasing opacity (0.3, 0.15, ...)
+  ///   * IgnorePointer (prevents accidental touches)
+  ///
+  /// **Mathematical Progression:**
+  /// For each preview card at index i:
+  /// - topOffset = 50 + (i * 20)
+  /// - leftOffset = 50 + (i * 12)
+  /// - rightOffset = 50 - (i * 12)
+  /// - scale = 0.85 - (i * 0.1)
+  /// - opacity = 0.3 - (i * 0.15)
+  ///
+  /// This creates a "deck of cards" visual effect where users can see
+  /// upcoming profiles, making transitions feel smooth and predictable.
+  ///
+  /// **Overlays:**
+  /// - Action buttons: Always visible at bottom
+  /// - Daily limit: Conditional (only for free users with quota)
+  /// - Loading more: Conditional (during background pagination)
+  /// - Rewind button: Conditional (premium users with previous swipes)
+  ///
+  /// **Parameters:**
+  /// - [state]: DiscoveryLoaded state containing current and next profiles
   Widget _buildDiscoveryContent(DiscoveryLoaded state) {
     return Stack(
       children: [
-        // Zone de swipe principale
+        // Main swipe area with card stack
         Center(
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Profil principal (non-positioned, centré)
+              // Main profile card (center-aligned, fully interactive)
               SwipeCard(
                 profile: state.currentProfile,
                 onSwipe: _handleSwipe,
                 onTap: _showProfileDetail,
               ),
 
-              // Profils suivants en arrière-plan
+              // Preview profile cards (background stack)
+              // Shows next 0-2 profiles with progressive offset/scale/opacity
               ...state.nextProfiles
                   .take(DiscoveryConstants.maxPreviewCards)
                   .toList()
@@ -165,6 +233,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                   .map((entry) {
                 final index = entry.key;
                 final profile = entry.value;
+
+                // Calculate progressive offsets and visual properties
                 final topOffset = DiscoveryConstants.previewCardTopOffset +
                     (index * DiscoveryConstants.previewCardTopOffsetIncrement);
                 final leftOffset = DiscoveryConstants.previewCardLeftOffset +
@@ -180,7 +250,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                   top: topOffset,
                   left: leftOffset,
                   right: rightOffset,
-                  child: IgnorePointer(
+                  child: IgnorePointer( // Prevent touches on preview cards
                     child: Transform.scale(
                       scale: scale,
                       child: Opacity(
@@ -198,18 +268,18 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ),
         ),
 
-        // Boutons d'action
+        // Action buttons (like/dislike/super like)
         _buildActionButtons(state),
 
-        // Indicateur de likes restants
+        // Daily limit indicator (free users only)
         if (state.dailyLimit != null)
           _buildDailyLimitIndicator(state.dailyLimit!),
 
-        // Indicateur de chargement progressif
+        // Loading more indicator (background pagination)
         if (_discoveryBloc.state is DiscoveryLoadingMore)
           _buildLoadingMoreIndicator(),
 
-        // Bouton de retour en arrière
+        // Rewind button (premium users with swipe history)
         if (state.canRewind) _buildRewindButton(),
       ],
     );
