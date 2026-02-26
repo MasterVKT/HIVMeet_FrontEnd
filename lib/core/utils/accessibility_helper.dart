@@ -1,5 +1,6 @@
 // lib/core/utils/accessibility_helper.dart
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 
 /// Helper class for accessibility features throughout the app
@@ -175,5 +176,148 @@ class AccessibilityHelper {
         elevation: 0,
       ),
     );
+  }
+
+  // ====================================================================
+  // COLOR CONTRAST ACCESSIBILITY HELPERS
+  // ====================================================================
+
+  /// Calculate relative luminance of a color
+  /// Based on WCAG 2.1 specification
+  /// https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+  static double getRelativeLuminance(Color color) {
+    // Convert RGB values to sRGB
+    final r = _getSRGBValue(color.red);
+    final g = _getSRGBValue(color.green);
+    final b = _getSRGBValue(color.blue);
+
+    // Calculate relative luminance
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  /// Convert RGB component to sRGB value
+  static double _getSRGBValue(int component) {
+    final value = component / 255.0;
+    if (value <= 0.03928) {
+      return value / 12.92;
+    } else {
+      return ((value + 0.055) / 1.055).pow(2.4);
+    }
+  }
+
+  /// Calculate contrast ratio between two colors
+  /// Based on WCAG 2.1 specification
+  /// https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+  /// Returns a value between 1 and 21
+  static double getContrastRatio(Color color1, Color color2) {
+    final luminance1 = getRelativeLuminance(color1);
+    final luminance2 = getRelativeLuminance(color2);
+
+    final lighter = luminance1 > luminance2 ? luminance1 : luminance2;
+    final darker = luminance1 > luminance2 ? luminance2 : luminance1;
+
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  /// Check if contrast ratio meets WCAG AA standard (4.5:1 for normal text)
+  static bool meetsWCAGAA(Color foreground, Color background,
+      {bool isLargeText = false}) {
+    final ratio = getContrastRatio(foreground, background);
+    // Large text (18pt+ or 14pt+ bold) requires 3:1, normal text requires 4.5:1
+    final minimumRatio = isLargeText ? 3.0 : 4.5;
+    return ratio >= minimumRatio;
+  }
+
+  /// Check if contrast ratio meets WCAG AAA standard (7:1 for normal text)
+  static bool meetsWCAGAAA(Color foreground, Color background,
+      {bool isLargeText = false}) {
+    final ratio = getContrastRatio(foreground, background);
+    // Large text requires 4.5:1, normal text requires 7:1
+    final minimumRatio = isLargeText ? 4.5 : 7.0;
+    return ratio >= minimumRatio;
+  }
+
+  /// Get a description of the contrast quality
+  static String getContrastQuality(Color foreground, Color background,
+      {bool isLargeText = false}) {
+    final ratio = getContrastRatio(foreground, background);
+
+    if (meetsWCAGAAA(foreground, background, isLargeText: isLargeText)) {
+      return 'Excellent (AAA)';
+    } else if (meetsWCAGAA(foreground, background, isLargeText: isLargeText)) {
+      return 'Good (AA)';
+    } else {
+      return 'Poor (Fails WCAG)';
+    }
+  }
+
+  /// Validate contrast ratios for theme colors
+  /// Returns a map of color combination names to their contrast ratios
+  static Map<String, ContrastTestResult> validateThemeContrast(ThemeData theme) {
+    final results = <String, ContrastTestResult>{};
+
+    // Test primary color combinations
+    results['Primary on Background'] = ContrastTestResult(
+      foreground: theme.colorScheme.primary,
+      background: theme.scaffoldBackgroundColor,
+      ratio: getContrastRatio(
+          theme.colorScheme.primary, theme.scaffoldBackgroundColor),
+    );
+
+    results['OnPrimary on Primary'] = ContrastTestResult(
+      foreground: theme.colorScheme.onPrimary,
+      background: theme.colorScheme.primary,
+      ratio: getContrastRatio(
+          theme.colorScheme.onPrimary, theme.colorScheme.primary),
+    );
+
+    results['OnSurface on Surface'] = ContrastTestResult(
+      foreground: theme.colorScheme.onSurface,
+      background: theme.colorScheme.surface,
+      ratio: getContrastRatio(
+          theme.colorScheme.onSurface, theme.colorScheme.surface),
+    );
+
+    results['Error on Background'] = ContrastTestResult(
+      foreground: theme.colorScheme.error,
+      background: theme.scaffoldBackgroundColor,
+      ratio: getContrastRatio(
+          theme.colorScheme.error, theme.scaffoldBackgroundColor),
+    );
+
+    results['OnError on Error'] = ContrastTestResult(
+      foreground: theme.colorScheme.onError,
+      background: theme.colorScheme.error,
+      ratio:
+          getContrastRatio(theme.colorScheme.onError, theme.colorScheme.error),
+    );
+
+    return results;
+  }
+}
+
+/// Result of a contrast test
+class ContrastTestResult {
+  final Color foreground;
+  final Color background;
+  final double ratio;
+
+  ContrastTestResult({
+    required this.foreground,
+    required this.background,
+    required this.ratio,
+  });
+
+  /// Check if this contrast ratio meets WCAG AA
+  bool get meetsAA => ratio >= 4.5;
+
+  /// Check if this contrast ratio meets WCAG AAA
+  bool get meetsAAA => ratio >= 7.0;
+
+  /// Get a human-readable quality description
+  String get quality {
+    if (meetsAAA) return 'Excellent (AAA - ${ratio.toStringAsFixed(2)}:1)';
+    if (meetsAA) return 'Good (AA - ${ratio.toStringAsFixed(2)}:1)';
+    return 'Poor (${ratio.toStringAsFixed(2)}:1 - Fails WCAG)';
   }
 }
