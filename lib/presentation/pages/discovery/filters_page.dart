@@ -47,7 +47,7 @@ class _FiltersPageState extends State<FiltersPage> {
     return Scaffold(
       backgroundColor: AppColors.primaryWhite,
       appBar: AppBar(
-        title: const Text('Filtres de recherche'),
+        title: Text(LocalizationService.translate('discovery.filters_title')),
         elevation: 0,
         backgroundColor: Colors.transparent,
         actions: [
@@ -63,7 +63,7 @@ class _FiltersPageState extends State<FiltersPage> {
                   _hasChanges = false;
                 });
               },
-              child: const Text('Réinitialiser'),
+              child: Text(LocalizationService.translate('discovery.filters_reset')),
             ),
         ],
       ),
@@ -74,7 +74,7 @@ class _FiltersPageState extends State<FiltersPage> {
           children: [
             // Age range
             Text(
-              'Tranche d\'âge',
+              LocalizationService.translate('discovery.filters_age_range'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -83,16 +83,22 @@ class _FiltersPageState extends State<FiltersPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${_ageRange.start.round()} ans'),
-                Text('${_ageRange.end.round()} ans'),
+                Text(LocalizationService.translate(
+                  'discovery.filters_age_years',
+                  params: {'age': _ageRange.start.round().toString()},
+                )),
+                Text(LocalizationService.translate(
+                  'discovery.filters_age_years',
+                  params: {'age': _ageRange.end.round().toString()},
+                )),
               ],
             ),
             Semantics(
               label: AccessibilityHelper.getRangeSliderSemanticLabel(
-                label: 'Tranche d\'âge',
+                label: LocalizationService.translate('discovery.filters_age_range'),
                 startValue: _ageRange.start,
                 endValue: _ageRange.end,
-                unit: 'ans',
+                unit: LocalizationService.translate('discovery.filters_age_unit'),
               ),
               child: RangeSlider(
                 values: _ageRange,
@@ -111,7 +117,7 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Distance
             Text(
-              'Distance maximale',
+              LocalizationService.translate('discovery.filters_max_distance'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -120,7 +126,10 @@ class _FiltersPageState extends State<FiltersPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${_maxDistance.round()} km'),
+                Text(LocalizationService.translate(
+                  'discovery.filters_distance_km',
+                  params: {'distance': _maxDistance.round().toString()},
+                )),
                 if (_maxDistance >= 100)
                   Container(
                     padding: EdgeInsets.symmetric(
@@ -131,9 +140,9 @@ class _FiltersPageState extends State<FiltersPage> {
                       color: AppColors.primaryPurple,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Premium',
-                      style: TextStyle(
+                    child: Text(
+                      LocalizationService.translate('discovery.filters_premium_badge'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -144,9 +153,9 @@ class _FiltersPageState extends State<FiltersPage> {
             ),
             Semantics(
               label: AccessibilityHelper.getSliderSemanticLabel(
-                label: 'Distance maximale',
+                label: LocalizationService.translate('discovery.filters_max_distance'),
                 value: _maxDistance,
-                unit: 'kilomètres',
+                unit: LocalizationService.translate('discovery.filters_distance_unit'),
                 minValue: 5,
                 maxValue: 100,
               ),
@@ -167,7 +176,7 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Relationship type
             Text(
-              'Type de relation recherchée',
+              LocalizationService.translate('discovery.filters_relationship_type'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -179,7 +188,7 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Gender preferences
             Text(
-              'Je recherche',
+              LocalizationService.translate('discovery.filters_looking_for'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -193,14 +202,14 @@ class _FiltersPageState extends State<FiltersPage> {
             Card(
               child: Semantics(
                 label: AccessibilityHelper.getToggleSemanticLabel(
-                  label: 'Profils vérifiés uniquement',
+                  label: LocalizationService.translate('discovery.filters_verified_only'),
                   value: _verifiedOnly,
                 ),
-                hint: 'Ne voir que les profils avec badge de vérification',
+                hint: LocalizationService.translate('discovery.filters_verified_only_subtitle'),
                 child: SwitchListTile(
-                  title: const Text('Profils vérifiés uniquement'),
-                  subtitle: const Text(
-                      'Ne voir que les profils avec badge de vérification'),
+                  title: Text(LocalizationService.translate('discovery.filters_verified_only')),
+                  subtitle: Text(
+                      LocalizationService.translate('discovery.filters_verified_only_subtitle')),
                   secondary: Container(
                     padding: EdgeInsets.all(AppSpacing.sm),
                     decoration: const BoxDecoration(
@@ -259,7 +268,7 @@ class _FiltersPageState extends State<FiltersPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Filtres Premium',
+                                LocalizationService.translate('discovery.filters_premium_title'),
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
@@ -268,7 +277,7 @@ class _FiltersPageState extends State<FiltersPage> {
                                     ),
                               ),
                               Text(
-                                'Débloquez plus d\'options de filtrage',
+                                LocalizationService.translate('discovery.filters_premium_subtitle'),
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -286,7 +295,7 @@ class _FiltersPageState extends State<FiltersPage> {
                       width: double.infinity,
                       child: OutlinedButton(
                         onPressed: () => context.push('/premium'),
-                        child: const Text('Découvrir Premium'),
+                        child: Text(LocalizationService.translate('discovery.filters_discover_premium')),
                       ),
                     ),
                   ],
@@ -343,7 +352,7 @@ class _FiltersPageState extends State<FiltersPage> {
             ),
             const SizedBox(height: 12),
             AppButton(
-              text: 'Appliquer les filtres',
+              text: LocalizationService.translate('discovery.filters_apply'),
               onPressed: _hasChanges ? _applyFilters : null,
             ),
           ],
@@ -354,12 +363,12 @@ class _FiltersPageState extends State<FiltersPage> {
 
   Widget _buildRelationshipOptions() {
     final options = [
-      ('all', 'Tout'),
-      ('friendship', 'Amitié'),
-      ('long_term_relationship', 'Relation sérieuse'),
-      ('short_term_relationship', 'Relation courte'),
-      ('casual_dating', 'Rencontres occasionnelles'),
-      ('networking', 'Réseautage'),
+      ('all', LocalizationService.translate('discovery.filters_relationship_all')),
+      ('friendship', LocalizationService.translate('discovery.filters_relationship_friendship')),
+      ('long_term_relationship', LocalizationService.translate('discovery.filters_relationship_long_term')),
+      ('short_term_relationship', LocalizationService.translate('discovery.filters_relationship_short_term')),
+      ('casual_dating', LocalizationService.translate('discovery.filters_relationship_casual')),
+      ('networking', LocalizationService.translate('discovery.filters_relationship_networking')),
     ];
 
     return Wrap(
@@ -387,10 +396,10 @@ class _FiltersPageState extends State<FiltersPage> {
 
   Widget _buildGenderOptions() {
     final options = [
-      ('all', 'Tout le monde'),
-      ('male', 'Hommes'),
-      ('female', 'Femmes'),
-      ('non_binary', 'Non-binaire'),
+      ('all', LocalizationService.translate('discovery.filters_gender_all')),
+      ('male', LocalizationService.translate('discovery.filters_gender_male')),
+      ('female', LocalizationService.translate('discovery.filters_gender_female')),
+      ('non_binary', LocalizationService.translate('discovery.filters_gender_non_binary')),
     ];
 
     return Wrap(
