@@ -5,9 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/search_filters.dart';
 
 class FiltersModal extends StatefulWidget {
-  const FiltersModal({super.key});
+  final SearchPreferences initialFilters;
+
+  const FiltersModal({
+    super.key,
+    required this.initialFilters,
+  });
 
   @override
   State<FiltersModal> createState() => _FiltersModalState();
@@ -16,9 +22,29 @@ class FiltersModal extends StatefulWidget {
 class _FiltersModalState extends State<FiltersModal> {
   late RangeValues _ageRange;
   late double _distance;
-  late List<String> _selectedInterests;
+  late List<String> _selectedGenders;
+  late List<String> _selectedRelationshipTypes;
   late bool _verifiedOnly;
-  late String _relationshipType;
+  late bool _onlineOnly;
+
+  static const List<(String, String)> _genderOptions = [
+    ('all', 'Tout le monde'),
+    ('male', 'Hommes'),
+    ('female', 'Femmes'),
+    ('non_binary', 'Non-binaire'),
+    ('trans_male', 'Hommes trans'),
+    ('trans_female', 'Femmes trans'),
+    ('other', 'Autre'),
+    ('prefer_not_to_say', 'Préfère ne pas répondre'),
+  ];
+
+  static const List<(String, String)> _relationshipOptions = [
+    ('all', 'Tout type'),
+    ('friendship', 'Amitié'),
+    ('long_term', 'Relation sérieuse'),
+    ('short_term', 'Relation courte'),
+    ('casual', 'Occasionnelle'),
+  ];
 
   @override
   void initState() {
@@ -27,11 +53,19 @@ class _FiltersModalState extends State<FiltersModal> {
   }
 
   void _initializeFilters() {
-    _ageRange = RangeValues(18, 99);
-    _distance = 50.0;
-    _selectedInterests = [];
-    _verifiedOnly = false;
-    _relationshipType = 'any';
+    _ageRange = RangeValues(
+      widget.initialFilters.minAge.clamp(18, 99).toDouble(),
+      widget.initialFilters.maxAge.clamp(18, 99).toDouble(),
+    );
+    _distance = widget.initialFilters.maxDistance.clamp(5, 100).toDouble();
+    _selectedGenders = widget.initialFilters.interestedIn.isEmpty
+        ? ['all']
+        : List<String>.from(widget.initialFilters.interestedIn);
+    _selectedRelationshipTypes = widget.initialFilters.relationshipTypes.isEmpty
+        ? ['all']
+        : List<String>.from(widget.initialFilters.relationshipTypes);
+    _verifiedOnly = widget.initialFilters.showVerifiedOnly;
+    _onlineOnly = widget.initialFilters.showOnlineOnly;
   }
 
   @override
@@ -55,11 +89,13 @@ class _FiltersModalState extends State<FiltersModal> {
                   const SizedBox(height: 24),
                   _buildDistanceFilter(),
                   const SizedBox(height: 24),
+                  _buildGenderFilter(),
+                  const SizedBox(height: 24),
                   _buildRelationshipTypeFilter(),
                   const SizedBox(height: 24),
-                  _buildInterestsFilter(),
-                  const SizedBox(height: 24),
                   _buildVerifiedFilter(),
+                  const SizedBox(height: 12),
+                  _buildOnlineOnlyFilter(),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -169,9 +205,9 @@ class _FiltersModalState extends State<FiltersModal> {
         const SizedBox(height: 12),
         Slider(
           value: _distance,
-          min: 1,
+          min: 5,
           max: 100,
-          divisions: 99,
+          divisions: 19,
           activeColor: AppColors.primaryPurple,
           inactiveColor: AppColors.platinum,
           onChanged: (value) {
@@ -184,7 +220,7 @@ class _FiltersModalState extends State<FiltersModal> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '1 km',
+              '5 km',
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
@@ -226,57 +262,25 @@ class _FiltersModalState extends State<FiltersModal> {
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
-          children: [
-            _buildRelationshipChip('any', 'discovery.any'),
-            _buildRelationshipChip('friendship', 'discovery.friendship'),
-            _buildRelationshipChip('relationship', 'discovery.relationship'),
-            _buildRelationshipChip('casual', 'discovery.casual'),
-          ],
+          runSpacing: 8,
+          children: _relationshipOptions
+              .map((option) => _buildMultiSelectChip(
+                    list: _selectedRelationshipTypes,
+                    value: option.$1,
+                    label: option.$2,
+                  ))
+              .toList(),
         ),
       ],
     );
   }
 
-  Widget _buildRelationshipChip(String value, String labelKey) {
-    final isSelected = _relationshipType == value;
-    return FilterChip(
-      label: Text(LocalizationService.translate(labelKey)),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _relationshipType = value;
-        });
-      },
-      selectedColor: AppColors.primaryPurple.withOpacity(0.2),
-      checkmarkColor: AppColors.primaryPurple,
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primaryPurple : AppColors.slate,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-      ),
-    );
-  }
-
-  Widget _buildInterestsFilter() {
-    final availableInterests = [
-      'Musique',
-      'Sport',
-      'Voyage',
-      'Cinéma',
-      'Lecture',
-      'Cuisine',
-      'Art',
-      'Nature',
-      'Technologie',
-      'Mode',
-      'Photographie',
-      'Danse',
-    ];
-
+  Widget _buildGenderFilter() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          LocalizationService.translate('discovery.interests'),
+          'Genres recherchés',
           style: GoogleFonts.openSans(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -287,43 +291,54 @@ class _FiltersModalState extends State<FiltersModal> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: availableInterests.map((interest) {
-            final isSelected = _selectedInterests.contains(interest);
-            return FilterChip(
-              label: Text(interest),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    if (_selectedInterests.length < 5) {
-                      _selectedInterests.add(interest);
-                    }
-                  } else {
-                    _selectedInterests.remove(interest);
-                  }
-                });
-              },
-              selectedColor: AppColors.primaryPurple.withOpacity(0.2),
-              checkmarkColor: AppColors.primaryPurple,
-              labelStyle: TextStyle(
-                color: isSelected ? AppColors.primaryPurple : AppColors.slate,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            );
-          }).toList(),
+          children: _genderOptions
+              .map((option) => _buildMultiSelectChip(
+                    list: _selectedGenders,
+                    value: option.$1,
+                    label: option.$2,
+                  ))
+              .toList(),
         ),
-        if (_selectedInterests.length >= 5)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              LocalizationService.translate('discovery.max_interests_selected'),
-              style: GoogleFonts.openSans(
-                fontSize: 12,
-                color: AppColors.warning,
-              ),
-            ),
-          ),
       ],
+    );
+  }
+
+  Widget _buildMultiSelectChip({
+    required List<String> list,
+    required String value,
+    required String label,
+  }) {
+    final isSelected = list.contains(value);
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          if (value == 'all') {
+            list
+              ..clear()
+              ..add('all');
+          } else {
+            list.remove('all');
+            if (selected) {
+              if (!list.contains(value)) {
+                list.add(value);
+              }
+            } else {
+              list.remove(value);
+            }
+            if (list.isEmpty) {
+              list.add('all');
+            }
+          }
+        });
+      },
+      selectedColor: AppColors.primaryPurple.withOpacity(0.2),
+      checkmarkColor: AppColors.primaryPurple,
+      labelStyle: TextStyle(
+        color: isSelected ? AppColors.primaryPurple : AppColors.slate,
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
     );
   }
 
@@ -345,6 +360,32 @@ class _FiltersModalState extends State<FiltersModal> {
           onChanged: (value) {
             setState(() {
               _verifiedOnly = value;
+            });
+          },
+          activeColor: AppColors.primaryPurple,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOnlineOnlyFilter() {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Profils en ligne uniquement',
+            style: GoogleFonts.openSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.charcoal,
+            ),
+          ),
+        ),
+        Switch(
+          value: _onlineOnly,
+          onChanged: (value) {
+            setState(() {
+              _onlineOnly = value;
             });
           },
           activeColor: AppColors.primaryPurple,
@@ -405,16 +446,29 @@ class _FiltersModalState extends State<FiltersModal> {
   }
 
   void _applyFilters() {
-    final newFilters = SearchPreferences(
+    final newFilters = SearchFilters(
       minAge: _ageRange.start.round(),
       maxAge: _ageRange.end.round(),
-      maxDistance: _distance,
-      interestedIn: [], // TODO: Implémenter la sélection de genres
-      relationshipTypes: _relationshipType == 'any' ? [] : [_relationshipType],
-      showVerifiedOnly: _verifiedOnly,
+      maxDistance: _distance.round(),
+      genders: _selectedGenders.contains('all') ? const [] : _selectedGenders,
+      relationshipTypes: _selectedRelationshipTypes.contains('all')
+          ? const []
+          : _selectedRelationshipTypes,
+      verifiedOnly: _verifiedOnly,
+      onlineOnly: _onlineOnly,
     );
 
-    // TODO: Appliquer les filtres via le BLoC
+    final validationError = newFilters.validate();
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validationError),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).pop(newFilters);
   }
 }

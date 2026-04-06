@@ -59,11 +59,58 @@ class _OptimizedImageState extends State<OptimizedImage>
 
   @override
   Widget build(BuildContext context) {
+    // Vérifier si l'URL est vide ou invalide
+    if (widget.imageUrl.isEmpty || widget.imageUrl == 'placeholder') {
+      return _buildEmptyPlaceholder();
+    }
+    
     if (widget.enableLazyLoading) {
       return _buildLazyImage();
     } else {
       return _buildDirectImage();
     }
+  }
+
+  Widget _buildEmptyPlaceholder() {
+    if (widget.placeholder != null) {
+      return widget.placeholder!;
+    }
+
+    return Container(
+      width: widget.width,
+      height: widget.height,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primaryPurple.withOpacity(0.1),
+            AppColors.primaryPurple.withOpacity(0.05),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person,
+              size: widget.height != null ? widget.height! * 0.3 : 60,
+              color: AppColors.primaryPurple.withOpacity(0.3),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pas de photo',
+              style: TextStyle(
+                color: AppColors.slate,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildLazyImage() {

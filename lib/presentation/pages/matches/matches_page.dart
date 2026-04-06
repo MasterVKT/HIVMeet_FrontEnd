@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_bloc.dart';
@@ -116,10 +117,17 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
               tooltip: 'Rechercher',
             ),
           if (!_showSearch)
-            IconButton(
-              icon: const Icon(Icons.history),
+            TextButton.icon(
               onPressed: () => context.push(AppRoutes.interactionHistory),
-              tooltip: 'Historique',
+              icon: const Icon(Icons.history, size: 20),
+              label: const Text('Historique'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryPurple,
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
             ),
           if (!_showSearch)
             IconButton(

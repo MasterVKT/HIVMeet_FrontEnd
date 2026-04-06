@@ -1,8 +1,11 @@
 // lib/core/utils/log_filter.dart
 
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'log_service.dart';
 
+/// Ancien fichier de filtre de logs conservé pour compatibilité
+/// Utilisez désormais LogService dans lib/core/utils/log_service.dart
+@Deprecated('Utilisez LogService à la place')
 class LogFilter {
   static const List<String> _filteredLogs = [
     'EGL_emulation',
@@ -26,11 +29,9 @@ class LogFilter {
 
   static void log(String message, {String? name, int? level}) {
     if (shouldLog(message)) {
-      developer.log(
-        message,
-        name: name ?? 'HIVMeet',
-        level: level ?? 800,
-      );
+      // Appeler le nouveau service de logging
+      // ignore: deprecated_member_use
+      LogService.log(message, name: name, level: level);
     }
   }
 }

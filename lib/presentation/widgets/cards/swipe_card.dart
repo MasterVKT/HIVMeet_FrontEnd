@@ -1,6 +1,5 @@
 // lib/presentation/widgets/cards/swipe_card.dart
 
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
@@ -168,7 +167,8 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final cardHeight = size.height * 0.75;
+    final cardHeight =
+        size.height * 0.68; // Réduction de 75% à 68% pour plus d'espace
     final cardWidth = size.width * 0.9;
 
     // Pour les previews, retourner un widget simplifié sans animations
@@ -271,50 +271,25 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
           child: AnimatedBuilder(
             animation: _superLikeAnimController,
             builder: (context, child) {
-              // Effet super like: scale + fade out/in + glow doré dramatique
+              // Super-like effect simplified to avoid emulator OpenGL shader issues.
               if (_isSuperLikeAnimating) {
                 return Opacity(
                   opacity: _superLikeFadeAnimation.value,
                   child: Transform.scale(
                     scale: _superLikeScaleAnimation.value,
-                    child: ShaderMask(
-                      shaderCallback: (Rect bounds) {
-                        return RadialGradient(
-                          colors: [
-                            Color(0xFFFFD700).withOpacity(
-                                _superLikeGlowAnimation.value * 1.0),
-                            Color(0xFFFFD700).withOpacity(
-                                _superLikeGlowAnimation.value * 0.6),
-                            Color(0xFFFFA500).withOpacity(
-                                _superLikeGlowAnimation.value * 0.3),
-                            Colors.transparent,
-                          ],
-                          stops: [0.0, 0.4, 0.7, 1.0],
-                          center: Alignment.center,
-                          radius: 1.8,
-                        ).createShader(bounds);
-                      },
-                      blendMode: BlendMode.lighten,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0xFFFFD700).withOpacity(
-                                  _superLikeGlowAnimation.value * 0.8),
-                              blurRadius: 50 * _superLikeGlowAnimation.value,
-                              spreadRadius: 15 * _superLikeGlowAnimation.value,
-                            ),
-                            BoxShadow(
-                              color: Color(0xFFFFA500).withOpacity(
-                                  _superLikeGlowAnimation.value * 0.4),
-                              blurRadius: 30 * _superLikeGlowAnimation.value,
-                              spreadRadius: 8 * _superLikeGlowAnimation.value,
-                            ),
-                          ],
-                        ),
-                        child: child,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFFD700).withOpacity(
+                                _superLikeGlowAnimation.value * 0.45),
+                            blurRadius: 24 * _superLikeGlowAnimation.value,
+                            spreadRadius: 6 * _superLikeGlowAnimation.value,
+                          ),
+                        ],
                       ),
+                      child: child,
                     ),
                   ),
                 );
@@ -354,9 +329,6 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
 
                     // Badges (verified, premium, online)
                     _buildBadges(),
-
-                    // Actions rapides
-                    if (!widget.isPreview) _buildQuickActions(),
                   ],
                 ),
               ),
@@ -382,7 +354,8 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
     }
 
     return SizedBox(
-      height: cardHeight * 0.6, // Réduire davantage pour plus d'espace info
+      height: cardHeight *
+          0.65, // Proportion optimisée pour équilibrer photo et infos
       child: PageView.builder(
         itemCount: widget.profile.allPhotos.length,
         onPageChanged: (index) {
@@ -520,128 +493,143 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       right: 0,
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.35),
-                  Colors.black.withOpacity(0.85),
-                ],
-              ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.35),
+                Colors.black.withOpacity(0.85),
+              ],
             ),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16,
-                120), // Augmenter le padding bottom pour éviter les boutons
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
+          ),
+          padding:
+              const EdgeInsets.fromLTRB(16, 20, 16, 24), // Padding optimisé
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_getDisplayName()}, ${widget.profile.age}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (widget.profile.distance != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Text(
-                        '${_getDisplayName()}, ${widget.profile.age}',
+                        '${widget.profile.distance!.round()} km',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    if (widget.profile.distance != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                  // Bouton info intégré dans la row du nom
+                  if (widget.onTap != null)
+                    GestureDetector(
+                      onTap: widget.onTap,
+                      child: Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
+                          shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          '${widget.profile.distance!.round()} km',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: const Icon(
+                          Icons.info_outline,
+                          color: Colors.white,
+                          size: 18,
                         ),
                       ),
-                  ],
-                ),
-                if (widget.profile.bio.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    widget.profile.bio,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14, // Augmenter la taille pour la lisibilité
                     ),
-                    maxLines: 3, // Augmenter à 3 lignes pour plus de contenu
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
-                if (widget.profile.interests.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 3,
-                    children: widget.profile.interests.take(3).map((interest) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryPurple.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          interest,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+              ),
+              if (widget.profile.bio.isNotEmpty) ...[
+                const SizedBox(height: 8), // Espacement légèrement augmenté
+                Text(
+                  widget.profile.bio,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14, // Augmenter la taille pour la lisibilité
                   ),
-                ],
-                // Score de compatibilité
-                if (widget.profile.compatibilityScore > 0) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.favorite,
-                        size: 14,
-                        color: AppColors.primaryPurple,
+                  maxLines: 2, // Réduction à 2 lignes pour éviter trop de texte
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (widget.profile.interests.isNotEmpty) ...[
+                const SizedBox(height: 8), // Espacement uniformisé
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 3,
+                  children: widget.profile.interests.take(3).map((interest) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        LocalizationService.translate(
-                          'discovery.compatibility',
-                          params: {
-                            'percent': widget.profile.compatibilityScore
-                                .round()
-                                .toString()
-                          },
-                        ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryPurple.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        interest,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    );
+                  }).toList(),
+                ),
               ],
-            ),
+              // Score de compatibilité
+              if (widget.profile.compatibilityScore > 0) ...[
+                const SizedBox(height: 8), // Espacement uniformisé
+                Row(
+                  children: [
+                    Icon(
+                      Icons.favorite,
+                      size: 14,
+                      color: AppColors.primaryPurple,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      LocalizationService.translate(
+                        'discovery.compatibility',
+                        params: {
+                          'percent': widget.profile.compatibilityScore
+                              .round()
+                              .toString()
+                        },
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -717,30 +705,6 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                 color: Colors.white,
                 size: 16,
               ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Positioned(
-      bottom: 200, // Déplacer plus haut pour éviter les boutons d'action
-      right: 16,
-      child: Column(
-        children: [
-          _QuickActionButton(
-            icon: Icons.info_outline,
-            onTap: widget.onTap,
-            tooltip: LocalizationService.translate('common.view_profile'),
-          ),
-          const SizedBox(height: 8),
-          if (widget.profile.interests.isNotEmpty)
-            _QuickActionButton(
-              icon: Icons.favorite_border,
-              onTap: () => _showInterestsDialog(),
-              tooltip:
-                  LocalizationService.translate('discovery.common_interests'),
             ),
         ],
       ),
@@ -872,231 +836,5 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
       default:
         return Offset.zero;
     }
-  }
-
-  void _showInterestsDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 8,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header avec gradient
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primaryPurple,
-                        AppColors.primaryPurple.withOpacity(0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.favorite,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        LocalizationService.translate(
-                            'discovery.common_interests'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        LocalizationService.translate(
-                            'discovery.interests_subtitle'),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Contenu avec intérêts
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: widget.profile.interests.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: AppColors.slate,
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  LocalizationService.translate(
-                                      'discovery.no_interests'),
-                                  style: TextStyle(
-                                    color: AppColors.slate,
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          )
-                        : SingleChildScrollView(
-                            child: Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              alignment: WrapAlignment.center,
-                              children:
-                                  widget.profile.interests.map((interest) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppColors.primaryPurple
-                                            .withOpacity(0.1),
-                                        AppColors.primaryPurple
-                                            .withOpacity(0.05),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: AppColors.primaryPurple
-                                          .withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.favorite,
-                                        color: AppColors.primaryPurple,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        interest,
-                                        style: TextStyle(
-                                          color: AppColors.primaryPurple,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                  ),
-                ),
-
-                // Bouton de fermeture
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryPurple,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: Text(
-                        LocalizationService.translate('common.close'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  final String? tooltip;
-
-  const _QuickActionButton({
-    required this.icon,
-    this.onTap,
-    this.tooltip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip ?? '',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            color: AppColors.primaryPurple,
-            size: 20,
-          ),
-        ),
-      ),
-    );
   }
 }

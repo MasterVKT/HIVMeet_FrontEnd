@@ -22,8 +22,9 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
     bool includeMatched = false,
   }) async {
     try {
-      // Le backend utilise matched_only (logique inverse de includeMatched)
-      final matchedOnly = !includeMatched;
+      // matched_only=true → retourner SEULEMENT les likes avec match
+      // matched_only=false → retourner TOUS les likes (défaut, comportement attendu)
+      final matchedOnly = includeMatched;
 
       final response = await _apiClient.get(
         '$_baseUrl/my-likes',
@@ -36,8 +37,17 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
 
       if (response.statusCode == 200) {
         final results = response.data['results'] as List;
-        final interactions =
-            results.map((json) => _mapJsonToInteractionHistory(json)).toList();
+        final List<InteractionHistory> interactions = [];
+        for (final json in results) {
+          try {
+            final interaction = _mapJsonToInteractionHistory(json);
+            interactions.add(interaction);
+          } catch (e) {
+            // Log l'erreur mais continue avec les autres profils
+            print('⚠️ Erreur mapping profil, ignoré: $e');
+            print('JSON problématique: $json');
+          }
+        }
         return Right(interactions);
       }
 
@@ -67,8 +77,16 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
 
       if (response.statusCode == 200) {
         final results = response.data['results'] as List;
-        final interactions =
-            results.map((json) => _mapJsonToInteractionHistory(json)).toList();
+        final List<InteractionHistory> interactions = [];
+        for (final json in results) {
+          try {
+            final interaction = _mapJsonToInteractionHistory(json);
+            interactions.add(interaction);
+          } catch (e) {
+            // Log l'erreur mais continue avec les autres profils
+            print('⚠️ Erreur mapping profil passes, ignoré: $e');
+          }
+        }
         return Right(interactions);
       }
 
@@ -124,44 +142,98 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
   }
 
   /// Mapper la réponse JSON de l'API vers InteractionHistory
+  /// Compatible avec la structure réelle du backend
   InteractionHistory _mapJsonToInteractionHistory(Map<String, dynamic> json) {
     try {
-      final profileData = json['profile'] as Map<String, dynamic>?;
+      // Debug: afficher le JSON reçu pour diagnostic
+      print('🔍 Mapping JSON: $json');
 
-      if (profileData == null) {
-        throw Exception('Profile data is null');
+      // Extraire les données du profil -多种格式 support
+      Map<String, dynamic> profileData;
+      
+      if (json['profile'] is Map) {
+        profileData = json['profile'] as Map<String, dynamic>;
+      } else if (json['target_user'] is Map) {
+        // Format alternatif possible
+        profileData = json['target_user'] as Map<String, dynamic>;
+      } else {
+        // Fallback: utiliser les champs directement à la racine
+        profileData = {
+          'user_id': json['target_user_id'] ?? json['user_id'] ?? '',
+          'username': json['username'] ?? '',
+          'display_name': json['display_name'] ?? json['username'] ?? '',
+          'age': json['age'] ?? 18,
+          'profile_photo': json['profile_photo'] ?? json['main_photo_url'] ?? '',
+          'bio': json['bio'] ?? '',
+          'city': json['city'] ?? '',
+          'gender': json['gender'] ?? '',
+        };
       }
 
-      // Mapper le profil utilisateur selon la structure backend
+      print('🔍 Profile data extracted: $profileData');
+
+      // Extraire l'ID du profil (plusieurs formats possibles)
+      String profileId = '';
+      if (profileData['user_id'] != null) {
+        profileId = profileData['user_id'].toString();
+      } else if (profileData['id'] != null) {
+        profileId = profileData['id'].toString();
+      } else if (json['target_user_id'] != null) {
+        profileId = json['target_user_id'].toString();
+      }
+
+      // Extraire le display name (plusieurs formats)
+      String displayName = 'Utilisateur';
+      if (profileData['display_name'] != null && profileData['display_name'].toString().isNotEmpty) {
+        displayName = profileData['display_name'].toString();
+      } else if (profileData['username'] != null && profileData['username'].toString().isNotEmpty) {
+        displayName = profileData['username'].toString();
+      }
+
+      // Extraire la photo (plusieurs formats possibles, y compris array)
+      String mainPhotoUrl = '';
+      if (profileData['profile_photo'] != null) {
+        mainPhotoUrl = profileData['profile_photo'].toString();
+      } else if (profileData['main_photo_url'] != null) {
+        mainPhotoUrl = profileData['main_photo_url'].toString();
+      } else if (profileData['photo_url'] != null) {
+        mainPhotoUrl = profileData['photo_url'].toString();
+      } else if (profileData['photos'] != null && profileData['photos'] is List) {
+        // Format array - prendre la première photo
+        final photosList = profileData['photos'] as List;
+        if (photosList.isNotEmpty) {
+          mainPhotoUrl = photosList.first.toString();
+        }
+      }
+
+      // Mapper le profil utilisateur - avec tous les champs requis par DiscoveryProfile
       final profile = DiscoveryProfile(
-        id: profileData['user_id'] as String? ?? '',
-        displayName: profileData['username'] as String? ??
-            profileData['display_name'] as String? ??
-            'Utilisateur',
-        age: profileData['age'] as int? ?? 18,
-        mainPhotoUrl: profileData['profile_photo'] as String? ?? '',
-        otherPhotosUrls: const [], // Backend ne retourne pas les autres photos dans la liste
-        bio: profileData['bio'] as String? ?? '',
-        city: profileData['city'] as String? ?? '',
-        country: 'France', // Backend ne retourne pas le pays dans la liste
-        distance: null, // Backend ne retourne pas la distance dans la liste
-        interests: const [], // Backend ne retourne pas les intérêts dans la liste
-        relationshipType: '', // Backend ne retourne pas ce champ dans la liste
-        isVerified: false, // Backend ne retourne pas ce champ dans la liste
-        isPremium: false, // Backend ne retourne pas ce champ dans la liste
-        lastActive:
-            DateTime.now(), // Backend ne retourne pas ce champ dans la liste
-        compatibilityScore: 0, // Backend ne retourne pas ce champ dans la liste
+        id: profileId,
+        displayName: displayName,
+        age: (profileData['age'] as num?)?.toInt() ?? 18,
+        mainPhotoUrl: mainPhotoUrl,
+        otherPhotosUrls: const [],
+        bio: profileData['bio']?.toString() ?? '',
+        city: profileData['city']?.toString() ?? '',
+        country: profileData['country']?.toString() ?? 'FR',
+        distance: null,
+        interests: const [],
+        relationshipTypesSought: const [],
+        relationshipType: 'long_term',
+        isVerified: profileData['is_verified'] == true,
+        isPremium: profileData['is_premium'] == true,
+        lastActive: DateTime.now(),
+        compatibilityScore: 0,
       );
 
       // Mapper le type d'interaction
-      final interactionTypeStr = json['interaction_type'] as String?;
+      final interactionTypeStr = json['interaction_type']?.toString();
       if (interactionTypeStr == null) {
         throw Exception('interaction_type is null');
       }
 
       final InteractionType type;
-      switch (interactionTypeStr) {
+      switch (interactionTypeStr.toLowerCase()) {
         case 'super_like':
           type = InteractionType.superLike;
           break;
@@ -175,26 +247,50 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
       }
 
       // Déterminer si on peut révoquer
-      // Backend: ne peut pas révoquer si déjà révoqué
-      final isRevoked = json['is_revoked'] as bool? ?? false;
+      final isRevoked = json['is_revoked'] == true;
       final canRevoke = !isRevoked;
 
+      // Parser la date correctement - plusieurs champs possibles
+      DateTime timestamp = DateTime.now();
+      final timestampFields = ['created_at', 'liked_at', 'passed_at'];
+      for (final field in timestampFields) {
+        if (json[field] != null) {
+          try {
+            timestamp = DateTime.parse(json[field].toString());
+            break;
+          } catch (e) {
+            print('⚠️ Error parsing $field: $e');
+          }
+        }
+      }
+
+      // Extraire l'ID de l'interaction
+      String interactionId = '';
+      if (json['id'] != null) {
+        interactionId = json['id'].toString();
+      }
+
+      // Mapper le match - plusieurs noms de champs possibles
+      bool isMatched = false;
+      if (json['is_match'] == true || json['is_matched'] == true) {
+        isMatched = true;
+      }
+
+      print('✅ Mapped interaction: $interactionId, type: $type, isMatched: $isMatched');
+
       return InteractionHistory(
-        id: json['id'] as String? ?? '',
+        id: interactionId,
         profile: profile,
         type: type,
-        timestamp: json['created_at'] != null
-            ? DateTime.parse(json['created_at'] as String)
-            : DateTime.now(),
-        isMatched: json['is_match'] as bool? ?? false,
-        matchId:
-            null, // Backend ne retourne pas le match_id dans cette structure
+        timestamp: timestamp,
+        isMatched: isMatched,
+        matchId: null,
         canRevoke: canRevoke,
       );
     } catch (e, stackTrace) {
       print('❌ ERROR Mapping interaction: $e');
       print('Stack trace: $stackTrace');
-      print('JSON: $json');
+      print('JSON complet: $json');
       rethrow;
     }
   }

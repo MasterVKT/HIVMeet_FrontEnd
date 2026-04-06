@@ -76,6 +76,7 @@ class DiscoveryProfile extends Equatable {
   final String country;
   final double? distance;
   final List<String> interests;
+  final List<String> relationshipTypesSought;
   final String relationshipType;
   final bool isVerified;
   final bool isPremium;
@@ -93,6 +94,7 @@ class DiscoveryProfile extends Equatable {
     required this.country,
     this.distance,
     required this.interests,
+    this.relationshipTypesSought = const [],
     required this.relationshipType,
     required this.isVerified,
     required this.isPremium,
@@ -151,11 +153,13 @@ class DiscoveryProfile extends Equatable {
       interests = (json['interests'] as List).map((e) => e.toString()).toList();
     }
 
-    // Extraire le relationshipType
+    // Extraire les relationship types
+    List<String> relationshipTypesSought = [];
     String relationshipType = 'long_term';
     if (json.containsKey('relationship_types_sought') &&
         json['relationship_types_sought'] is List) {
       final types = json['relationship_types_sought'] as List;
+      relationshipTypesSought = types.map((e) => e.toString()).toList();
       if (types.isNotEmpty) {
         relationshipType = types.first.toString();
       }
@@ -176,6 +180,7 @@ class DiscoveryProfile extends Equatable {
       distance: (json['distance_km'] as num?)?.toDouble() ??
           (json['distance'] as num?)?.toDouble(),
       interests: interests,
+      relationshipTypesSought: relationshipTypesSought,
       relationshipType: relationshipType,
       isVerified: json['is_verified'] == true,
       isPremium: json['is_premium'] == true,
@@ -199,6 +204,7 @@ class DiscoveryProfile extends Equatable {
       'country': country,
       'distance': distance,
       'interests': interests,
+      'relationship_types_sought': relationshipTypesSought,
       'relationship_type': relationshipType,
       'is_verified': isVerified,
       'is_premium': isPremium,
@@ -237,6 +243,7 @@ class DiscoveryProfile extends Equatable {
         country,
         distance,
         interests,
+        relationshipTypesSought,
         relationshipType,
         isVerified,
         isPremium,

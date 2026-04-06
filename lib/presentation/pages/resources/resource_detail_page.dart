@@ -403,7 +403,6 @@ class ResourceDetailPage extends StatelessWidget {
       case ResourceType.contact:
         return _buildContactInfo(context, resource);
     }
-    return const SizedBox.shrink();
   }
 
   Widget _buildContactInfo(BuildContext context, Resource resource) {

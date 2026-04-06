@@ -95,7 +95,6 @@ class EmptyMatchesView extends StatelessWidget {
         iconData = Icons.chat_bubble_outline;
         break;
       case MatchFilter.all:
-      default:
         iconData = Icons.favorite_border;
         break;
     }
@@ -118,7 +117,6 @@ class EmptyMatchesView extends StatelessWidget {
         title = 'Aucune conversation active';
         break;
       case MatchFilter.all:
-      default:
         title = 'Aucun match pour le moment';
         break;
     }
@@ -146,7 +144,6 @@ class EmptyMatchesView extends StatelessWidget {
             'Commencez une conversation avec vos matches\npour qu\'ils apparaissent ici';
         break;
       case MatchFilter.all:
-      default:
         subtitle =
             'Commencez à swiper dans l\'onglet Découvrir\npour trouver votre match parfait! 💕';
         break;

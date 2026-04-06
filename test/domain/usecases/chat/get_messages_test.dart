@@ -1,5 +1,3 @@
-// test/domain/usecases/chat/get_messages_test.dart
-
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hivmeet/core/error/failures.dart';
@@ -44,20 +42,23 @@ void main() {
     ),
   ];
 
+  final tPage = ConversationMessagesPage(
+    messages: tMessages,
+    hasMore: false,
+    showPremiumPrompt: false,
+  );
+
   group('GetMessages', () {
     test('should get initial messages with default limit (50)', () async {
-      // arrange
       when(() => mockRepository.getMessages(
             conversationId: any(named: 'conversationId'),
             limit: any(named: 'limit'),
             beforeMessageId: any(named: 'beforeMessageId'),
-          )).thenAnswer((_) async => Right(tMessages));
+          )).thenAnswer((_) async => Right(tPage));
 
-      // act
       final result = await usecase(GetMessagesParams.initial('conv_1'));
 
-      // assert
-      expect(result, Right(tMessages));
+      expect(result, Right(tPage));
       verify(() => mockRepository.getMessages(
             conversationId: 'conv_1',
             limit: 50,
@@ -66,20 +67,17 @@ void main() {
     });
 
     test('should get messages with custom limit', () async {
-      // arrange
       when(() => mockRepository.getMessages(
             conversationId: any(named: 'conversationId'),
             limit: any(named: 'limit'),
             beforeMessageId: any(named: 'beforeMessageId'),
-          )).thenAnswer((_) async => Right(tMessages));
+          )).thenAnswer((_) async => Right(tPage));
 
-      // act
       final result = await usecase(
         GetMessagesParams.initial('conv_1', limit: 100),
       );
 
-      // assert
-      expect(result, Right(tMessages));
+      expect(result, Right(tPage));
       verify(() => mockRepository.getMessages(
             conversationId: 'conv_1',
             limit: 100,
@@ -87,16 +85,13 @@ void main() {
           )).called(1);
     });
 
-    test('should get messages with pagination cursor (beforeMessageId)',
-        () async {
-      // arrange
+    test('should get messages with pagination cursor (beforeMessageId)', () async {
       when(() => mockRepository.getMessages(
             conversationId: any(named: 'conversationId'),
             limit: any(named: 'limit'),
             beforeMessageId: any(named: 'beforeMessageId'),
-          )).thenAnswer((_) async => Right(tMessages));
+          )).thenAnswer((_) async => Right(tPage));
 
-      // act
       final result = await usecase(
         const GetMessagesParams(
           conversationId: 'conv_1',
@@ -105,8 +100,7 @@ void main() {
         ),
       );
 
-      // assert
-      expect(result, Right(tMessages));
+      expect(result, Right(tPage));
       verify(() => mockRepository.getMessages(
             conversationId: 'conv_1',
             limit: 50,
@@ -114,23 +108,25 @@ void main() {
           )).called(1);
     });
 
-    test('should return empty list when no more messages', () async {
-      // arrange
+    test('should return empty page when no more messages', () async {
+      const emptyPage = ConversationMessagesPage(
+        messages: <Message>[],
+        hasMore: false,
+        showPremiumPrompt: true,
+      );
+
       when(() => mockRepository.getMessages(
             conversationId: any(named: 'conversationId'),
             limit: any(named: 'limit'),
             beforeMessageId: any(named: 'beforeMessageId'),
-          )).thenAnswer((_) async => const Right([]));
+          )).thenAnswer((_) async => const Right(emptyPage));
 
-      // act
       final result = await usecase(GetMessagesParams.initial('conv_1'));
 
-      // assert
-      expect(result, const Right([]));
+      expect(result, const Right(emptyPage));
     });
 
     test('should return ServerFailure when repository fails', () async {
-      // arrange
       const tFailure = ServerFailure(message: 'Failed to fetch messages');
       when(() => mockRepository.getMessages(
             conversationId: any(named: 'conversationId'),
@@ -138,15 +134,12 @@ void main() {
             beforeMessageId: any(named: 'beforeMessageId'),
           )).thenAnswer((_) async => const Left(tFailure));
 
-      // act
       final result = await usecase(GetMessagesParams.initial('conv_1'));
 
-      // assert
       expect(result, const Left(tFailure));
     });
 
     test('should return NetworkFailure when no internet connection', () async {
-      // arrange
       const tFailure = NetworkFailure(message: 'No internet connection');
       when(() => mockRepository.getMessages(
             conversationId: any(named: 'conversationId'),
@@ -154,32 +147,24 @@ void main() {
             beforeMessageId: any(named: 'beforeMessageId'),
           )).thenAnswer((_) async => const Left(tFailure));
 
-      // act
       final result = await usecase(GetMessagesParams.initial('conv_1'));
 
-      // assert
       expect(result, const Left(tFailure));
     });
 
     test('nextPage helper should preserve limit and add cursor', () {
-      // arrange
       final params = GetMessagesParams.initial('conv_1', limit: 30);
 
-      // act
       final nextPageParams = params.nextPage('last_message_id');
 
-      // assert
       expect(nextPageParams.conversationId, 'conv_1');
       expect(nextPageParams.limit, 30);
       expect(nextPageParams.beforeMessageId, 'last_message_id');
     });
 
-    test('initial factory should create params with null beforeMessageId',
-        () {
-      // act
+    test('initial factory should create params with null beforeMessageId', () {
       final params = GetMessagesParams.initial('conv_1');
 
-      // assert
       expect(params.conversationId, 'conv_1');
       expect(params.limit, 50);
       expect(params.beforeMessageId, null);

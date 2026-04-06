@@ -1,11 +1,14 @@
 // lib/presentation/pages/discovery/profile_detail_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
+import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
 import 'package:hivmeet/presentation/widgets/buttons/action_button.dart';
 import 'package:hivmeet/presentation/widgets/common/optimized_image.dart';
 
@@ -425,7 +428,14 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
   }
 
   void _handleAction(SwipeDirection direction) {
-    // TODO: Implémenter l'action de swipe depuis le profil détaillé
+    // Récupérer le DiscoveryBloc depuis le contexte
+    final discoveryBloc = BlocProvider.of<DiscoveryBloc>(context, listen: false);
+    
+    // Exécuter l'action de swipe sur le profil actuel
+    discoveryBloc.add(SwipeProfile(direction: direction));
+    
+    // Fermer la page de détail pour revenir à la page de découverte
+    // qui affichera automatiquement le profil suivant grâce au BLoC
     context.pop();
   }
 

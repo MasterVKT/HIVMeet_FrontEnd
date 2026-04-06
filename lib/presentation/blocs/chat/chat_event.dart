@@ -51,3 +51,41 @@ class DeleteMessageEvent extends ChatEvent {
   @override
   List<Object> get props => [messageId];
 }
+
+/// Demande de connexion WebSocket pour la conversation active.
+class ConnectToWebSocket extends ChatEvent {
+  const ConnectToWebSocket();
+}
+
+/// Demande de déconnexion WebSocket (ex: navigation hors chat).
+class DisconnectFromWebSocket extends ChatEvent {
+  const DisconnectFromWebSocket();
+}
+
+/// Événement interne : message créé reçu via WebSocket.
+class _WebSocketMessageReceived extends ChatEvent {
+  final Map<String, dynamic> data;
+  const _WebSocketMessageReceived(this.data);
+  @override
+  List<Object?> get props => [data];
+}
+
+/// Événement interne : indicateur de frappe reçu via WebSocket.
+class _WebSocketTypingIndicator extends ChatEvent {
+  final String userId;
+  final bool isTyping;
+  const _WebSocketTypingIndicator(
+      {required this.userId, required this.isTyping});
+  @override
+  List<Object?> get props => [userId, isTyping];
+}
+
+/// Événement interne : mise à jour de présence reçue via WebSocket.
+class _WebSocketPresenceUpdate extends ChatEvent {
+  final String userId;
+  final bool isOnline;
+  const _WebSocketPresenceUpdate(
+      {required this.userId, required this.isOnline});
+  @override
+  List<Object?> get props => [userId, isOnline];
+}

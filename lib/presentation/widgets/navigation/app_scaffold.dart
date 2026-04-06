@@ -1,11 +1,19 @@
-// lib/presentation/widgets/navigation/app_scaffold.dart
+﻿// lib/presentation/widgets/navigation/app_scaffold.dart
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Scaffold principal de l'application avec bottom navigation bar centralisée
+const bool _enableVerboseLogs = false;
+
+void _debugLog(Object? message) {
+  if (_enableVerboseLogs) {
+    debugPrint(message?.toString());
+  }
+}
+
+/// Scaffold principal de l'application avec bottom navigation bar centralisee
 ///
-/// Ce widget centralise le bottom navigation bar pour éviter la duplication
+/// Ce widget centralise le bottom navigation bar pour eviter la duplication
 /// de code sur chaque page. Toutes les pages principales (Discovery, Matches,
 /// Messages, Profil) doivent utiliser ce scaffold.
 ///
@@ -40,7 +48,7 @@ class AppScaffold extends StatelessWidget {
   });
 
   void _onNavigationTap(BuildContext context, int index) {
-    // Éviter de naviguer si déjà sur l'onglet
+    // Eviter de naviguer si deja sur l'onglet
     if (index == currentIndex) return;
 
     switch (index) {
@@ -61,7 +69,8 @@ class AppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🔍 DEBUG AppScaffold: build() appelé - currentIndex: $currentIndex');
+    _debugLog(
+        'DEBUG AppScaffold: build() appele - currentIndex: $currentIndex');
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: appBar,
@@ -80,7 +89,7 @@ class AppScaffold extends StatelessWidget {
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.explore),
-          label: 'Découvrir',
+          label: 'Decouvrir',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.favorite),

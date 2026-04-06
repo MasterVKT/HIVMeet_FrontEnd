@@ -24,7 +24,7 @@ class GetMessages {
 
   GetMessages(this.repository);
 
-  Future<Either<Failure, List<Message>>> call(GetMessagesParams params) async {
+  Future<Either<Failure, ConversationMessagesPage>> call(GetMessagesParams params) async {
     return await repository.getMessages(
       conversationId: params.conversationId,
       limit: params.limit,

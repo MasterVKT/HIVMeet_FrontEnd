@@ -40,8 +40,8 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Charger les passes au démarrage de la page
-    getIt<InteractionHistoryBloc>().add(LoadPasses());
+    // Charger les passes au démarrage de la page (refresh: true pour vider la liste)
+    getIt<InteractionHistoryBloc>().add(const LoadPasses(refresh: true));
   }
 
   @override
@@ -67,7 +67,7 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
   }
 
   Future<void> _onRefresh() async {
-    context.read<InteractionHistoryBloc>().add(LoadPasses());
+    context.read<InteractionHistoryBloc>().add(const LoadPasses(refresh: true));
     await Future.delayed(const Duration(milliseconds: 500));
   }
 

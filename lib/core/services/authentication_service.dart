@@ -96,6 +96,9 @@ class AuthenticationService {
   Stream<domain.User?> get userStream => _userController.stream;
   Stream<String?> get errorStream => _errorController.stream;
 
+  /// Retourne le JWT access token courant (pour WebSocket auth, etc.).
+  Future<String?> getAccessToken() => _tokenManager.getAccessToken();
+
   /// Met à jour le statut d'authentification
   void _updateStatus(AuthenticationStatus status) {
     _status = status;

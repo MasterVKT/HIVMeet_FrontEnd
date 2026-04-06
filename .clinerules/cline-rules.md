@@ -1,0 +1,442 @@
+# GitHub Copilot - Règles de Fonctionnement pour le Projet HIVMeet
+
+**Version**: 1.0  
+**Date**: Décembre 2024  
+**Agent AI**: GitHub Copilot 
+**Projet**: HIVMeet - Dating App pour personnes vivant avec le VIH/SIDA
+
+---
+
+## 📋 Table des Matières
+
+1. [Contexte et Scope du Projet](#contexte-et-scope-du-projet)
+2. [Principes de Réponse et d'Opération](#principes-de-réponse-et-dopération)
+3. [Architecture et Stack Technique](#architecture-et-stack-technique)
+4. [Gestion des Erreurs et Corrections](#gestion-des-erreurs-et-corrections)
+5. [Contrats d'Interface Backend](#contrats-dinterface-backend)
+6. [Standards de Qualité et Sécurité](#standards-de-qualité-et-sécurité)
+7. [Format de Réponse pour Chaque Tâche](#format-de-réponse-pour-chaque-tâche)
+8. [Directives Spécifiques au Projet](#directives-spécifiques-au-projet)
+
+---
+
+## 🎯 Contexte et Scope du Projet
+
+### Rôle et Stack
+- **Rôle**: Expert developer spécialisé en Django (backend) et Flutter (frontend)
+- **Domaine applicatif**: Application de rencontre pour personnes vivant avec le VIH/SIDA
+- **Cadre**: Responsable du développement **frontend Flutter**
+- **Languages**:
+  - **Frontend**: Dart (Flutter)
+  - **Backend**: Python (Django)
+  - **Configuration**: YAML, JSON, Firebase
+
+### Architecture du Projet
+- **Séparation claire**: Frontend et backend développés indépendamment
+- **Contrats d'Interface**: Le frontend doit **strictement respecter** les contrats d'interface backend
+- **Spécifications**: Consulter le dossier `docs/` pour toutes les spécifications
+- **Internationalisation**: L'application **DOIT** supporter le français ET l'anglais
+
+### Localisation des Spécifications
+- Consulter toujours: `docs/Plan de Développement Frontend Détaillé - HIVMeet.txt`
+- Consulter aussi: `docs/Document de Spécification Interface - HIVMeet.txt`
+- Consulter aussi: `guides/ENDPOINTS_COMPLETE_DOCUMENTATION.md`
+- Configuration API: `lib/core/config/constants.dart`
+
+## 🔄 Principes de Réponse et d'Opération
+
+### 1. Conformité aux Spécifications
+**Avant toute action**, je dois:
+- ✅ Vérifier la **conformité** avec le plan de développement
+- ✅ Consulter les spécifications dans `docs/`
+- ✅ Valider l'**ordre de développement** requis
+- ✅ Vérifier les **contrats d'interface** avec le backend
+
+### 2. Validation du Contexte
+**Avant de répondre**, je dois:
+- ✅ Vérifier que j'ai **toutes les informations** nécessaires
+- ✅ Poser des **questions précises et nécessaires** si des détails manquent
+- ✅ Ne PAS faire d'hypothèses sans validation
+- ✅ Documenter les hypothèses validées
+
+### 3. Complétude de la Réponse
+**Chaque réponse doit inclure**:
+- ✅ Code **complet et fonctionnel** (jamais de pseudocode)
+- ✅ **Chemins exacts** des fichiers à modifier (chemin absolu relatif au projet)
+- ✅ Instructions **exhaustives** et ordonnées
+- ✅ Validation de conformité aux specs
+- ✅ Vérification de non-régression
+
+### 4. Réalisme de Production
+- ✅ Implémenter **UNIQUEMENT** des solutions fonctionnant en conditions réelles
+- ✅ Utiliser des **endpoints réels** (développement ou production)
+- ✅ **ÉVITER** les hacks temporaires ou données statiques de test
+- ✅ Préférer les **patterns établis** du projet
+
+### 5. Internationalisation Systématique
+- ✅ **TOUS** les textes visibles DOIVENT être préparés pour i18n
+- ✅ Utiliser `intl` avec fichiers ARB (`assets/translations/`)
+- ✅ Clés stables et significatives
+- ✅ Support simultané français ET anglais
+
+### 6. Shell de Commande
+- **Défaut**: Command Prompt (cmd) sur Windows
+- **Justification nécessaire**: PowerShell peut être utilisé si vraiment pertinent
+- **Décision par tâche**: Adapter le shell selon la complexité
+
+### 7. Documentation des Problèmes Backend
+**Règle automatique** : Quand un problème provient du backend (erreur 4xx/5xx, endpoint manquant, etc.):
+- ✅ **TOUJOURS** créer un fichier markdown dans le root du projet
+- ✅ Nommer le fichier: `BACKEND_[TYPE_ERREUR]_[DESCRIPTION].md`
+- ✅ Inclure dans le fichier:
+  - Description détaillée du problème avec logs
+  - Analyse des causes possibles
+  - Solutions proposées (code backend si pertinent)
+  - Impact sur l'utilisateur
+  - Tests de validation suggérés
+  - Checklist de correction
+- ✅ Mentionner le fichier créé dans la réponse à l'utilisateur
+- ✅ Ne PAS demander confirmation - créer automatiquement
+
+**Exemples de noms de fichiers**:
+- `BACKEND_ERREUR_403_LIKES_RECEIVED.md`
+- `BACKEND_ENDPOINT_MANQUANT_STATS.md`
+- `BACKEND_ERREUR_500_REVOKE_INTERACTION.md`
+
+---
+
+## 🏗️ Architecture et Stack Technique
+
+### Stack Frontend (Flutter/Dart)
+```
+Frontend (Flutter)
+├── Presentation Layer (UI, Pages, Widgets)
+├── Application Layer (BLoC, StateManagement)
+├── Domain Layer (UseCases, Repositories interfaces)
+├── Data Layer (API, Local Storage, Models)
+└── Core (Config, Utils, Constants, Theme)
+```
+
+### Principes Architecturaux
+- **Clean Architecture**: Séparation stricte des couches
+- **BLoC Pattern**: Gestion d'état avec Bloc/Cubit
+- **Repository Pattern**: Abstraction des sources de données
+- **Dependency Injection**: Injection de dépendances claire
+- **Linting**: `flutter_lints` + règles personnalisées
+
+### Conventions de Nommage
+- **Files**: `snake_case` (ex: `user_profile_page.dart`)
+- **Classes**: `PascalCase` (ex: `UserProfilePage`)
+- **Variables/Fonctions**: `camelCase` (ex: `fetchUserProfile()`)
+- **Constants**: `camelCase` (ex: `maxBioLength`)
+- **Enums**: `PascalCase` items (ex: `RelationshipType.longTerm`)
+
+### Configuration et Constantes
+- Fichier principal: `lib/core/config/constants.dart`
+- Variables d'environnement: À documenter dans `docs/`
+- Base URL API: Configurable par build mode (debug/profile/release)
+- Feature flags: À implémenter si nécessaire
+
+---
+
+## 🔧 Gestion des Erreurs et Corrections
+
+### 1. Approche Holistique des Corrections
+**Contexte requis**:
+- 🔍 Comprendre les **spécifications** concernées
+- 🔍 Analyser l'**implémentation complète** (pas seulement le bug)
+- 🔍 Identifier les **dépendances** transversales
+- 🔍 Évaluer l'**impact sur d'autres modules**
+
+**Processus**:
+- ✅ Éviter les **fixes isolées** qui ignorent le système plus large
+- ✅ Fournir des **solutions robustes** et durables
+- ✅ Documenter les **raisons** des changements
+
+### 2. Sécurité contre les Régressions
+**Avant de valider une correction**:
+- ✅ Vérifier **aucune régression** n'a été introduite
+- ✅ Tester les **chemins d'utilisation** affectés
+- ✅ Valider les **dépendances** connexes
+- ✅ Exécuter les **tests existants** si disponibles
+
+**Si une régression est découverte**:
+- ✅ Corriger **IMMÉDIATEMENT**
+- ✅ Documenter la **cause racine**
+- ✅ Ajouter des **tests** pour prévenir récurrence
+
+### 3. Changements Multi-Couches
+**Si une correction affecte plusieurs couches**:
+- 🔄 **Frontend → Backend**: Documenter précisément les changements backend requis
+- 🔄 **Backend → Frontend**: Ajuster le frontend pour accepter les nouvelles réponses
+- 🔄 **Data Models**: Mettre à jour DTOs, Responses, et UseCases
+- 🔄 **UI**: Adapter l'UI si le contrat a changé
+
+---
+
+## 🌐 Contrats d'Interface Backend
+
+### 1. Respect des Contrats d'Interface
+**Principe fondamental**:
+- ✅ Respecter **STRICTEMENT** les contrats d'interface API
+- ✅ Consulter `guides/ENDPOINTS_COMPLETE_DOCUMENTATION.md`
+- ✅ Valider chaque endpoint utilisé
+- ✅ Aligner DTOs Flutter avec spécification API
+
+**Contrats requis**:
+- Endpoints et verbes HTTP (GET, POST, PUT, DELETE, PATCH)
+- Payloads de requête (structure, types, validations)
+- Payloads de réponse (structure, types, énumérations)
+- Codes de statut HTTP (200, 201, 400, 401, 403, 404, 500, etc.)
+- Formats d'erreur standardisés
+
+### 2. Demandes de Changement d'API
+**Si un changement d'API est nécessaire**:
+- Spécifier **CLAIREMENT**:
+  - Endpoint exact (`POST /api/v1/users/login/`)
+  - Payload de requête (structure JSON complète)
+  - Payload de réponse attendu (structure JSON complète)
+  - Codes de statut supportés
+  - Format d'erreur
+  - Headers requis/optionnels
+
+### 3. Coordination Backend-Frontend
+**Instructions structurées requises**:
+- Lister **précisément** les opérations backend nécessaires
+- Fournir **des exemples** de payloads
+- Clarifier les **dépendances** entre endpoints
+- Laisser **ZÉRO ambiguïté**
+
+### 4. Versioning API et Tolérance
+- Inclure `Accept` header si versioning nécessaire
+- Documenter la **version API cible** dans les commentaires
+- Prévoir la **tolérance** aux évolutions futures
+
+---
+
+## 🛡️ Standards de Qualité et Sécurité
+
+### 1. Documentation API et Contrats
+**À maintenir**:
+- 📄 Définition OpenAPI/Swagger dans `docs/`
+- 📄 DTOs Flutter alignés avec spécifications API
+- 📄 Commentaires de code documentant les contrats
+- 📄 Exemples de payloads pour chaque endpoint
+
+### 2. Configuration d'Environnement
+**Configuration Flutter**:
+- Utiliser `flutter_dotenv` ou fichier constants
+- Base URLs par build mode (debug/profile/release)
+- Feature flags pour contrôle des fonctionnalités
+- Documenter TOUTES les variables dans `docs/`
+
+**Exemple** (`lib/core/config/environment.dart`):
+```dart
+class Environment {
+  static const String baseUrl = 'https://api.hivmeet.com';
+  static const String wsUrl = 'wss://api.hivmeet.com/ws';
+  static const bool enableDebugLogs = true;
+}
+```
+
+### 3. Gestion des Erreurs et États Vides
+**Pattern cohérent requis**:
+- Loading states (afficher spinner/skeleton)
+- Empty states (message utilisateur-friendly, i18n)
+- Error states (messages d'erreur clairs, actions de retry)
+- Success states (feedback visuel)
+
+### 4. Stratégie d'Internationalisation
+**À mettre en œuvre**:
+- ✅ Utiliser Flutter `intl` package
+- ✅ Fichiers ARB pour traductions (`assets/translations/`)
+- ✅ Clés stables et explicites
+- ✅ Support FR/EN
+
+### 5. Accessibilité et Inclusivité
+**WCAG AA Conformité**:
+- Ratios de contraste: **minimum 4.5:1**
+- Textes scalables
+- Widgets sémantiques
+- Support lecteurs d'écran
+- Éléments interactifs: **minimum 44x44 dp**
+
+### 6. Authentification et Confidentialité
+**Bonnes pratiques**:
+- ✅ **JAMAIS** logger PII (emails, phone, IDs, tokens)
+- ✅ Masquer les **valeurs sensibles** dans logs
+- ✅ Utiliser `flutter_secure_storage` pour tokens
+- ✅ Valider les **scopes Firebase** selon le rôle
+- ✅ Chiffrer les **données sensibles** locales
+
+### 7. Tests et Validation
+**Préférence**:
+- Widget tests pour UI components
+- Integration tests pour workflows
+- Mocked HTTP avec payloads réalistes
+- Coverage: **minimum 80%** pour code critique
+
+### 8. Logging et Observabilité
+**Couche de logging légère**:
+- Annoter **timing** des requêtes
+- Logger **codes de statut** HTTP
+- Tracer **user flows** principaux
+- **JAMAIS** de PII en logs
+
+---
+
+## 📝 Format de Réponse pour Chaque Tâche
+
+### Pour Chaque Demande, Fournir:
+
+1. **Chemins Exacts** (Required)
+2. **Code Complet** (Required) - jamais de pseudocode
+3. **Vérification de Conformité** - aligne avec specs
+4. **Vérification de Non-Régression** - aucune rupture
+5. **Impact Multi-Couches** - backend/frontend si applicable
+6. **Résumé** - complété, next steps
+
+---
+
+## 🎯 Directives Spécifiques au Projet
+
+### 1. Respect de la Sensibilité du Domaine
+- Application pour personnes **vivant avec le VIH/SIDA**
+- Contenu: **respectueux** et **non-stigmatisant**
+- Éviter: **stéréotypes**, **jugements**
+- Promouvoir: **inclusivité**, **sécurité**
+
+### 2. Données Utilisateur et Confidentialité
+**Protection stricte**:
+- Tokens en `flutter_secure_storage` (non SharedPreferences)
+- Masquage des coordonnées GPS si demandé
+- Respect des paramètres de confidentialité
+- Suppression automatique des documents vérification
+
+### 3. Limites et Quotas (lib/core/config/constants.dart)
+- Photos gratuit: 1 max, premium: 6 max
+- Bio: 500 caractères max
+- Messages: 1000 caractères max
+- Intérêts: 3 max
+- Âge: 18-99
+- Distance: 5-100 km
+- Likes gratuit: 20/jour
+
+### 4. Gestion des Uploads (Photos, Documents)
+**Chemins Firebase Storage**:
+- Photos profil: `/users/{userId}/profile/{photoId}.jpg`
+- Documents vérification: `/users/{userId}/verification/{docId}.jpg`
+- Médias chat: `/users/{userId}/chat/{messageId}.jpg`
+
+### 5. Modules et Endpoints Clés
+
+**Authentification** (`auth_api.dart`):
+- `POST /api/v1/auth/register/`
+- `POST /api/v1/auth/login/`
+- `POST /api/v1/auth/logout/`
+
+**Profils** (`profile_api.dart`):
+- `GET /api/v1/user-profiles/me/`
+- `PUT /api/v1/user-profiles/{id}/`
+
+**Discovery** (`matching_api.dart`):
+- `GET /api/v1/discovery/interactions/`
+- `POST /api/v1/discovery/interactions/like/`
+- `POST /api/v1/discovery/interactions/dislike/`
+
+**Messagerie** (`messaging_api.dart`):
+- `GET /api/v1/conversations/`
+- `POST /api/v1/conversations/`
+- `GET /api/v1/conversations/{id}/messages/`
+
+### 6. Linting et Formatage
+- Respecter `flutter_lints`
+- Pas de warnings `ignore:` non-justifiés
+- Avant commit: `flutter analyze`, `dart format lib/`, `flutter test`
+
+### 7. Branchement et Commits
+- Branche: `feature/description` ou `fix/description`
+- Format commit: `[MODULE] Action - Description`
+- Exemple: `[AUTH] Feature - Add token refresh`
+
+---
+
+## 🚀 Checklist de Mise en Œuvre
+
+Avant de valider chaque implémentation:
+
+- [ ] **Specs**: Consulté les docs
+- [ ] **Contrats API**: Validé endpoints/payloads
+- [ ] **Code complet**: Code fonctionnel complet
+- [ ] **Chemins exacts**: Fichiers à modifier spécifiés
+- [ ] **Conformité**: Aligné avec spécifications
+- [ ] **Régressions**: Aucune rupture
+- [ ] **Erreurs**: Gestion d'erreur + états vides
+- [ ] **i18n**: Traduction FR/EN appliquée
+- [ ] **Logging**: Pas de PII
+- [ ] **Sécurité**: Tokens sécurisés, données masquées
+- [ ] **Tests**: Tests unitaires/integration si applicable
+- [ ] **Linting**: Pas de warnings
+- [ ] **Format**: Code formaté (dart format)
+
+---
+
+## 🤖 Nouvelles Règles pour les Agents IA
+
+### 1. Gestion des Problèmes Détectés
+**Quand un agent IA découvre un problème non lié à la tâche principale** :
+- ✅ **RÉSOUDRE IMMÉDIATEMENT** si le problème est critique ou bloque l'avancement
+- ✅ **SIGNALER LE PROBLÈME** dans la réponse principale
+- ✅ **CRÉER UN FICHIER MARKDOWN** détaillé décrivant le problème si nécessaire
+- ✅ **APPLIQUER LA MÊME LOGIQUE** que pour les problèmes backend (création automatique de fichiers de documentation)
+
+### 2. Création de Documentation Proactive
+**Quand un agent IA identifie un problème ou une amélioration** :
+- ✅ **CRÉER UN FICHIER MARKDOWN** dans le répertoire racine décrivant :
+  - Description détaillée du problème
+  - Analyse technique approfondie
+  - Solutions possibles avec avantages/inconvénients
+  - Étapes de mise en œuvre
+  - Impact sur le système
+  - Tests de validation
+
+### 3. Désactivation des Logs Répétitifs
+**Quand les logs sont envahissants et rendent difficile l'analyse** :
+- ✅ **PROPOSER DES SOLUTIONS TECHNIQUES** pour réduire les logs répétitifs
+- ✅ **CRÉER UN GUIDE** expliquant comment filtrer ou désactiver les logs non essentiels
+- ✅ **METTRE À JOUR LES FICHIERS DE CONFIGURATION** si nécessaire
+
+### 4. Comportement des Agents IA
+**Dorénavant, tous les agents IA doivent** :
+- ✅ Être proactifs dans la détection et la résolution des problèmes
+- ✅ Créer automatiquement la documentation nécessaire
+- ✅ Signaler tous les problèmes identifiés même s'ils ne sont pas liés à la tâche principale
+- ✅ Proposer des solutions complètes et pas seulement identifier les problèmes
+
+### 5. Correction des Erreurs Identifiées dans les Logs
+
+**Quand des erreurs sont identifiées dans les logs (frontend ou backend)** :
+
+- ✅ **CORRIGER LES ERREURS** dans le code source chaque fois que possible
+- ✅ **NE PAS SEULEMENT** documenter ou ignorer les erreurs mineures
+- ✅ **PRIORISER** les corrections qui n'ont pas d'impact sur d'autres fonctionnalités
+- ✅ Pour les erreurs critiques ou complexes (nécessitant modification backend), créer un fichier markdown `BACKEND_[TYPE]_[DESCRIPTION].md`
+
+**Exemples d'erreurs à corriger directement** :
+- Erreurs de compilation Dart
+- Erreurs de typage
+- URLs vides causant des crashs
+- Valeurs nulles non gérées
+- États UI incorrects
+
+**Exemples nécessitant un fichier markdown** :
+- Corrections backend requises
+- Modifications d'API
+- Changements de schéma de base de données
+- Problèmes de performance complexes
+
+---
+
+**Última actualización**: Mars 2026  
+**Creado por**: GitHub Copilot (AI Agent)  
+**Para**: Equipo de Desarrollo HIVMeet Frontend

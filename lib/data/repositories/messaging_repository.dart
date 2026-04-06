@@ -49,6 +49,7 @@ class MessagingRepository {
       await _messagingApi.sendTextMessage(
         conversationId: message.conversationId,
         content: message.content,
+        clientMessageId: message.id,
       );
     } catch (e) {
       // Gérer l'erreur d'envoi
@@ -61,7 +62,7 @@ class MessagingRepository {
       // Utiliser l'API backend pour marquer comme lu
       await _messagingApi.markMessageAsRead(
         conversationId: conversationId,
-        messageIds: [messageId],
+        lastReadMessageId: messageId,
       );
     } catch (e) {
       // Gérer l'erreur

@@ -50,7 +50,6 @@ class MatchesLoaded extends MatchesState {
         filtered = filtered.where((m) => m.lastMessage != null).toList();
         break;
       case MatchFilter.all:
-      default:
         // Pas de filtre
         break;
     }

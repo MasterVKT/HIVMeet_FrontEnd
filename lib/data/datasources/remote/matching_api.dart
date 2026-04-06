@@ -204,4 +204,10 @@ class MatchingApi {
 
     return await _apiClient.put('/discovery/filters', data: data);
   }
+
+  /// Récupérer les filtres de découverte sauvegardés
+  /// GET /api/v1/discovery/filters/get
+  Future<Response<Map<String, dynamic>>> getDiscoveryFilters() async {
+    return await _apiClient.get('/discovery/filters/get');
+  }
 }

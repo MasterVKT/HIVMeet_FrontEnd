@@ -128,13 +128,6 @@ class ProfileModel {
     }
     return DateTime.now(); // fallback
   }
-
-  static DateTime? _timestampToDateTime(dynamic timestamp) {
-    if (timestamp is Timestamp) {
-      return timestamp.toDate();
-    }
-    return null;
-  }
 }
 
 @JsonSerializable()

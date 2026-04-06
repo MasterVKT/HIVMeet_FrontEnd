@@ -159,6 +159,8 @@ class NotificationSettings extends Equatable {
     this.doNotDisturbSettings,
   });
 
+  static NotificationSettings defaults() => const NotificationSettings();
+
   NotificationSettings copyWith({
     bool? newMatchNotifications,
     bool? newMessageNotifications,

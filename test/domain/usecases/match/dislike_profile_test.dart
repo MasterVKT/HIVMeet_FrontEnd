@@ -39,26 +39,26 @@ void main() {
     test('should return ServerFailure when repository fails', () async {
       // arrange
       when(() => mockRepository.dislikeProfile(any()))
-          .thenAnswer((_) async => Left(ServerFailure()));
+          .thenAnswer((_) async => Left(ServerFailure(message: 'error')));
 
       // act
       final result = await usecase(tParams);
 
       // assert
-      expect(result, Left(ServerFailure()));
+      expect(result, Left(ServerFailure(message: 'error')));
       verify(() => mockRepository.dislikeProfile(tProfileId)).called(1);
     });
 
     test('should return NetworkFailure when offline', () async {
       // arrange
       when(() => mockRepository.dislikeProfile(any()))
-          .thenAnswer((_) async => Left(NetworkFailure()));
+          .thenAnswer((_) async => Left(NetworkFailure(message: 'error')));
 
       // act
       final result = await usecase(tParams);
 
       // assert
-      expect(result, Left(NetworkFailure()));
+      expect(result, Left(NetworkFailure(message: 'error')));
     });
   });
 }

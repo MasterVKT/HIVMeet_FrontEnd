@@ -35,7 +35,9 @@ void main() {
 
     // Register fallback values
     registerFallbackValue(GetConversationsParams.initial());
-    registerFallbackValue(const MarkAsReadParams(conversationId: 'test'));
+    registerFallbackValue(
+      const MarkAsReadParams(conversationId: 'test', messageId: 'msg_test'),
+    );
   });
 
   tearDown(() {
@@ -85,7 +87,8 @@ void main() {
     });
 
     group('LoadConversations', () {
-      test('should emit [ConversationsLoading, ConversationsLoaded] when successful',
+      test(
+          'should emit [ConversationsLoading, ConversationsLoaded] when successful',
           () async {
         // arrange
         when(() => mockGetConversations(any()))
@@ -164,7 +167,8 @@ void main() {
           bloc.stream,
           emitsInOrder([
             ConversationsLoading(),
-            isA<ConversationsLoaded>().having((s) => s.hasMore, 'hasMore', true),
+            isA<ConversationsLoaded>()
+                .having((s) => s.hasMore, 'hasMore', true),
           ]),
         );
 
@@ -210,9 +214,19 @@ void main() {
 
     group('LoadMoreConversations', () {
       test('should load more conversations with pagination', () async {
-        // arrange - initial load
+        // arrange - initial load must contain 20 items so internal _hasMore is true
+        final twentyConversations = List.generate(
+          20,
+          (i) => Conversation(
+            id: 'conv_$i',
+            participantIds: const ['user_1', 'user_2'],
+            updatedAt: DateTime.now().subtract(Duration(minutes: i)),
+            unreadCount: i == 0 ? 3 : 0,
+          ),
+        );
+
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => Right(twentyConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -235,7 +249,7 @@ void main() {
             isA<ConversationsLoaded>()
                 .having((s) => s.isLoadingMore, 'isLoadingMore', true),
             isA<ConversationsLoaded>()
-                .having((s) => s.conversations.length, 'length', 3)
+                .having((s) => s.conversations.length, 'length', 21)
                 .having((s) => s.isLoadingMore, 'isLoadingMore', false)
                 .having((s) => s.totalUnreadCount, 'totalUnread', 4), // 3 + 1
           ]),
@@ -250,7 +264,7 @@ void main() {
               that: isA<GetConversationsParams>().having(
                 (p) => p.lastConversationId,
                 'lastConversationId',
-                'conv_2',
+                'conv_19',
               ),
             ))).called(1);
       });
@@ -298,9 +312,19 @@ void main() {
       });
 
       test('should emit error when loading more fails', () async {
-        // arrange - initial load
+        // arrange - initial load must contain 20 items so internal _hasMore is true
+        final twentyConversations = List.generate(
+          20,
+          (i) => Conversation(
+            id: 'conv_$i',
+            participantIds: const ['user_1', 'user_2'],
+            updatedAt: DateTime.now().subtract(Duration(minutes: i)),
+            unreadCount: i == 0 ? 3 : 0,
+          ),
+        );
+
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => Right(twentyConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -397,7 +421,8 @@ void main() {
 
         // assert
         verify(() => mockMarkAsRead(
-              const MarkAsReadParams(conversationId: 'conv_1'),
+              const MarkAsReadParams(
+                  conversationId: 'conv_1', messageId: 'msg_1'),
             )).called(1);
       });
     });
@@ -423,8 +448,8 @@ void main() {
           emitsInOrder([
             isA<ConversationsLoaded>()
                 .having((s) => s.totalUnreadCount, 'totalUnread', 0),
-            isA<ConversationsLoaded>()
-                .having((s) => s.totalUnreadCount, 'totalUnread', 3), // Rollback
+            isA<ConversationsLoaded>().having(
+                (s) => s.totalUnreadCount, 'totalUnread', 3), // Rollback
             const ConversationsError(message: 'Failed to mark as read'),
           ]),
         );

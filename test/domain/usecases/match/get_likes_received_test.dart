@@ -23,21 +23,42 @@ void main() {
     final tProfiles = [
       DiscoveryProfile(
         id: '1',
-        name: 'Test User 1',
+        displayName: 'Test User 1',
         age: 25,
-        photos: [],
+        mainPhotoUrl: '',
+        otherPhotosUrls: const [],
+        bio: '',
+        city: '',
+        country: '',
         distance: 5.0,
+        interests: const [],
+        relationshipType: '',
+        isVerified: false,
+        isPremium: false,
+        lastActive: DateTime(2024),
+        compatibilityScore: 0.0,
       ),
       DiscoveryProfile(
         id: '2',
-        name: 'Test User 2',
+        displayName: 'Test User 2',
         age: 28,
-        photos: [],
+        mainPhotoUrl: '',
+        otherPhotosUrls: const [],
+        bio: '',
+        city: '',
+        country: '',
         distance: 10.0,
+        interests: const [],
+        relationshipType: '',
+        isVerified: false,
+        isPremium: false,
+        lastActive: DateTime(2024),
+        compatibilityScore: 0.0,
       ),
     ];
 
-    test('should get likes received from repository with default params', () async {
+    test('should get likes received from repository with default params',
+        () async {
       // arrange
       when(() => mockRepository.getLikesReceived(limit: any(named: 'limit')))
           .thenAnswer((_) async => Right(tProfiles));
@@ -47,7 +68,9 @@ void main() {
 
       // assert
       expect(result, Right(tProfiles));
-      verify(() => mockRepository.getLikesReceived(limit: 20, lastProfileId: null)).called(1);
+      verify(() =>
+              mockRepository.getLikesReceived(limit: 20, lastProfileId: null))
+          .called(1);
       verifyNoMoreInteractions(mockRepository);
     });
 
@@ -58,11 +81,13 @@ void main() {
           .thenAnswer((_) async => Right(tProfiles));
 
       // act
-      final result = await usecase(GetLikesReceivedParams.initial(limit: tLimit));
+      final result =
+          await usecase(GetLikesReceivedParams.initial(limit: tLimit));
 
       // assert
       expect(result, Right(tProfiles));
-      verify(() => mockRepository.getLikesReceived(limit: tLimit, lastProfileId: null)).called(1);
+      verify(() => mockRepository.getLikesReceived(
+          limit: tLimit, lastProfileId: null)).called(1);
     });
 
     test('should get likes received with pagination', () async {
@@ -75,7 +100,8 @@ void main() {
           )).thenAnswer((_) async => Right(tProfiles));
 
       // act
-      final params = GetLikesReceivedParams(limit: tLimit, lastProfileId: tLastProfileId);
+      final params =
+          GetLikesReceivedParams(limit: tLimit, lastProfileId: tLastProfileId);
       final result = await usecase(params);
 
       // assert
@@ -96,22 +122,26 @@ void main() {
 
       // assert
       expect(result, Left(PremiumRequiredFailure()));
-      verify(() => mockRepository.getLikesReceived(limit: 20, lastProfileId: null)).called(1);
+      verify(() =>
+              mockRepository.getLikesReceived(limit: 20, lastProfileId: null))
+          .called(1);
     });
 
     test('should return ServerFailure when repository fails', () async {
       // arrange
       when(() => mockRepository.getLikesReceived(limit: any(named: 'limit')))
-          .thenAnswer((_) async => Left(ServerFailure()));
+          .thenAnswer((_) async => Left(ServerFailure(message: 'error')));
 
       // act
       final result = await usecase(GetLikesReceivedParams.initial());
 
       // assert
-      expect(result, Left(ServerFailure()));
+      expect(result, Left(ServerFailure(message: 'error')));
     });
 
-    test('GetLikesReceivedParams.nextPage should create params with lastProfileId', () {
+    test(
+        'GetLikesReceivedParams.nextPage should create params with lastProfileId',
+        () {
       // arrange
       const initialParams = GetLikesReceivedParams(limit: 20);
       const tLastProfileId = 'last_profile_123';

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "session_id": "__home_agent___hivmeet-backend_cline_78f199488add4484843a8609604d9a87-1774585958662-83da3j9d",
+  "source": "cli",
+  "pid": 1876,
+  "started_at": "2026-03-27T04:32:39.509Z",
+  "status": "running",
+  "interactive": true,
+  "provider": "cline",
+  "model": "minimax/minimax-m2.5",
+  "cwd": "D:\\Projets\\HIVMeet\\env\\hivmeet_backend",
+  "workspace_root": "D:\\Projets\\HIVMeet\\env\\hivmeet_backend",
+  "enable_tools": true,
+  "enable_spawn": false,
+  "enable_teams": false,
+  "prompt": "Execute la phase 1 décrite dans le fichier @/TACHE_KANBAN_FILTRES_DECOUVERTE.md en t'assurant d'avoir bien compris le contexte d'ensemble ainsi que les objectifs principaux à atteindre",
+  "metadata": {
+    "title": "Execute la phase 1 décrite dans le fichier @/TACHE_KANBAN_FILTRES_DECOUVERTE.md en t'assurant d'avoir bien compris le co"
+  },
+  "messages_path": "~\\.cline\\data\\sessions\\__home_agent___hivmeet-backend_cline_78f199488add4484843a8609604d9a87-1774585958662-83da3j9d\\__home_agent___hivmeet-backend_cline_78f199488add4484843a8609604d9a87-1774585958662-83da3j9d.messages.json"
+}

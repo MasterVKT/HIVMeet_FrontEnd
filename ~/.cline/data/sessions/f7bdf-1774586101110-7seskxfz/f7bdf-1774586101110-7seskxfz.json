@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "session_id": "f7bdf-1774586101110-7seskxfz",
+  "source": "cli",
+  "pid": 1876,
+  "started_at": "2026-03-27T04:35:03.241Z",
+  "ended_at": "2026-03-27T04:36:09.140Z",
+  "exit_code": 0,
+  "status": "cancelled",
+  "interactive": true,
+  "provider": "cline",
+  "model": "minimax/minimax-m2.5",
+  "cwd": "C:\\Users\\vekou\\.cline\\worktrees\\f7bdf\\hivmeet_backend",
+  "workspace_root": "C:\\Users\\vekou\\.cline\\worktrees\\f7bdf\\hivmeet_backend",
+  "enable_tools": true,
+  "enable_spawn": false,
+  "enable_teams": false,
+  "prompt": "Execute la phase 1 décrite dans le fichier @/TACHE_KANBAN_FILTRES_DECOUVERTE.md (qui se trouve à la racine du projet) en t'assurant d'avoir bien compris le contexte d'ensemble ainsi que les objectifs principaux à atteindre",
+  "metadata": {
+    "title": "Execute la phase 1 décrite dans le fichier @/TACHE_KANBAN_FILTRES_DECOUVERTE.md (qui se trouve à la racine du projet) en"
+  },
+  "messages_path": "~\\.cline\\data\\sessions\\f7bdf-1774586101110-7seskxfz\\f7bdf-1774586101110-7seskxfz.messages.json"
+}

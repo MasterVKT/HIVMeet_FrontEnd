@@ -22,7 +22,7 @@
     "super_like": "Super Like",
     "online_now": "En ligne maintenant",
     "compatibility": "{percent}% de compatibilité",
-    "likes_remaining": "{count} likes restants",
+    "swipes_remaining": "{count} swipes restants",
     "loading_more": "Chargement de nouveaux profils...",
     "daily_limit_reached_title": "Limite quotidienne atteinte",
     "daily_limit_reached_message": "Vous avez utilisé vos {limit} likes quotidiens. Revenez dans {resetTime} pour continuer à découvrir de nouveaux profils.",

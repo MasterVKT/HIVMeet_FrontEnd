@@ -488,4 +488,28 @@ final user = UserModel.fromJson(userData);
 
 ---
 
+## 🔧 Error Correction in Logs
+
+**When errors are identified in logs (frontend or backend)**:
+
+- ✅ **CORRECT ERRORS** in source code whenever possible
+- ✅ **DO NOT ONLY** document or ignore minor errors
+- ✅ **PRIORITIZE** fixes that have no impact on other features
+- ✅ For critical or complex errors (requiring backend modification), create a markdown file `BACKEND_[TYPE]_[DESCRIPTION].md`
+
+**Examples of errors to correct directly**:
+- Dart compilation errors
+- Type errors
+- Empty URLs causing crashes
+- Unhandled null values
+- Incorrect UI states
+
+**Examples requiring a markdown file**:
+- Backend corrections required
+- API modifications
+- Database schema changes
+- Complex performance issues
+
+---
+
 **Comprehensive testing ensures HIVMeet's reliability, especially for sensitive user data and privacy-critical features.**

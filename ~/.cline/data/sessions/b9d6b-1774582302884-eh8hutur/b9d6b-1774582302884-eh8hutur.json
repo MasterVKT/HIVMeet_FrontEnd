@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "session_id": "b9d6b-1774582302884-eh8hutur",
+  "source": "cli",
+  "pid": 1876,
+  "started_at": "2026-03-27T03:31:46.222Z",
+  "ended_at": "2026-03-27T03:31:49.770Z",
+  "exit_code": 1,
+  "status": "failed",
+  "interactive": true,
+  "provider": "cline",
+  "model": "minimax/minimax-m2.5",
+  "cwd": "C:\\Users\\vekou\\.cline\\worktrees\\b9d6b\\hivmeet_backend",
+  "workspace_root": "C:\\Users\\vekou\\.cline\\worktrees\\b9d6b\\hivmeet_backend",
+  "enable_tools": true,
+  "enable_spawn": false,
+  "enable_teams": false,
+  "prompt": "You are in a worktree on a detached HEAD. When you are finished with the task, open a pull request against master.\n\n- Do not run destructive commands: git reset --hard, git clean -fdx, git worktree remove, rm/mv on repository paths.\n- Do not modify the base worktree.\n- Keep all PR preparation in the current task worktree.\n\nSteps:\n1. Ensure all intended changes are committed in the current task worktree.\n2. If currently on detached HEAD, create a branch at the current commit in this worktree.\n3. Push the branch to origin and set upstream.\n4. Create a pull request with base master and head as the pushed branch (use gh CLI if available).\n5. If a pull request already exists for the same head and base, return that existing PR URL instead of creating a duplicate.\n6. If PR creation is blocked, explain exactly why and provide the exact commands to complete it manually.\n7. Report:\n   - PR title: PR URL\n   - Base branch\n   - Head branch\n   - Any follow-up needed",
+  "metadata": {
+    "title": "You are in a worktree on a detached HEAD. When you are finished with the task, open a pull request against master."
+  },
+  "messages_path": "~\\.cline\\data\\sessions\\b9d6b-1774582302884-eh8hutur\\b9d6b-1774582302884-eh8hutur.messages.json"
+}

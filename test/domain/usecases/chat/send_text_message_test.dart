@@ -14,6 +14,10 @@ void main() {
   late SendTextMessage usecase;
   late MockMessageRepository mockRepository;
 
+  setUpAll(() {
+    registerFallbackValue(MessageType.text);
+  });
+
   setUp(() {
     mockRepository = MockMessageRepository();
     usecase = SendTextMessage(mockRepository);

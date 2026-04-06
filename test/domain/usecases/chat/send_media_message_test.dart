@@ -18,6 +18,10 @@ void main() {
   late MockMessageRepository mockRepository;
   late MockFile mockFile;
 
+  setUpAll(() {
+    registerFallbackValue(MessageType.text);
+  });
+
   setUp(() {
     mockRepository = MockMessageRepository();
     mockFile = MockFile();
@@ -42,7 +46,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
 
       when(() => mockFile.exists()).thenAnswer((_) async => true);
@@ -75,7 +79,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.video(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        videoFile: mockFile,
       );
 
       when(() => mockFile.exists()).thenAnswer((_) async => true);
@@ -106,7 +110,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.voice(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        audioFile: mockFile,
       );
 
       when(() => mockFile.exists()).thenAnswer((_) async => true);
@@ -137,7 +141,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
 
       when(() => mockFile.exists()).thenAnswer((_) async => false);
@@ -170,7 +174,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
 
       when(() => mockFile.exists()).thenAnswer((_) async => true);
@@ -205,7 +209,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
 
       when(() => mockFile.exists()).thenAnswer((_) async => true);
@@ -236,7 +240,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
       const tFailure = ServerFailure(message: 'Failed to upload media');
 
@@ -262,7 +266,7 @@ void main() {
       // arrange
       final tParams = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
       const tFailure = NetworkFailure(message: 'No internet connection');
 
@@ -288,7 +292,7 @@ void main() {
       // act
       final params = SendMediaMessageParams.image(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        imageFile: mockFile,
       );
 
       // assert
@@ -301,7 +305,7 @@ void main() {
       // act
       final params = SendMediaMessageParams.video(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        videoFile: mockFile,
       );
 
       // assert
@@ -314,7 +318,7 @@ void main() {
       // act
       final params = SendMediaMessageParams.voice(
         conversationId: 'conv_1',
-        mediaFile: mockFile,
+        audioFile: mockFile,
       );
 
       // assert

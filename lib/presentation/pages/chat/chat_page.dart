@@ -1,7 +1,6 @@
 // lib/presentation/pages/chat/chat_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
@@ -40,7 +39,6 @@ class _ChatPageState extends State<ChatPage>
   late Animation<double> _typingAnimation;
 
   bool _isKeyboardVisible = false;
-  bool _isRecording = false;
   bool _showScrollToBottom = false;
 
   @override
@@ -140,7 +138,8 @@ class _ChatPageState extends State<ChatPage>
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => getIt<ChatBloc>()
-        ..add(LoadConversation(conversationId: widget.conversationId)),
+        ..add(LoadConversation(conversationId: widget.conversationId))
+        ..add(const ConnectToWebSocket()),
       child: Scaffold(
         backgroundColor: AppColors.primaryWhite,
         appBar: _buildAppBar(),
@@ -376,10 +375,7 @@ class _ChatPageState extends State<ChatPage>
         final isMe =
             message.senderId == 'current_user_id'; // TODO: Get from auth
         final previousMessage = index > 0 ? messages[index - 1] : null;
-        final nextMessage =
-            index < messages.length - 1 ? messages[index + 1] : null;
 
-        final showAvatar = _shouldShowAvatar(message, nextMessage, isMe);
         final showTimestamp = _shouldShowTimestamp(message, previousMessage);
 
         return Column(
@@ -580,23 +576,11 @@ class _ChatPageState extends State<ChatPage>
                 .add(const SetTypingStatus(isTyping: false));
           },
           onRecordingStateChanged: (isRecording) {
-            setState(() {
-              _isRecording = isRecording;
-            });
+            // Recording state handled by MessageInput widget
           },
         );
       },
     );
-  }
-
-  bool _shouldShowAvatar(Message message, Message? nextMessage, bool isMe) {
-    if (isMe) return false;
-    if (nextMessage == null) return true;
-    if (nextMessage.senderId != message.senderId) return true;
-
-    final timeDiff =
-        nextMessage.createdAt.difference(message.createdAt).inMinutes;
-    return timeDiff > 5;
   }
 
   bool _shouldShowTimestamp(Message message, Message? previousMessage) {
@@ -605,22 +589,6 @@ class _ChatPageState extends State<ChatPage>
     final timeDiff =
         message.createdAt.difference(previousMessage.createdAt).inHours;
     return timeDiff >= 1;
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final diff = now.difference(timestamp);
-
-    if (diff.inDays == 0) {
-      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    } else if (diff.inDays == 1) {
-      return LocalizationService.translate('common.yesterday');
-    } else if (diff.inDays < 7) {
-      return LocalizationService.translate('common.days_ago',
-          params: {'count': diff.inDays.toString()});
-    } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-    }
   }
 
   String _formatLastSeen(DateTime? lastActive) {
@@ -640,28 +608,6 @@ class _ChatPageState extends State<ChatPage>
       return LocalizationService.translate('common.days_ago',
           params: {'count': diff.inDays.toString()});
     }
-  }
-
-  void _handleMessageTap(Message message) {
-    if (message.type == MessageType.image ||
-        message.type == MessageType.video) {
-      // Ouvrir la galerie/viewer
-      _openMediaViewer(message);
-    }
-  }
-
-  void _handleMessageLongPress(Message message) {
-    HapticFeedback.mediumImpact();
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => _MessageOptionsSheet(
-        message: message,
-        onCopy: () => _copyMessage(message),
-        onDelete: () => _deleteMessage(message),
-        onReport: () => _reportMessage(message),
-      ),
-    );
   }
 
   void _initiateCall(CallType type) {
@@ -691,24 +637,8 @@ class _ChatPageState extends State<ChatPage>
     context.read<ChatBloc>().add(SendTextMessageEvent(content: message));
   }
 
-  void _openMediaViewer(Message message) {
-    // TODO: Implémenter le viewer de médias
-  }
-
-  void _copyMessage(Message message) {
-    Clipboard.setData(ClipboardData(text: message.content));
-    HIVToast.showSuccess(
-      context: context,
-      message: LocalizationService.translate('chat.message_copied'),
-    );
-  }
-
   void _deleteMessage(Message message) {
     context.read<ChatBloc>().add(DeleteMessageEvent(messageId: message.id));
-  }
-
-  void _reportMessage(Message message) {
-    // TODO: Implémenter le système de signalement
   }
 
   void _showBlockDialog() {
@@ -743,57 +673,6 @@ class _QuickMessageButton extends StatelessWidget {
         ),
       ),
       child: Text(text),
-    );
-  }
-}
-
-class _MessageOptionsSheet extends StatelessWidget {
-  final Message message;
-  final VoidCallback onCopy;
-  final VoidCallback onDelete;
-  final VoidCallback onReport;
-
-  const _MessageOptionsSheet({
-    required this.message,
-    required this.onCopy,
-    required this.onDelete,
-    required this.onReport,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (message.type == MessageType.text)
-            ListTile(
-              leading: Icon(Icons.copy, color: AppColors.charcoal),
-              title: Text(LocalizationService.translate('chat.copy_message')),
-              onTap: () {
-                Navigator.pop(context);
-                onCopy();
-              },
-            ),
-          ListTile(
-            leading: Icon(Icons.delete, color: AppColors.error),
-            title: Text(LocalizationService.translate('chat.delete_message')),
-            onTap: () {
-              Navigator.pop(context);
-              onDelete();
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.report, color: AppColors.error),
-            title: Text(LocalizationService.translate('chat.report_message')),
-            onTap: () {
-              Navigator.pop(context);
-              onReport();
-            },
-          ),
-        ],
-      ),
     );
   }
 }

@@ -193,64 +193,6 @@ class ApiClient {
     }
   }
 
-  void _handleUnauthorized() {
-    // Token Firebase Auth expiré ou invalide
-    debugPrint('🔒 Erreur 401 - Token Firebase non accepté par le backend');
-    debugPrint('ℹ️ Vérifiez la configuration Firebase côté backend');
-    // Note: On ne déconnecte plus automatiquement l'utilisateur
-  }
-
-  /// Échange un token Firebase Auth contre un token Django JWT
-  Future<String?> _exchangeFirebaseToken(String? firebaseToken) async {
-    if (firebaseToken == null) return null;
-
-    try {
-      if (kDebugMode) {
-        debugPrint('🔄 Tentative échange token Firebase...');
-      }
-
-      // Créer une instance Dio séparée sans intercepteurs pour éviter la boucle
-      final exchangeDio = Dio(BaseOptions(
-        baseUrl: _getBaseUrl(),
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ));
-
-      // Appel au backend pour échanger le token
-      final response = await exchangeDio.post(
-        'auth/firebase-exchange/',
-        data: {
-          'firebase_token': firebaseToken,
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final accessToken = data?['access'] as String?;
-
-        if (kDebugMode) {
-          debugPrint('✅ Échange token réussi');
-        }
-
-        return accessToken;
-      }
-
-      if (kDebugMode) {
-        debugPrint('❌ Échange token échoué: ${response.statusCode}');
-      }
-      return null;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ Erreur échange token: $e');
-      }
-      return null;
-    }
-  }
-
   /// Requête GET
   Future<Response<T>> get<T>(
     String path, {

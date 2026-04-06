@@ -11,6 +11,7 @@ class MatchRepositoryMock implements MatchRepository {
   Future<Either<Failure, List<DiscoveryProfile>>> getDiscoveryProfiles({
     int limit = 20,
     String? lastProfileId,
+    bool forceRefresh = false,
   }) async {
     // Simuler un délai réseau réaliste (200-800ms)
     await Future.delayed(

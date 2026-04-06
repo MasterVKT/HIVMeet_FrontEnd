@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "session_id": "2558e-1774585141379-zazfzdov",
+  "source": "cli",
+  "pid": 1876,
+  "started_at": "2026-03-27T04:19:05.864Z",
+  "ended_at": "2026-03-27T04:31:01.097Z",
+  "exit_code": 0,
+  "status": "cancelled",
+  "interactive": true,
+  "provider": "cline",
+  "model": "minimax/minimax-m2.5",
+  "cwd": "C:\\Users\\vekou\\.cline\\worktrees\\2558e\\hivmeet_backend",
+  "workspace_root": "C:\\Users\\vekou\\.cline\\worktrees\\2558e\\hivmeet_backend",
+  "enable_tools": true,
+  "enable_spawn": false,
+  "enable_teams": false,
+  "prompt": "Lance la phase 1 décrite dans le fichier @/TACHE_KANBAN_FILTRES_DECOUVERTE.md et te rassurant d'avoir compris l'ensemble du contexte et des objectifs intermédiaires et finaux à atteindre",
+  "metadata": {
+    "title": "Lance la phase 1 décrite dans le fichier @/TACHE_KANBAN_FILTRES_DECOUVERTE.md et te rassurant d'avoir compris l'ensemble"
+  },
+  "messages_path": "~\\.cline\\data\\sessions\\2558e-1774585141379-zazfzdov\\2558e-1774585141379-zazfzdov.messages.json"
+}

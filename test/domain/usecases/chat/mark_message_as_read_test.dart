@@ -84,9 +84,10 @@ void main() {
           )).called(1);
     });
 
-    test('should return Unauthorized when user is not authenticated', () async {
+    test('should return UnauthorizedFailure when user is not authenticated',
+        () async {
       // arrange
-      const tFailure = Unauthorized(message: 'User not authenticated');
+      const tFailure = UnauthorizedFailure();
 
       when(() => mockRepository.markAsRead(
             conversationId: any(named: 'conversationId'),

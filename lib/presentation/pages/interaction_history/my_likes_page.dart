@@ -40,8 +40,8 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Charger les likes au démarrage de la page
-    getIt<InteractionHistoryBloc>().add(LoadLikes());
+    // Charger les likes au démarrage de la page (refresh: true pour vider la liste)
+    getIt<InteractionHistoryBloc>().add(const LoadLikes(refresh: true));
   }
 
   @override

@@ -35,6 +35,7 @@ class SendTextMessage {
       conversationId: params.conversationId,
       content: params.content,
       type: MessageType.text,
+      clientMessageId: params.clientMessageId,
     );
   }
 }
@@ -42,12 +43,14 @@ class SendTextMessage {
 class SendTextMessageParams extends Equatable {
   final String conversationId;
   final String content;
+  final String? clientMessageId;
 
   const SendTextMessageParams({
     required this.conversationId,
     required this.content,
+    this.clientMessageId,
   });
 
   @override
-  List<Object> get props => [conversationId, content];
+  List<Object?> get props => [conversationId, content, clientMessageId];
 }

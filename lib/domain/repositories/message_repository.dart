@@ -17,7 +17,7 @@ abstract class MessageRepository {
   Stream<List<Conversation>> watchConversations();
   
   // Messages
-  Future<Either<Failure, List<Message>>> getMessages({
+  Future<Either<Failure, ConversationMessagesPage>> getMessages({
     required String conversationId,
     int limit = 50,
     String? beforeMessageId,
@@ -30,6 +30,8 @@ abstract class MessageRepository {
     required String content,
     MessageType type = MessageType.text,
     File? mediaFile,
+    String? clientMessageId,
+    String? mediaText,
   });
   
   Future<Either<Failure, void>> markAsRead({
@@ -46,6 +48,15 @@ abstract class MessageRepository {
   Future<Either<Failure, void>> setTypingStatus({
     required String conversationId,
     required bool isTyping,
+  });
+
+  Future<Either<Failure, ParticipantPresence>> getPresence({
+    required String conversationId,
+  });
+
+  Future<Either<Failure, MediaUploadTarget>> generateMediaUploadUrl({
+    required String fileName,
+    required String contentType,
   });
   
   Stream<Map<String, bool>> watchTypingStatus(String conversationId);

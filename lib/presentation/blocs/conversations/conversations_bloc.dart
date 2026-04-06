@@ -22,6 +22,8 @@ part 'conversations_state.dart';
 @injectable
 class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
   final GetConversations _getConversations;
+  // Reserved for local conversation send shortcuts in a later phase.
+  // ignore: unused_field
   final SendMessage _sendMessage;
   final MarkAsRead _markAsRead;
 

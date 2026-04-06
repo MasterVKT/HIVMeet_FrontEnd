@@ -64,13 +64,13 @@ class AppConfig {
     }
   }
 
-  // Configuration WebSocket
+  // Configuration WebSocket — co-localisé avec l'API (ws(s)://host/ws/)
   static String get websocketUrl {
-    if (kDebugMode) {
-      return 'wss://ws-dev.hivmeet.com';
-    } else {
-      return 'wss://ws.hivmeet.com';
-    }
+    final base = apiBaseUrl;
+    // Remplace le schéma http(s) par ws(s)
+    return base
+        .replaceFirst('https://', 'wss://')
+        .replaceFirst('http://', 'ws://');
   }
 
   // Configuration des logs (activés uniquement en debug)

@@ -31,6 +31,7 @@ class _PaymentPageState extends State<PaymentPage>
   late Animation<Offset> _slideAnimation;
 
   bool _isProcessing = false;
+  // ignore: unused_field
   PaymentStatus _paymentStatus = PaymentStatus.pending;
 
   @override

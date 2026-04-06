@@ -23,6 +23,7 @@ class _FiltersPageState extends State<FiltersPage> {
   late String _relationshipType;
   late List<String> _genders;
   bool _verifiedOnly = false;
+  bool _onlineOnly = false;
   bool _hasChanges = false;
 
   @override
@@ -59,6 +60,7 @@ class _FiltersPageState extends State<FiltersPage> {
                   _relationshipType = 'all';
                   _genders = ['all'];
                   _verifiedOnly = false;
+                  _onlineOnly = false;
                   _hasChanges = false;
                 });
               },
@@ -198,6 +200,34 @@ class _FiltersPageState extends State<FiltersPage> {
               ),
             ),
 
+            const SizedBox(height: AppSpacing.md),
+
+            Card(
+              child: SwitchListTile(
+                title: const Text('Profils en ligne uniquement'),
+                subtitle:
+                    const Text('Ne voir que les profils actifs récemment'),
+                secondary: Container(
+                  padding: EdgeInsets.all(AppSpacing.sm),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryPurple,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.circle,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                value: _onlineOnly,
+                activeColor: AppColors.primaryPurple,
+                onChanged: (value) {
+                  setState(() => _onlineOnly = value);
+                  _onChanged();
+                },
+              ),
+            ),
+
             const SizedBox(height: AppSpacing.xl),
 
             // Premium filters
@@ -295,10 +325,9 @@ class _FiltersPageState extends State<FiltersPage> {
     final options = [
       ('all', 'Tout'),
       ('friendship', 'Amitié'),
-      ('long_term_relationship', 'Relation sérieuse'),
-      ('short_term_relationship', 'Relation courte'),
-      ('casual_dating', 'Rencontres occasionnelles'),
-      ('networking', 'Réseautage'),
+      ('long_term', 'Relation sérieuse'),
+      ('short_term', 'Relation courte'),
+      ('casual', 'Rencontres occasionnelles'),
     ];
 
     return Wrap(
@@ -330,6 +359,10 @@ class _FiltersPageState extends State<FiltersPage> {
       ('male', 'Hommes'),
       ('female', 'Femmes'),
       ('non_binary', 'Non-binaire'),
+      ('trans_male', 'Hommes trans'),
+      ('trans_female', 'Femmes trans'),
+      ('other', 'Autre'),
+      ('prefer_not_to_say', 'Préfère ne pas répondre'),
     ];
 
     return Wrap(
@@ -377,11 +410,23 @@ class _FiltersPageState extends State<FiltersPage> {
       minAge: _ageRange.start.round(),
       maxAge: _ageRange.end.round(),
       maxDistance: _maxDistance.round(),
-      gender: genders.isNotEmpty ? genders.first : null,
+      genders: genders,
       interests: null,
       relationshipTypes: relationshipTypes, // ✅ Maintenant envoyé
       verifiedOnly: _verifiedOnly, // ✅ Maintenant envoyé
+      onlineOnly: _onlineOnly,
     );
+
+    final validationError = filters.validate();
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validationError),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     print('🔄 Applying filters:');
     print('   - Age: ${filters.minAge} - ${filters.maxAge}');
@@ -389,8 +434,11 @@ class _FiltersPageState extends State<FiltersPage> {
     print('   - Genders: $genders');
     print('   - Relationship types: $relationshipTypes');
     print('   - Verified only: ${filters.verifiedOnly}');
+    print('   - Online only: ${filters.onlineOnly}');
 
-    context.read<DiscoveryBloc>().add(UpdateFilters(filters: filters));
+    context
+        .read<DiscoveryBloc>()
+        .add(UpdateFilters(filters: filters.normalized()));
     context.pop();
   }
 }

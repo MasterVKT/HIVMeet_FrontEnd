@@ -50,9 +50,12 @@ class MessagingApi {
   Future<Response<Map<String, dynamic>>> sendTextMessage({
     required String conversationId,
     required String content,
+    required String clientMessageId,
   }) async {
     final data = {
+      'client_message_id': clientMessageId,
       'content': content,
+      'type': 'text',
     };
 
     return await _apiClient.post(
@@ -66,9 +69,15 @@ class MessagingApi {
   Future<Response<Map<String, dynamic>>> sendMediaMessage({
     required String conversationId,
     required String mediaFilePath,
+    required String mediaType,
+    required String clientMessageId,
+    String? text,
   }) async {
     final formData = FormData.fromMap({
       'media_file': await MultipartFile.fromFile(mediaFilePath),
+      'media_type': mediaType,
+      'client_message_id': clientMessageId,
+      if (text != null) 'text': text,
     });
 
     return await _apiClient.post(
@@ -81,13 +90,24 @@ class MessagingApi {
   /// PUT /conversations/{conversation_id}/messages/mark-as-read/
   Future<Response<Map<String, dynamic>>> markMessageAsRead({
     required String conversationId,
-    required List<String> messageIds,
+    required String lastReadMessageId,
   }) async {
     return await _apiClient.put(
       '/conversations/$conversationId/messages/mark-as-read/',
       data: {
-        'message_ids': messageIds,
+        'last_read_message_id': lastReadMessageId,
       },
+    );
+  }
+
+  /// Marquer un message unique comme lu
+  /// PUT /conversations/{conversation_id}/messages/{message_id}/read/
+  Future<Response<Map<String, dynamic>>> markSingleMessageAsRead({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    return await _apiClient.put(
+      '/conversations/$conversationId/messages/$messageId/read/',
     );
   }
 
@@ -170,11 +190,40 @@ class MessagingApi {
     );
   }
 
-  // Méthodes supprimées car endpoints inexistants dans la documentation backend :
-  // - sendTypingIndicator() - Endpoint inexistant, utiliser WebSocket
-  // - getPresenceStatus() - Endpoint inexistant, utiliser WebSocket
-  // - getMessages() - Duplication de getConversationMessages()
-  // - sendMessage() - Duplication de sendTextMessage()
-  // - markAsRead() - Duplication de markMessageAsRead()
-  // - setTypingStatus() - Duplication de sendTypingIndicator()
+  /// Typing indicator
+  /// POST /conversations/{conversation_id}/typing/
+  Future<Response<Map<String, dynamic>>> setTypingStatus({
+    required String conversationId,
+    required bool isTyping,
+  }) async {
+    return await _apiClient.post(
+      '/conversations/$conversationId/typing/',
+      data: {
+        'is_typing': isTyping,
+      },
+    );
+  }
+
+  /// Presence indicator
+  /// GET /conversations/{conversation_id}/presence/
+  Future<Response<Map<String, dynamic>>> getPresence({
+    required String conversationId,
+  }) async {
+    return await _apiClient.get('/conversations/$conversationId/presence/');
+  }
+
+  /// Générer URL upload média
+  /// POST /conversations/generate-media-upload-url/
+  Future<Response<Map<String, dynamic>>> generateMediaUploadUrl({
+    required String fileName,
+    required String contentType,
+  }) async {
+    return await _apiClient.post(
+      '/conversations/generate-media-upload-url/',
+      data: {
+        'file_name': fileName,
+        'content_type': contentType,
+      },
+    );
+  }
 }

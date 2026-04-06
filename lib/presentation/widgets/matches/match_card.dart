@@ -28,7 +28,6 @@ class MatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profile = match.profile;
     final hasUnread = match.hasUnreadMessages;
 
     return InkWell(

@@ -54,3 +54,7 @@ class LoadMoreProfiles extends DiscoveryEvent {
   @override
   List<Object> get props => [limit];
 }
+
+class DismissError extends DiscoveryEvent {
+  const DismissError();
+}

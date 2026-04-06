@@ -39,8 +39,6 @@ class AppButton extends StatelessWidget {
         return _buildTertiaryButton(context);
       case ButtonType.icon:
         return _buildIconButton(context);
-      default:
-        return _buildPrimaryButton(context);
     }
   }
 

@@ -1,4 +1,5 @@
-import 'package:dartz/dartz.dart';
+﻿import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/error/failures.dart';
@@ -8,6 +9,14 @@ import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
+
+const bool _enableVerboseLogs = false;
+
+void _debugLog(Object? message) {
+  if (_enableVerboseLogs) {
+    debugPrint(message?.toString());
+  }
+}
 
 @LazySingleton(as: MatchRepository)
 class MatchRepositoryImpl implements MatchRepository {
@@ -22,35 +31,34 @@ class MatchRepositoryImpl implements MatchRepository {
     bool forceRefresh = false,
   }) async {
     try {
-      print(
-          '🔄 DEBUG MatchRepositoryImpl: getDiscoveryProfiles - limit: $limit, forceRefresh: $forceRefresh');
-      print(
-          '   ℹ️  Les filtres sauvegardés doivent être appliqués automatiquement par le backend');
+      _debugLog(
+          'ðŸ”„ DEBUG MatchRepositoryImpl: getDiscoveryProfiles - limit: $limit, forceRefresh: $forceRefresh');
+      _debugLog(
+          '   â„¹ï¸  Les filtres sauvegardÃ©s doivent Ãªtre appliquÃ©s automatiquement par le backend');
       final response = await _matchingApi.getDiscoveryProfiles(
         page: 1,
         pageSize: limit,
       );
 
-      print(
-          '🔄 DEBUG MatchRepositoryImpl: Réponse reçue - status: ${response.statusCode}');
+      _debugLog(
+          'ðŸ”„ DEBUG MatchRepositoryImpl: RÃ©ponse reÃ§ue - status: ${response.statusCode}');
       final payload = response.data!;
-      print('🔄 DEBUG MatchRepositoryImpl: Payload complet: $payload');
+      _debugLog('ðŸ”„ DEBUG MatchRepositoryImpl: Payload complet: $payload');
 
       // Logs de diagnostic pour comprendre pourquoi count=0
       if (payload['count'] != null) {
-        print('   📊 Count backend: ${payload['count']}');
+        _debugLog('   ðŸ“Š Count backend: ${payload['count']}');
       }
       if (payload['filters'] != null) {
-        print('   🔍 Filtres appliqués: ${payload['filters']}');
+        _debugLog('   ðŸ” Filtres appliquÃ©s: ${payload['filters']}');
       }
       if (payload['excluded_profiles'] != null) {
-        print('   🚫 Profils exclus: ${payload['excluded_profiles']}');
+        _debugLog('   ðŸš« Profils exclus: ${payload['excluded_profiles']}');
       }
 
-      final list =
-          (payload['results'] ?? payload['data'] ?? payload['profiles'] ?? []);
-      print(
-          '🔄 DEBUG MatchRepositoryImpl: Liste extraite: ${list.length} éléments');
+      final list = (payload['results'] ?? []);
+      _debugLog(
+          'ðŸ”„ DEBUG MatchRepositoryImpl: Liste extraite: ${list.length} Ã©lÃ©ments');
 
       final profiles = (list as List)
           .map((json) =>
@@ -58,13 +66,14 @@ class MatchRepositoryImpl implements MatchRepository {
           .toList()
           .cast<DiscoveryProfile>(); // Cast explicite pour le type
 
-      print('✅ DEBUG MatchRepositoryImpl: Profils mappés: ${profiles.length}');
+      _debugLog(
+          'âœ… DEBUG MatchRepositoryImpl: Profils mappÃ©s: ${profiles.length}');
       return Right(profiles);
     } on ServerException catch (e) {
-      print('❌ DEBUG MatchRepositoryImpl: ServerException: ${e.message}');
+      _debugLog('âŒ DEBUG MatchRepositoryImpl: ServerException: ${e.message}');
       return Left(ServerFailure(message: e.message));
     } catch (e) {
-      print('❌ DEBUG MatchRepositoryImpl: Exception: $e');
+      _debugLog('âŒ DEBUG MatchRepositoryImpl: Exception: $e');
       return Left(
           ServerFailure(message: 'Erreur lors du chargement des profils: $e'));
     }
@@ -74,12 +83,12 @@ class MatchRepositoryImpl implements MatchRepository {
   Future<Either<Failure, DiscoveryProfile>> getDiscoveryProfile(
       String profileId) async {
     try {
-      // TODO: Implémenter getProfile individuel dans l'API
+      // TODO: ImplÃ©menter getProfile individuel dans l'API
       // Pour l'instant, utiliser getDiscoveryProfiles et filtrer par ID
-      // ou créer un endpoint dédié dans l'API
+      // ou crÃ©er un endpoint dÃ©diÃ© dans l'API
       return Left(ServerFailure(
         message:
-            'getDiscoveryProfile non implémenté - utiliser getDiscoveryProfiles',
+            'getDiscoveryProfile non implemente - utiliser getDiscoveryProfiles',
       ));
     } catch (e) {
       return Left(
@@ -143,7 +152,7 @@ class MatchRepositoryImpl implements MatchRepository {
         profileId: profileId,
       );
 
-      // Parser la réponse pour extraire les compteurs si disponibles
+      // Parser la rÃ©ponse pour extraire les compteurs si disponibles
       final data = response.data;
       int? remainingLikes;
       int? remainingSuperLikes;
@@ -211,11 +220,11 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, Match>> getMatch(String matchId) async {
     try {
-      // TODO: Implémenter getMatch individuel dans l'API
+      // TODO: ImplÃ©menter getMatch individuel dans l'API
       // Pour l'instant, utiliser getMatches et filtrer par ID
-      // ou créer un endpoint dédié dans l'API
+      // ou crÃ©er un endpoint dÃ©diÃ© dans l'API
       return Left(ServerFailure(
-        message: 'getMatch non implémenté - utiliser getMatches',
+        message: 'getMatch non implemente - utiliser getMatches',
       ));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
@@ -228,7 +237,7 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, void>> deleteMatch(String matchId) async {
     try {
-      // TODO: Implémenter deleteMatch dans l'API
+      // TODO: ImplÃ©menter deleteMatch dans l'API
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
@@ -251,7 +260,7 @@ class MatchRepositoryImpl implements MatchRepository {
     try {
       // Convertir lastProfileId en page pour l'API
       int page = 1;
-      // TODO: Implémenter la pagination basée sur lastProfileId
+      // TODO: ImplÃ©menter la pagination basÃ©e sur lastProfileId
 
       final response = await _matchingApi.getLikesReceived(
         page: page,
@@ -299,18 +308,9 @@ class MatchRepositoryImpl implements MatchRepository {
 
   @override
   Future<Either<Failure, DailyLikeLimit>> getDailyLikeLimit() async {
-    try {
-      // TODO: Implement API call
-      final limit = DailyLikeLimit(
-        remainingLikes: 10,
-        totalLikes: 50,
-        resetAt: DateTime.now().add(const Duration(days: 1)),
-      );
-      return Right(limit);
-    } catch (e) {
-      return Left(
-          ServerFailure(message: 'Erreur lors du chargement des limites: $e'));
-    }
+    // Pas d'endpoint dédié : la limite est déduite des réponses de swipe
+    return Left(const ServerFailure(
+        message: 'Daily limit is derived from swipe responses'));
   }
 
   @override
@@ -374,14 +374,14 @@ class MatchRepositoryImpl implements MatchRepository {
   Future<Either<Failure, void>> updateSearchFilters(
       SearchPreferences filters) async {
     try {
-      print(
-          '🔄 DEBUG MatchRepositoryImpl: Mise à jour des filtres de recherche');
-      print('   - Âge: ${filters.minAge} - ${filters.maxAge}');
-      print('   - Distance max: ${filters.maxDistance.round()} km');
-      print('   - Genres: ${filters.interestedIn}');
-      print('   - Types de relation: ${filters.relationshipTypes}');
-      print('   - Vérifiés uniquement: ${filters.showVerifiedOnly}');
-      print('   - En ligne uniquement: ${filters.showOnlineOnly}');
+      _debugLog(
+          'ðŸ”„ DEBUG MatchRepositoryImpl: Mise Ã  jour des filtres de recherche');
+      _debugLog('   - Ã‚ge: ${filters.minAge} - ${filters.maxAge}');
+      _debugLog('   - Distance max: ${filters.maxDistance.round()} km');
+      _debugLog('   - Genres: ${filters.interestedIn}');
+      _debugLog('   - Types de relation: ${filters.relationshipTypes}');
+      _debugLog('   - VÃ©rifiÃ©s uniquement: ${filters.showVerifiedOnly}');
+      _debugLog('   - En ligne uniquement: ${filters.showOnlineOnly}');
 
       await _matchingApi.updateDiscoveryFilters(
         ageMin: filters.minAge,
@@ -393,12 +393,14 @@ class MatchRepositoryImpl implements MatchRepository {
         onlineOnly: filters.showOnlineOnly,
       );
 
-      print('✅ DEBUG MatchRepositoryImpl: Filtres mis à jour avec succès');
-      print(
-          '   ⚠️  Le backend doit maintenant appliquer ces filtres automatiquement');
+      _debugLog(
+          'âœ… DEBUG MatchRepositoryImpl: Filtres mis Ã  jour avec succÃ¨s');
+      _debugLog(
+          '   âš ï¸  Le backend doit maintenant appliquer ces filtres automatiquement');
       return const Right(null);
     } catch (e) {
-      print('❌ DEBUG MatchRepositoryImpl: Erreur mise à jour filtres: $e');
+      _debugLog(
+          'âŒ DEBUG MatchRepositoryImpl: Erreur mise Ã  jour filtres: $e');
       return Left(ServerFailure(message: e.toString()));
     }
   }
@@ -406,15 +408,30 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, SearchPreferences>> getSearchFilters() async {
     try {
-      // TODO: Implémenter la récupération des filtres depuis l'API
+      final response = await _matchingApi.getDiscoveryFilters();
+      final payload = response.data ?? const <String, dynamic>{};
+      final rawFilters = (payload['filters'] is Map<String, dynamic>)
+          ? payload['filters'] as Map<String, dynamic>
+          : payload;
+
       final filters = SearchPreferences(
-        minAge: 18,
-        maxAge: 50,
-        maxDistance: 50.0,
-        interestedIn: const ['all'],
-        relationshipTypes: const ['all'],
+        minAge: (rawFilters['age_min'] as int?) ?? 18,
+        maxAge: (rawFilters['age_max'] as int?) ?? 99,
+        maxDistance: ((rawFilters['distance_max_km'] as num?) ?? 50).toDouble(),
+        interestedIn:
+            (rawFilters['genders'] as List?)?.map((e) => '$e').toList() ??
+                const <String>[],
+        relationshipTypes: (rawFilters['relationship_types'] as List?)
+                ?.map((e) => '$e')
+                .toList() ??
+            const <String>[],
+        showVerifiedOnly: (rawFilters['verified_only'] as bool?) ?? false,
+        showOnlineOnly: (rawFilters['online_only'] as bool?) ?? false,
       );
+
       return Right(filters);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }
@@ -422,7 +439,7 @@ class MatchRepositoryImpl implements MatchRepository {
 
   // Helper methods
 
-  /// Extrait une PhotoCollection à partir des données JSON
+  /// Extrait une PhotoCollection Ã  partir des donnÃ©es JSON
   /// Supporte les deux formats: photos array et main_photo_url/other_photos
   PhotoCollection _extractPhotoCollection(Map<String, dynamic> json) {
     String mainPhoto = '';
@@ -469,14 +486,14 @@ class MatchRepositoryImpl implements MatchRepository {
   }
 
   DiscoveryProfile _mapJsonToDiscoveryProfile(Map<String, dynamic> json) {
-    // Gérer les photos - supporter les deux formats (API docs vs backend actuel)
+    // GÃ©rer les photos - supporter les deux formats (API docs vs backend actuel)
     String mainPhotoUrl = '';
     List<String> otherPhotosUrls = [];
 
     if (json['photos'] != null && json['photos'] is List) {
       final photos = json['photos'] as List;
 
-      // Vérifier si c'est une liste d'URLs (strings) ou d'objets
+      // VÃ©rifier si c'est une liste d'URLs (strings) ou d'objets
       if (photos.isNotEmpty) {
         final firstPhoto = photos.first;
 
@@ -530,17 +547,21 @@ class MatchRepositoryImpl implements MatchRepository {
               [];
     }
 
-    // Gérer relationship_types_sought (peut être un array)
+    // GÃ©rer relationship_types_sought (peut Ãªtre un array)
+    List<String> relationshipTypesSought = const [];
     String relationshipType = 'casual';
     if (json['relationship_types_sought'] != null) {
       if (json['relationship_types_sought'] is List) {
         final types = json['relationship_types_sought'] as List;
+        relationshipTypesSought = types.map((e) => '$e').toList();
         relationshipType = types.isNotEmpty ? types.first as String : 'casual';
       } else if (json['relationship_types_sought'] is String) {
         relationshipType = json['relationship_types_sought'] as String;
+        relationshipTypesSought = <String>[relationshipType];
       }
     } else if (json['relationship_type'] != null) {
       relationshipType = json['relationship_type'] as String;
+      relationshipTypesSought = <String>[relationshipType];
     }
 
     // Parser last_active avec gestion des erreurs
@@ -554,7 +575,7 @@ class MatchRepositoryImpl implements MatchRepository {
         lastActive = DateTime.now();
       }
     } catch (e) {
-      print('❌ DEBUG: Erreur parsing last_active: $e');
+      _debugLog('âŒ DEBUG: Erreur parsing last_active: $e');
       lastActive = DateTime.now();
     }
 
@@ -570,6 +591,7 @@ class MatchRepositoryImpl implements MatchRepository {
       distance: (json['distance'] as num?)?.toDouble() ??
           (json['distance_km'] as num?)?.toDouble(),
       interests: (json['interests'] as List?)?.cast<String>() ?? [],
+      relationshipTypesSought: relationshipTypesSought,
       relationshipType: relationshipType,
       isVerified: json['is_verified'] as bool? ?? false,
       isPremium: json['is_premium'] as bool? ?? false,
@@ -580,14 +602,14 @@ class MatchRepositoryImpl implements MatchRepository {
   }
 
   Match _mapJsonToMatch(Map<String, dynamic> json) {
-    // Créer un profil à partir des données du match
+    // CrÃ©er un profil Ã  partir des donnÃ©es du match
     // API retourne 'matched_profile' selon la documentation
     final profileData = json['matched_profile'] as Map<String, dynamic>? ??
         json['profile'] as Map<String, dynamic>? ??
         json['matched_user'] as Map<String, dynamic>? ??
         {};
 
-    // Calculer la date de naissance à partir de l'âge
+    // Calculer la date de naissance Ã  partir de l'Ã¢ge
     final age = profileData['age'] as int?;
     final birthDate = age != null
         ? DateTime.now().subtract(Duration(days: age * 365))
@@ -595,7 +617,7 @@ class MatchRepositoryImpl implements MatchRepository {
             ? DateTime.parse(profileData['birth_date'] as String)
             : DateTime.now().subtract(const Duration(days: 365 * 25));
 
-    // Parse location - vérifier dans location object ou directement dans profileData
+    // Parse location - vÃ©rifier dans location object ou directement dans profileData
     final locationData = profileData['location'] as Map<String, dynamic>?;
     final latitude = locationData != null
         ? (locationData['latitude'] as num?)?.toDouble()
@@ -659,7 +681,7 @@ class MatchRepositoryImpl implements MatchRepository {
           : DateTime.now(),
     );
 
-    // Créer le message si présent
+    // CrÃ©er le message si prÃ©sent
     Message? lastMessage;
     if (json['last_message'] != null) {
       final msgData = json['last_message'] as Map<String, dynamic>;

@@ -48,6 +48,7 @@ class SendMediaMessage {
       content: '', // Vide pour les médias
       type: params.type,
       mediaFile: params.mediaFile,
+      clientMessageId: params.clientMessageId,
     );
   }
 }
@@ -56,11 +57,13 @@ class SendMediaMessageParams extends Equatable {
   final String conversationId;
   final File mediaFile;
   final MessageType type;
+  final String? clientMessageId;
 
   const SendMediaMessageParams({
     required this.conversationId,
     required this.mediaFile,
     required this.type,
+    this.clientMessageId,
   });
 
   /// Factory pour message image
@@ -72,6 +75,7 @@ class SendMediaMessageParams extends Equatable {
       conversationId: conversationId,
       mediaFile: imageFile,
       type: MessageType.image,
+      clientMessageId: null,
     );
   }
 
@@ -84,6 +88,7 @@ class SendMediaMessageParams extends Equatable {
       conversationId: conversationId,
       mediaFile: videoFile,
       type: MessageType.video,
+      clientMessageId: null,
     );
   }
 
@@ -96,9 +101,10 @@ class SendMediaMessageParams extends Equatable {
       conversationId: conversationId,
       mediaFile: audioFile,
       type: MessageType.voice,
+      clientMessageId: null,
     );
   }
 
   @override
-  List<Object> get props => [conversationId, mediaFile, type];
+  List<Object?> get props => [conversationId, mediaFile, type, clientMessageId];
 }

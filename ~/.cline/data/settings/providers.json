@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "lastUsedProvider": "cline",
+  "providers": {
+    "cline": {
+      "settings": {
+        "provider": "cline",
+        "auth": {
+          "accessToken": "workos:eyJhbGciOiJSUzI1NiIsImtpZCI6InNzb19vaWRjX2tleV9wYWlyXzAxSzNBNTQxREZLR1FaRjE1R0Y4UkZNUDBWIn0.eyJleHRlcm5hbF9pZCI6InVzci0wMUtLUTNRUTBaOE4yWFgwQzM1UzRNQTkyMiIsImxhc3ROYW1lIjoiVmVrb3V0IiwiZmlyc3ROYW1lIjoiRXJpYyIsImVtYWlsIjoiZXJpY3Zla291dDIwMjJAZ21haWwuY29tIiwiaXNzIjoiaHR0cHM6Ly9hcGkud29ya29zLmNvbS91c2VyX21hbmFnZW1lbnQvY2xpZW50XzAxSzNBNTQxRk44VEEzRVBQSFREMjMyNUFSIiwic3ViIjoidXNlcl8wMUtLUFhCTVFWNVBOU1BOMk1NWjFBMEVKRiIsInNpZCI6InNlc3Npb25fMDFLTTZIQk1KR0ZBVEdZNEhCSFhBSjY3NTciLCJqdGkiOiIwMUtNUFMxSldQNTk5U01RVEhFMFFTUUpTNyIsImV4cCI6MTc3NDU4OTU1NywiaWF0IjoxNzc0NTg1OTU3fQ.PrJ3oddfIDsBLzgbMJClt3rZa7kEm7v3AoVdycaBdPcjS69QKT5UBEhoSLd6mHto6NmG8XDRpHSYL7xsFTGfl2bSwtgRg1r_7hCioRPuQkPwz0xMK08G7oZm5Lw9NgFZcP7jCeWq41UAgtyj3uMdRWd9EzWXQ6_Oryw6mjFoIeEK3xjI-WLIYfHTSuPPIU4Q_9OC7RNzf7csqzpDkpb8cCouNnY0JflGCqww38wzhcDIL42Exg10rnVTSZccXNQmoqq8BZ7oaQYst8j-ZqwHkitQS63JzAJRZ6K9JWM_ZafbuhHhjtcpD4bFdfHbPkpryXoZHhXFb0TV95QjX_UZog",
+          "refreshToken": "g6ovFO2HR1ARXq3kHUqS0Uj2O",
+          "expiresAt": 1774589557000,
+          "accountId": "usr-01KKQ3QQ0Z8N2XX0C35S4MA922"
+        },
+        "model": "minimax/minimax-m2.5"
+      },
+      "updatedAt": "2026-03-27T04:32:37.356Z",
+      "tokenSource": "oauth"
+    }
+  }
+}

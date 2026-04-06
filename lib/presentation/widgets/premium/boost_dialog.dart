@@ -501,19 +501,4 @@ class _BoostDialogState extends State<BoostDialog>
       ),
     );
   }
-
-  static void show(
-    BuildContext context, {
-    UserSubscription? subscription,
-    VoidCallback? onSuccess,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => BoostDialog(
-        subscription: subscription,
-        onSuccess: onSuccess,
-      ),
-    );
-  }
 }

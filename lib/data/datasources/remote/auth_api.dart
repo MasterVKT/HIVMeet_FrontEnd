@@ -50,7 +50,9 @@ abstract class AuthRemoteDataSource {
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
+  // ignore: unused_field
   final Dio _dio;
+  // ignore: unused_field
   final ApiClient _apiClient;
 
   AuthRemoteDataSourceImpl(

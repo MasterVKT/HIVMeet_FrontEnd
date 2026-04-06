@@ -1,4 +1,4 @@
-// lib/presentation/pages/splash/splash_page.dart
+﻿// lib/presentation/pages/splash/splash_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +9,14 @@ import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_event.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_state.dart';
 import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
+
+const bool _enableVerboseLogs = false;
+
+void _debugLog(Object? message) {
+  if (_enableVerboseLogs) {
+    debugPrint(message?.toString());
+  }
+}
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -33,22 +41,22 @@ class _SplashPageState extends State<SplashPage>
 
     _animationController.forward();
 
-    // Déclencher la vérification de l'authentification
+    // Declencher la verification de l'authentification
     context.read<AuthBlocSimple>().add(AppStarted());
 
-    // Navigation forcée après 10 secondes SEULEMENT si aucun état n'a été reçu
+    // Navigation forcee apres 10 secondes SEULEMENT si aucun etat n'a ete recu
     Future.delayed(const Duration(seconds: 10), () {
       if (mounted) {
         final currentState = context.read<AuthBlocSimple>().state;
-        // Seulement forcer la navigation si on est toujours en état initial
+        // Seulement forcer la navigation si on est toujours en etat initial
         if (currentState is AuthInitial || currentState is AuthLoading) {
-          print(
-              '⏱️ TIMEOUT: Navigation forcée vers login après 10s - état: $currentState');
-          print(
-              '⚠️ L\'authentification a pris trop de temps, vérifiez le backend');
+          _debugLog(
+              'TIMEOUT: Navigation forcee vers login apres 10s - etat: $currentState');
+          _debugLog(
+              'WARNING: L\'authentification a pris trop de temps, verifiez le backend');
           context.go('/login');
         } else {
-          print('✅ Navigation forcée annulée - état reçu: $currentState');
+          _debugLog('Navigation forcee annulee - etat recu: $currentState');
         }
       }
     });
@@ -62,42 +70,42 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
-    print('🔍 DEBUG SplashPage: build() appelé');
+    _debugLog('DEBUG SplashPage: build() appele');
     return BlocListener<AuthBlocSimple, AuthState>(
       listener: (context, state) {
-        print('🔄 DEBUG SplashPage: BlocListener state change: $state');
+        _debugLog('DEBUG SplashPage: BlocListener state change: $state');
 
         // Ne naviguer qu'une seule fois
         if (_hasNavigated) {
-          print('⚠️ DEBUG SplashPage: Déjà navigué, navigation ignorée');
+          _debugLog('DEBUG SplashPage: Deja navigue, navigation ignoree');
           return;
         }
 
         // Ne naviguer que si on est toujours sur la SplashPage
         if (!mounted) {
-          print('⚠️ DEBUG SplashPage: Widget non monté, navigation ignorée');
+          _debugLog('DEBUG SplashPage: Widget non monte, navigation ignoree');
           return;
         }
 
         if (state is Authenticated) {
-          print('✅ DEBUG SplashPage: Authenticated détecté, navigation...');
+          _debugLog('DEBUG SplashPage: Authenticated detecte, navigation...');
           _hasNavigated = true;
           context.go('/discovery');
-          print('✅ DEBUG SplashPage: Navigation vers /discovery effectuée');
+          _debugLog('DEBUG SplashPage: Navigation vers /discovery effectuee');
         } else if (state is Unauthenticated) {
-          print('❌ DEBUG SplashPage: Unauthenticated détecté');
+          _debugLog('DEBUG SplashPage: Unauthenticated detecte');
           _hasNavigated = true;
           context.go('/login');
-          print('✅ DEBUG SplashPage: Navigation vers /login effectuée');
+          _debugLog('DEBUG SplashPage: Navigation vers /login effectuee');
         } else if (state is AuthError) {
-          print('❌ DEBUG SplashPage: AuthError détecté: ${state.message}');
+          _debugLog('DEBUG SplashPage: AuthError detecte: ${state.message}');
           _hasNavigated = true;
           context.go('/login');
-          print('✅ DEBUG SplashPage: Navigation vers /login après erreur');
+          _debugLog('DEBUG SplashPage: Navigation vers /login apres erreur');
         } else if (state is AuthNetworkError) {
-          print(
-              '🌐 DEBUG SplashPage: AuthNetworkError détecté: ${state.message}');
-          // Rester sur splash avec message d'erreur visible - pas de navigation forcée
+          _debugLog(
+              'DEBUG SplashPage: AuthNetworkError detecte: ${state.message}');
+          // Rester sur splash avec message d'erreur visible - pas de navigation forcee
         }
       },
       child: BlocBuilder<AuthBlocSimple, AuthState>(
@@ -138,7 +146,7 @@ class _SplashPageState extends State<SplashPage>
 
                     // Tagline
                     Text(
-                      'Connecter • Soutenir • Grandir',
+                      'Connecter - Soutenir - Grandir',
                       style: GoogleFonts.openSans(
                         fontSize: 16,
                         color: AppColors.slate,
@@ -146,14 +154,14 @@ class _SplashPageState extends State<SplashPage>
                     ),
                     const SizedBox(height: 48),
 
-                    // Gestion d'état avec UI appropriée
+                    // Gestion d'etat avec UI appropriee
                     if (state is AuthLoading)
                       Column(
                         children: [
                           const HIVLoader(),
                           const SizedBox(height: 16),
                           Text(
-                            'Vérification de la connexion...',
+                            'Verification de la connexion...',
                             style: GoogleFonts.openSans(
                               fontSize: 14,
                               color: AppColors.slate,
@@ -194,7 +202,7 @@ class _SplashPageState extends State<SplashPage>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 8),
                               ),
-                              child: Text('Réessayer',
+                              child: Text('Reessayer',
                                   style: TextStyle(fontSize: 12)),
                             ),
                             const SizedBox(height: 4),
@@ -251,14 +259,14 @@ class _SplashPageState extends State<SplashPage>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 8),
                               ),
-                              child: Text('Aller à la connexion',
+                              child: Text('Aller a la connexion',
                                   style: TextStyle(fontSize: 12)),
                             ),
                           ],
                         ),
                       )
                     else
-                      // État par défaut - show loader
+                      // Etat par defaut - show loader
                       Column(
                         children: [
                           const HIVLoader(),

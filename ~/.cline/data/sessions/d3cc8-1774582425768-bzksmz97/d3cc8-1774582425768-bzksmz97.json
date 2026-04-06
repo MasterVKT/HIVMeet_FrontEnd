@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "session_id": "d3cc8-1774582425768-bzksmz97",
+  "source": "cli",
+  "pid": 1876,
+  "started_at": "2026-03-27T03:33:46.463Z",
+  "ended_at": "2026-03-27T03:41:07.417Z",
+  "exit_code": 1,
+  "status": "failed",
+  "interactive": true,
+  "provider": "cline",
+  "model": "minimax/minimax-m2.5",
+  "cwd": "C:\\Users\\vekou\\.cline\\worktrees\\d3cc8\\hivmeet_backend",
+  "workspace_root": "C:\\Users\\vekou\\.cline\\worktrees\\d3cc8\\hivmeet_backend",
+  "enable_tools": true,
+  "enable_spawn": false,
+  "enable_teams": false,
+  "prompt": "# 📋 TÂCHE KANBAN : Filtres de Découverte (Version Condensée)\n\n## 🎯 Objectif\nAudit + Tests + Documentation Frontend des filtres de découverte backend.\n\n## 🔍 Checklist Fonctionnalités à Vérifier\n\n### Filtres Principaux\n- [ ] **Filtre d'Âge** (`age_min`, `age_max`)\n- [ ] **Filtre de Distance** (`distance_max_km`)\n- [ ] **Filtre de Genre** (`genders`)\n- [ ] **Filtre Type Relation** (`relationship_types`)\n- [ ] **Filtre Vérifiés** (`verified_only`)\n- [ ] **Filtre En Ligne** (`online_only`)\n\n### Compatibilité Mutuelle\n- [ ] **Genre Mutuel** : A voit B si B cherche le genre de A\n- [ ] **Âge Mutuel** : Vérification croisée des préférences d'âge\n\n### Exclusions\n- [ ] Bloqués exclus\n- [ ] Déjà vus (likes/dislikes) exclus\n- [ ] Auto-exclusion (soi-même)\n\n### Limites Quotidiennes\n- [ ] Compteur likes (10/jour gratuit, illimité premium)\n- [ ] Compteur super likes (1/jour gratuit, 5/jour premium)\n- [ ] Reset à minuit UTC\n\n## 📁 Fichiers à Examiner\n\n```\nmatching/\n├── views_discovery.py      # Endpoints HTTP\n├── services.py             # RecommendationService\n├── daily_likes_service.py  # Limites quotidiennes\n├── serializers.py          # Validation filtres\n└── models.py               # Like, Match, etc.\n\nprofiles/\n├── models.py               # Profile avec préférences\n└── serializers.py          # SearchFilterSerializer\n```\n\n## 🧪 Tests Déterministes (Structure)\n\n```python\n# Principe : GIVEN/WHEN/THEN\nclass TestAgeFilter:\n    def test_age_filter_returns_only_profiles_in_range(self):\n        \"\"\"A(25-35) → Voir seulement profils âge 25-35\"\"\"\n        \nclass TestMutualGender:\n    def test_male_sees_female_who_seeks_male(self):\n        \"\"\"Homme A voit Femme B qui cherche les hommes\"\"\"\n        \nclass TestCombinations:\n    def test_multiple_filters(self):\n        \"\"\"Âge + Genre + Distance + Vérifié = Tous vrais\"\"\"\n```\n\n## 📚 Documentation à Générer\n\n1. `FILTER_BACKEND_SPECIFICATION_FRONTEND.md` - Specification complète\n2. `FILTER_BACKEND_CONTRACT_FRONTEND.md` - Contrat JSON par endpoint\n\n## ✅ Résultat Attendu\n\n- Backend 100% opérationnel\n- Tests déterministes ≥80% couverture\n- ZÉRO régression\n- Documentation Frontend complète",
+  "metadata": {
+    "title": "# 📋 TÂCHE KANBAN : Filtres de Découverte (Version Condensée)"
+  },
+  "messages_path": "~\\.cline\\data\\sessions\\d3cc8-1774582425768-bzksmz97\\d3cc8-1774582425768-bzksmz97.messages.json"
+}

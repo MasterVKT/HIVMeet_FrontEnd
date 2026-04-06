@@ -12,6 +12,8 @@ class TokenService {
   final FlutterSecureStorage _secureStorage;
   final FirebaseAuth _firebaseAuth;
   final AuthApi _authApi;
+  // Kept for future API orchestration flows and DI stability.
+  // ignore: unused_field
   final ApiClient _apiClient;
 
   TokenService(

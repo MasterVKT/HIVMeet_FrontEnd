@@ -18,12 +18,18 @@ import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
 import 'package:hivmeet/domain/usecases/chat/send_text_message.dart';
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
+import 'package:hivmeet/domain/usecases/chat/set_typing_status.dart';
+import 'package:hivmeet/domain/usecases/chat/delete_message.dart';
+import 'package:hivmeet/domain/usecases/chat/get_presence.dart';
+import 'package:hivmeet/domain/usecases/chat/generate_media_upload_url.dart';
+import 'package:hivmeet/core/services/chat_websocket_service.dart';
 import 'package:hivmeet/domain/usecases/match/get_discovery_profiles.dart';
 import 'package:hivmeet/domain/usecases/match/like_profile.dart';
 import 'package:hivmeet/domain/usecases/match/dislike_profile.dart';
 import 'package:hivmeet/domain/usecases/match/super_like_profile.dart';
 import 'package:hivmeet/domain/usecases/match/rewind_swipe.dart';
 import 'package:hivmeet/domain/usecases/match/update_filters.dart';
+import 'package:hivmeet/domain/usecases/match/get_search_filters.dart';
 import 'package:hivmeet/domain/usecases/match/get_daily_like_limit.dart';
 import 'package:hivmeet/domain/usecases/match/get_matches.dart';
 import 'package:hivmeet/domain/usecases/match/delete_match.dart';
@@ -39,8 +45,8 @@ import 'package:hivmeet/domain/usecases/resources/add_to_favorites.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/get_my_likes.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/get_my_passes.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/revoke_interaction.dart';
-import 'package:hivmeet/core/events/app_events.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/get_interaction_stats.dart';
+import 'package:hivmeet/core/events/app_events.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
@@ -171,6 +177,11 @@ Future<void> configureDependencies() async {
     ProfileRepositoryImpl(getIt<ProfileApi>()),
   );
 
+  // Repository pour l'historique d'interactions (likes/passes)
+  getIt.registerSingleton<InteractionHistoryRepository>(
+    InteractionHistoryRepositoryImpl(getIt<ApiClient>()),
+  );
+
   // 10.5. Use Cases pour Messages/Conversations
   getIt.registerSingleton<GetConversations>(
     GetConversations(getIt<MessageRepository>()),
@@ -201,6 +212,22 @@ Future<void> configureDependencies() async {
     MarkMessageAsRead(getIt<MessageRepository>()),
   );
 
+  getIt.registerSingleton<SetTypingStatusUseCase>(
+    SetTypingStatusUseCase(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<DeleteMessage>(
+    DeleteMessage(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<GetPresence>(
+    GetPresence(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<GenerateMediaUploadUrl>(
+    GenerateMediaUploadUrl(getIt<MessageRepository>()),
+  );
+
   // 10.7. Use Cases pour Match/Discovery
   getIt.registerSingleton<GetDiscoveryProfiles>(
     GetDiscoveryProfiles(getIt<MatchRepository>()),
@@ -224,6 +251,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<UpdateFilters>(
     UpdateFilters(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<GetSearchFilters>(
+    GetSearchFilters(getIt<MatchRepository>()),
   );
 
   getIt.registerSingleton<GetDailyLikeLimit>(
@@ -329,6 +360,7 @@ Future<void> configureDependencies() async {
       superLikeProfile: getIt<SuperLikeProfile>(),
       rewindSwipe: getIt<RewindSwipe>(),
       updateFilters: getIt<UpdateFilters>(),
+      getSearchFilters: getIt<GetSearchFilters>(),
       getDailyLikeLimit: getIt<GetDailyLikeLimit>(),
       premiumRepository: getIt.isRegistered<PremiumRepository>()
           ? getIt<PremiumRepository>()
@@ -343,13 +375,20 @@ Future<void> configureDependencies() async {
     ),
   );
 
+  getIt.registerFactory<ChatWebSocketService>(
+    () => ChatWebSocketService(),
+  );
+
   getIt.registerFactory<ChatBloc>(
     () => ChatBloc(
       getMessages: getIt<GetMessages>(),
       sendTextMessage: getIt<SendTextMessage>(),
       sendMediaMessage: getIt<SendMediaMessage>(),
       markMessageAsRead: getIt<MarkMessageAsRead>(),
+      setTypingStatus: getIt<SetTypingStatusUseCase>(),
+      deleteMessage: getIt<DeleteMessage>(),
       authService: getIt<AuthenticationService>(),
+      wsService: getIt<ChatWebSocketService>(),
     ),
   );
 
@@ -380,37 +419,25 @@ Future<void> configureDependencies() async {
     ),
   );
 
-  // 13. Interaction History Repository - API RÉELLE ACTIVÉE
-  getIt.registerLazySingleton<InteractionHistoryRepository>(
-    () => InteractionHistoryRepositoryImpl(getIt<ApiClient>()),
+  // 12.1 Use Cases pour InteractionHistory
+  getIt.registerSingleton<GetMyLikes>(
+    GetMyLikes(getIt<InteractionHistoryRepository>()),
   );
 
-  // MOCK: Décommenter pour utiliser les données de test
-  // getIt.registerLazySingleton<InteractionHistoryRepository>(
-  //   () => InteractionHistoryRepositoryMock(),
-  // );
-
-  // 14. Interaction History Use Cases
-  getIt.registerFactory<GetMyLikes>(
-    () => GetMyLikes(getIt<InteractionHistoryRepository>()),
+  getIt.registerSingleton<GetMyPasses>(
+    GetMyPasses(getIt<InteractionHistoryRepository>()),
   );
 
-  getIt.registerFactory<GetMyPasses>(
-    () => GetMyPasses(getIt<InteractionHistoryRepository>()),
+  getIt.registerSingleton<RevokeInteraction>(
+    RevokeInteraction(getIt<InteractionHistoryRepository>()),
   );
 
-  getIt.registerFactory<RevokeInteraction>(
-    () => RevokeInteraction(getIt<InteractionHistoryRepository>()),
+  getIt.registerSingleton<GetInteractionStats>(
+    GetInteractionStats(getIt<InteractionHistoryRepository>()),
   );
 
-  getIt.registerFactory<GetInteractionStats>(
-    () => GetInteractionStats(getIt<InteractionHistoryRepository>()),
-  );
-
-  // 15. Interaction History BLoC (LazySingleton pour partager l'état entre les pages)
-  // ✅ IMPORTANT: Doit être LazySingleton comme DiscoveryBloc pour que les suppressions de likes/passes
-  //    persistent et que la UI se mette à jour immédiatement après revocation
-  getIt.registerLazySingleton<InteractionHistoryBloc>(
+  // 12.2 InteractionHistoryBloc - Utilisé pour l'historique des likes/passes
+  getIt.registerFactory<InteractionHistoryBloc>(
     () => InteractionHistoryBloc(
       getMyLikes: getIt<GetMyLikes>(),
       getMyPasses: getIt<GetMyPasses>(),
@@ -418,9 +445,6 @@ Future<void> configureDependencies() async {
       getInteractionStats: getIt<GetInteractionStats>(),
     ),
   );
-
-  // Note: Les autres blocs suivants nécessitent des repositories qui ne sont pas encore implémentés
-  // Ils seront réactivés une fois que les repositories seront créés
 
   /*
   getIt.registerFactory<DiscoveryBloc>(
