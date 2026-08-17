@@ -6,11 +6,14 @@ import 'package:go_router/go_router.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/domain/entities/message.dart';
+import 'package:hivmeet/injection.dart' show getIt;
 import 'package:hivmeet/presentation/blocs/matches/matches_bloc.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_event.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_state.dart';
 import 'package:hivmeet/presentation/widgets/matches/matches_widgets.dart';
 import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
+import 'package:hivmeet/presentation/widgets/notifications/notification_bell_button.dart';
 import 'package:hivmeet/core/config/routes.dart';
 
 /// Page principale des matches
@@ -29,7 +32,7 @@ class MatchesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => getIt<MatchesBloc>()..add(LoadMatches()),
+      create: (_) => getIt<MatchesBloc>()..add(LoadMatches()),
       child: const _MatchesPageContent(),
     );
   }
@@ -72,19 +75,18 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
   }
 
   void _onMatchTap(Match match) {
-    // TODO: Naviguer vers la conversation du match
-    // Pour l'instant, afficher un snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Conversation avec ${match.profile.displayName}'),
-        action: SnackBarAction(
-          label: 'Voir',
-          onPressed: () {
-            // context.go('/conversations/${match.id}');
-          },
-        ),
-      ),
+    // Construire le Conversation depuis le Match (match.id == conversationId)
+    final conversation = Conversation(
+      id: match.id,
+      participantIds: [match.profile.id],
+      otherUserId: match.profile.id,
+      otherUserName: match.profile.displayName,
+      otherUserPhotoUrl: match.profile.mainPhotoUrl,
+      lastMessage: match.lastMessage,
+      unreadCount: match.unreadCount,
+      updatedAt: match.matchedAt,
     );
+    context.push('/chat/${match.id}', extra: conversation);
   }
 
   void _toggleSearch() {
@@ -110,6 +112,7 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
         actions: [
+          if (!_showSearch) const NotificationBellButton(),
           if (!_showSearch)
             IconButton(
               icon: const Icon(Icons.search),
@@ -303,7 +306,7 @@ class _MatchesPageContentState extends State<_MatchesPageContent> {
               title: const Text('Voir le profil'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Naviguer vers le profil
+                context.push('/profile/${match.profile.id}');
               },
             ),
             if (!match.isNew)

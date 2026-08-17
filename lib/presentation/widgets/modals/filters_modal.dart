@@ -27,24 +27,22 @@ class _FiltersModalState extends State<FiltersModal> {
   late bool _verifiedOnly;
   late bool _onlineOnly;
 
-  static const List<(String, String)> _genderOptions = [
-    ('all', 'Tout le monde'),
-    ('male', 'Hommes'),
-    ('female', 'Femmes'),
-    ('non_binary', 'Non-binaire'),
-    ('trans_male', 'Hommes trans'),
-    ('trans_female', 'Femmes trans'),
-    ('other', 'Autre'),
-    ('prefer_not_to_say', 'Préfère ne pas répondre'),
-  ];
+  String _tr(String key, {Map<String, dynamic>? params}) =>
+      LocalizationService.translate(key, params: params);
 
-  static const List<(String, String)> _relationshipOptions = [
-    ('all', 'Tout type'),
-    ('friendship', 'Amitié'),
-    ('long_term', 'Relation sérieuse'),
-    ('short_term', 'Relation courte'),
-    ('casual', 'Occasionnelle'),
-  ];
+  List<(String, String, IconData)> get _genderOptions => [
+        ('all', _tr('gender.all'), Icons.people),
+        (Gender.male, Gender.getLabel(Gender.male), Icons.male),
+        (Gender.female, Gender.getLabel(Gender.female), Icons.female),
+      ];
+
+  List<(String, String)> get _relationshipOptions => [
+        ('all', _tr('discovery.any')),
+        (RelationshipType.friendship, _tr('discovery.friendship')),
+        (RelationshipType.longTerm, _tr('discovery.relationship')),
+        (RelationshipType.shortTerm, _tr('profile.relationship_short_term')),
+        (RelationshipType.casualDating, _tr('discovery.casual')),
+      ];
 
   @override
   void initState() {
@@ -171,14 +169,16 @@ class _FiltersModalState extends State<FiltersModal> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${_ageRange.start.round()} ans',
+              _tr('discovery.age_value',
+                  params: {'age': '${_ageRange.start.round()}'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
               ),
             ),
             Text(
-              '${_ageRange.end.round()} ans',
+              _tr('discovery.age_value',
+                  params: {'age': '${_ageRange.end.round()}'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
@@ -220,14 +220,15 @@ class _FiltersModalState extends State<FiltersModal> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '5 km',
+              _tr('discovery.distance_value', params: {'distance': '5'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
               ),
             ),
             Text(
-              '${_distance.round()} km',
+              _tr('discovery.distance_value',
+                  params: {'distance': '${_distance.round()}'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -235,7 +236,7 @@ class _FiltersModalState extends State<FiltersModal> {
               ),
             ),
             Text(
-              '100 km',
+              _tr('discovery.distance_value', params: {'distance': '100'}),
               style: GoogleFonts.openSans(
                 fontSize: 14,
                 color: AppColors.slate,
@@ -280,7 +281,7 @@ class _FiltersModalState extends State<FiltersModal> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Genres recherchés',
+          LocalizationService.translate('discovery.gender'),
           style: GoogleFonts.openSans(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -333,7 +334,7 @@ class _FiltersModalState extends State<FiltersModal> {
           }
         });
       },
-      selectedColor: AppColors.primaryPurple.withOpacity(0.2),
+      selectedColor: AppColors.primaryPurple.withValues(alpha: 0.2),
       checkmarkColor: AppColors.primaryPurple,
       labelStyle: TextStyle(
         color: isSelected ? AppColors.primaryPurple : AppColors.slate,
@@ -362,7 +363,7 @@ class _FiltersModalState extends State<FiltersModal> {
               _verifiedOnly = value;
             });
           },
-          activeColor: AppColors.primaryPurple,
+          thumbColor: WidgetStateProperty.all(AppColors.primaryPurple),
         ),
       ],
     );
@@ -373,7 +374,7 @@ class _FiltersModalState extends State<FiltersModal> {
       children: [
         Expanded(
           child: Text(
-            'Profils en ligne uniquement',
+            LocalizationService.translate('discovery.online_only'),
             style: GoogleFonts.openSans(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -388,7 +389,7 @@ class _FiltersModalState extends State<FiltersModal> {
               _onlineOnly = value;
             });
           },
-          activeColor: AppColors.primaryPurple,
+          thumbColor: WidgetStateProperty.all(AppColors.primaryPurple),
         ),
       ],
     );

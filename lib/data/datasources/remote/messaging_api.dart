@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/network/api_client.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 
 @injectable
 class MessagingApi {
@@ -13,13 +14,20 @@ class MessagingApi {
   Future<Response<Map<String, dynamic>>> getConversations({
     int page = 1,
     int pageSize = 20,
-    String status = "all", // "all|unread|archived"
+    ConversationFilter filter = ConversationFilter.all,
   }) async {
     return await _apiClient.get('/conversations/', queryParameters: {
       'page': page,
       'page_size': pageSize,
-      'status': status,
+      'status': filter.apiValue,
     });
+  }
+
+  /// Compteur global exact de non-lus (toutes conversations, pas seulement
+  /// la première page).
+  /// GET /conversations/unread-count/
+  Future<Response<Map<String, dynamic>>> getUnreadCount() async {
+    return await _apiClient.get('/conversations/unread-count/');
   }
 
   /// Messages d'une conversation
@@ -31,12 +39,17 @@ class MessagingApi {
     String? beforeMessageId,
   }) async {
     final queryParams = <String, dynamic>{
-      'page': page,
       'page_size': pageSize,
     };
 
     if (beforeMessageId != null) {
+      // Pagination cursor-based: le backend (`MessageService.
+      // get_conversation_messages`) pagine exclusivement via
+      // `before_message_id` pour cette ressource et ignore `page`. On
+      // n'envoie donc pas `page` ici pour éviter un paramètre trompeur.
       queryParams['before_message_id'] = beforeMessageId;
+    } else {
+      queryParams['page'] = page;
     }
 
     return await _apiClient.get(
@@ -122,11 +135,10 @@ class MessagingApi {
     );
   }
 
-  /// Récupérer une conversation spécifique
-  /// GET /conversations/{conversation_id}/
-  Future<Response<Map<String, dynamic>>> getConversation(
-      String conversationId) async {
-    return await _apiClient.get('/conversations/$conversationId/');
+  /// Masquer une conversation pour l'utilisateur courant.
+  /// DELETE /conversations/{conversation_id}/
+  Future<Response<void>> deleteConversation(String conversationId) async {
+    return _apiClient.delete<void>('/conversations/$conversationId/');
   }
 
   /// Initiation d'appel
@@ -210,20 +222,5 @@ class MessagingApi {
     required String conversationId,
   }) async {
     return await _apiClient.get('/conversations/$conversationId/presence/');
-  }
-
-  /// Générer URL upload média
-  /// POST /conversations/generate-media-upload-url/
-  Future<Response<Map<String, dynamic>>> generateMediaUploadUrl({
-    required String fileName,
-    required String contentType,
-  }) async {
-    return await _apiClient.post(
-      '/conversations/generate-media-upload-url/',
-      data: {
-        'file_name': fileName,
-        'content_type': contentType,
-      },
-    );
   }
 }

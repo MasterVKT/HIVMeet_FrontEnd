@@ -72,7 +72,7 @@ class _MatchesSearchBarState extends State<MatchesSearchBar> {
         color: theme.colorScheme.surface,
         border: Border(
           bottom: BorderSide(
-            color: theme.dividerColor.withOpacity(0.1),
+            color: theme.dividerColor.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -83,23 +83,23 @@ class _MatchesSearchBarState extends State<MatchesSearchBar> {
         decoration: InputDecoration(
           hintText: 'Rechercher un match...',
           hintStyle: TextStyle(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           prefixIcon: Icon(
             Icons.search,
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
           suffixIcon: _controller.text.isNotEmpty
               ? IconButton(
                   icon: Icon(
                     Icons.clear,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   onPressed: _clearSearch,
                 )
               : null,
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -217,7 +217,7 @@ class _ExpandableSearchBarState extends State<ExpandableSearchBar>
           height: 48,
           decoration: BoxDecoration(
             color: _isExpanded
-                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
+                ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),
@@ -242,7 +242,7 @@ class _ExpandableSearchBarState extends State<ExpandableSearchBar>
                     decoration: InputDecoration(
                       hintText: 'Rechercher...',
                       hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                       border: InputBorder.none,
                       suffixIcon: _controller.text.isNotEmpty

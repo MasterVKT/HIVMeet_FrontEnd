@@ -225,11 +225,11 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.95),
+                color: AppColors.error.withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -359,7 +359,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.warning.withOpacity(0.9),
+          color: AppColors.warning.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -411,7 +411,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.primaryPurple.withOpacity(0.9),
+            color: AppColors.primaryPurple.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(

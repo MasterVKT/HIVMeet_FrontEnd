@@ -105,6 +105,7 @@ class InteractionStats extends Equatable {
   final int totalMatches;
   final double likeToMatchRatio;
   final int totalInteractionsToday;
+  final int? totalInteractionsWeek;
   final int dailyLimit;
   final int remainingToday;
 
@@ -115,6 +116,7 @@ class InteractionStats extends Equatable {
     required this.totalMatches,
     required this.likeToMatchRatio,
     required this.totalInteractionsToday,
+    this.totalInteractionsWeek,
     required this.dailyLimit,
     required this.remainingToday,
   });
@@ -124,10 +126,9 @@ class InteractionStats extends Equatable {
   // Getters pour compatibilité avec l'UI
   int get totalInteractions => totalAllLikes + totalDislikes;
   double get matchRate =>
-      totalLikes > 0 ? (totalMatches / totalLikes) * 100 : 0.0;
+      totalAllLikes > 0 ? (totalMatches / totalAllLikes) * 100 : 0.0;
   int get todayInteractions => totalInteractionsToday;
-  int get weekInteractions =>
-      totalInteractionsToday * 7; // Approximation (mock)
+  int? get weekInteractions => totalInteractionsWeek;
 
   @override
   List<Object?> get props => [
@@ -137,6 +138,7 @@ class InteractionStats extends Equatable {
         totalMatches,
         likeToMatchRatio,
         totalInteractionsToday,
+        totalInteractionsWeek,
         dailyLimit,
         remainingToday,
       ];

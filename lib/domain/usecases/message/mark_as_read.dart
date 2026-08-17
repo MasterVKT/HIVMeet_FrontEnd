@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 
 /// Use Case pour marquer un message comme lu
@@ -21,13 +22,14 @@ import 'package:hivmeet/domain/repositories/message_repository.dart';
 /// );
 /// ```
 @injectable
-class MarkAsRead implements UseCase<void, MarkAsReadParams> {
+class MarkAsRead implements UseCase<MarkAsReadResult, MarkAsReadParams> {
   final MessageRepository repository;
 
   MarkAsRead(this.repository);
 
   @override
-  Future<Either<Failure, void>> call(MarkAsReadParams params) async {
+  Future<Either<Failure, MarkAsReadResult>> call(
+      MarkAsReadParams params) async {
     return await repository.markAsRead(
       conversationId: params.conversationId,
       messageId: params.messageId,

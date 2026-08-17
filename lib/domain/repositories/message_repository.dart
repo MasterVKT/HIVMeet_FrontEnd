@@ -7,24 +7,27 @@ import 'package:hivmeet/domain/entities/message.dart';
 
 abstract class MessageRepository {
   // Conversations
-  Future<Either<Failure, List<Conversation>>> getConversations({
+  //
+  // Pagination page-based: le backend (`ConversationListView`) est un vrai
+  // DRF `PageNumberPagination` (PAGE_SIZE=20, lit `?page=`) — il n'y a pas de
+  // curseur par ID côté serveur pour cette ressource.
+  Future<Either<Failure, ConversationListPage>> getConversations({
     int limit = 20,
-    String? lastConversationId,
+    int page = 1,
+    ConversationFilter filter = ConversationFilter.all,
   });
-  
-  Future<Either<Failure, Conversation>> getConversation(String conversationId);
-  
+
   Stream<List<Conversation>> watchConversations();
-  
+
   // Messages
   Future<Either<Failure, ConversationMessagesPage>> getMessages({
     required String conversationId,
     int limit = 50,
     String? beforeMessageId,
   });
-  
+
   Stream<List<Message>> watchMessages(String conversationId);
-  
+
   Future<Either<Failure, Message>> sendMessage({
     required String conversationId,
     required String content,
@@ -33,17 +36,23 @@ abstract class MessageRepository {
     String? clientMessageId,
     String? mediaText,
   });
-  
-  Future<Either<Failure, void>> markAsRead({
+
+  Future<Either<Failure, MarkAsReadResult>> markAsRead({
     required String conversationId,
     required String messageId,
   });
-  
+
   Future<Either<Failure, void>> deleteMessage({
     required String conversationId,
     required String messageId,
   });
-  
+
+  /// Compteur global exact de messages non lus sur toutes les conversations
+  /// actives non masquées (endpoint dédié, non limité par la pagination).
+  Future<Either<Failure, int>> getUnreadCount();
+
+  Future<Either<Failure, void>> deleteConversation(String conversationId);
+
   // Typing indicators
   Future<Either<Failure, void>> setTypingStatus({
     required String conversationId,
@@ -54,10 +63,5 @@ abstract class MessageRepository {
     required String conversationId,
   });
 
-  Future<Either<Failure, MediaUploadTarget>> generateMediaUploadUrl({
-    required String fileName,
-    required String contentType,
-  });
-  
   Stream<Map<String, bool>> watchTypingStatus(String conversationId);
 }

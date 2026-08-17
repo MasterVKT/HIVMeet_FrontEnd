@@ -54,7 +54,7 @@ class HIVDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
@@ -95,7 +95,7 @@ class HIVDialog extends StatelessWidget {
                   ],
                 ),
               ),
-            
+
             // Content
             if (content != null || contentWidget != null)
               Flexible(
@@ -112,7 +112,7 @@ class HIVDialog extends StatelessWidget {
                       ),
                 ),
               ),
-            
+
             // Actions
             if (actions != null && actions!.isNotEmpty)
               Container(
@@ -216,12 +216,13 @@ class HIVConfirmDialog {
         ),
         DialogAction(
           label: confirmLabel,
-          type: isDangerous ? DialogActionType.danger : DialogActionType.primary,
+          type:
+              isDangerous ? DialogActionType.danger : DialogActionType.primary,
           onPressed: (context) => Navigator.of(context).pop(true),
         ),
       ],
     );
-    
+
     return result ?? false;
   }
 }
@@ -263,8 +264,8 @@ class HIVLoadingDialog {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (context) => PopScope(
+        canPop: false,
         child: Center(
           child: Card(
             shape: RoundedRectangleBorder(
@@ -470,7 +471,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),

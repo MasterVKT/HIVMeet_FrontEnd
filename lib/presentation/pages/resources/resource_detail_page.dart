@@ -130,7 +130,7 @@ class ResourceDetailPage extends StatelessWidget {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                         ],
                       ),
                     ),
@@ -162,9 +162,12 @@ class ResourceDetailPage extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
-            Share.share(
-              'Découvrez cette ressource sur HIVMeet: ${resource.title}',
-              subject: resource.title,
+            SharePlus.instance.share(
+              ShareParams(
+                text:
+                    'Découvrez cette ressource sur HIVMeet: ${resource.title}',
+                subject: resource.title,
+              ),
             );
           },
         ),
@@ -275,7 +278,7 @@ class ResourceDetailPage extends StatelessWidget {
                   vertical: AppSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -540,6 +543,18 @@ class ResourceDetailPage extends StatelessWidget {
                                 height: 60,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    height: 60,
+                                    width: double.infinity,
+                                    color: AppColors.platinum,
+                                    child: const Icon(
+                                      Icons.image,
+                                      size: 24,
+                                      color: AppColors.slate,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           const SizedBox(height: AppSpacing.sm),

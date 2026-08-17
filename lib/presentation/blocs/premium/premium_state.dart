@@ -101,3 +101,21 @@ class PaymentHistoryLoaded extends PremiumState {
   @override
   List<Object> get props => [payments];
 }
+
+class PremiumModifySuccess extends PremiumState {
+  final UserSubscription subscription;
+
+  const PremiumModifySuccess({required this.subscription});
+
+  @override
+  List<Object> get props => [subscription];
+}
+
+class PremiumModifyError extends PremiumState {
+  final String message;
+
+  const PremiumModifyError({required this.message});
+
+  @override
+  List<Object> get props => [message];
+}

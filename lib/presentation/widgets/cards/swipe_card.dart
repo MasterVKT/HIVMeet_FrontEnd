@@ -22,15 +22,15 @@ class SwipeCard extends StatefulWidget {
   });
 
   @override
-  State<SwipeCard> createState() => _SwipeCardState();
+  State<SwipeCard> createState() => SwipeCardState();
 
   /// Méthode publique pour déclencher l'animation programmatiquement
-  static _SwipeCardState? of(BuildContext context) {
-    return context.findAncestorStateOfType<_SwipeCardState>();
+  static SwipeCardState? of(BuildContext context) {
+    return context.findAncestorStateOfType<SwipeCardState>();
   }
 }
 
-class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
+class SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
   late AnimationController _swipeController;
   late AnimationController _pulseController;
   late AnimationController _superLikeAnimController;
@@ -181,7 +181,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               spreadRadius: 2,
               offset: const Offset(0, 5),
@@ -209,7 +209,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.6),
+                        Colors.black.withValues(alpha: 0.6),
                       ],
                     ),
                   ),
@@ -282,8 +282,8 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFFD700).withOpacity(
-                                _superLikeGlowAnimation.value * 0.45),
+                            color: const Color(0xFFFFD700).withValues(
+                                alpha: _superLikeGlowAnimation.value * 0.45),
                             blurRadius: 24 * _superLikeGlowAnimation.value,
                             spreadRadius: 6 * _superLikeGlowAnimation.value,
                           ),
@@ -303,7 +303,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     spreadRadius: 5,
                     offset: const Offset(0, 10),
@@ -346,7 +346,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
         height: cardHeight * 0.6,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
         ),
@@ -369,14 +369,14 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
           // Si c'est le placeholder, afficher une image par défaut
           if (photoUrl == 'placeholder' || photoUrl.isEmpty) {
             return Container(
-              color: AppColors.primaryPurple.withOpacity(0.1),
+              color: AppColors.primaryPurple.withValues(alpha: 0.1),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.person,
                     size: 120,
-                    color: AppColors.primaryPurple.withOpacity(0.3),
+                    color: AppColors.primaryPurple.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -420,7 +420,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
               decoration: BoxDecoration(
                 color: index <= _currentPhotoIndex
                     ? Colors.white
-                    : Colors.white.withOpacity(0.3),
+                    : Colors.white.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -437,17 +437,17 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
 
     switch (_swipeDirection) {
       case SwipeDirection.right:
-        overlayColor = AppColors.success.withOpacity(0.8);
+        overlayColor = AppColors.success.withValues(alpha: 0.8);
         overlayIcon = Icons.favorite;
         overlayText = LocalizationService.translate('discovery.like');
         break;
       case SwipeDirection.left:
-        overlayColor = AppColors.error.withOpacity(0.8);
+        overlayColor = AppColors.error.withValues(alpha: 0.8);
         overlayIcon = Icons.close;
         overlayText = LocalizationService.translate('discovery.dislike');
         break;
       case SwipeDirection.up:
-        overlayColor = AppColors.info.withOpacity(0.8);
+        overlayColor = AppColors.info.withValues(alpha: 0.8);
         overlayIcon = Icons.star;
         overlayText = LocalizationService.translate('discovery.super_like');
         break;
@@ -499,8 +499,8 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.35),
-                Colors.black.withOpacity(0.85),
+                Colors.black.withValues(alpha: 0.35),
+                Colors.black.withValues(alpha: 0.85),
               ],
             ),
           ),
@@ -511,54 +511,92 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      '${_getDisplayName()}, ${widget.profile.age}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_getDisplayName()}, ${widget.profile.age}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Ville et pays
+                        if (widget.profile.city.isNotEmpty ||
+                            widget.profile.country.isNotEmpty)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                color: Colors.white70,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  widget.profile.country.isNotEmpty
+                                      ? widget.profile.city.isNotEmpty
+                                          ? '${widget.profile.city}, ${widget.profile.country}'
+                                          : widget.profile.country
+                                      : widget.profile.city,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
                   ),
-                  if (widget.profile.distance != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${widget.profile.distance!.round()} km',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (widget.profile.distance != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${widget.profile.distance!.round()} km',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  // Bouton info intégré dans la row du nom
-                  if (widget.onTap != null)
-                    GestureDetector(
-                      onTap: widget.onTap,
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
+                      if (widget.onTap != null)
+                        GestureDetector(
+                          onTap: widget.onTap,
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.info_outline,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.info_outline,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
               if (widget.profile.bio.isNotEmpty) ...[
@@ -585,7 +623,7 @@ class _SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryPurple.withOpacity(0.8),
+                        color: AppColors.primaryPurple.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(

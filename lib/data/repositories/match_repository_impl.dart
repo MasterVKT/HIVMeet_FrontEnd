@@ -1,4 +1,5 @@
-﻿import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/config/app_config.dart';
@@ -275,8 +276,11 @@ class MatchRepositoryImpl implements MatchRepository {
           .toList();
 
       return Right(profiles);
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e, 'Erreur lors du chargement des likes'));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(
+          ServerFailure(message: 'Erreur lors du chargement des likes: $e'));
     }
   }
 
@@ -439,6 +443,24 @@ class MatchRepositoryImpl implements MatchRepository {
 
   // Helper methods
 
+  Failure _failureFromDio(DioException error, String fallback) {
+    final data = error.response?.data;
+    if (error.response?.statusCode == 403 && data is Map<String, dynamic>) {
+      final code = data['error']?.toString();
+      if (code == 'premium_required') {
+        return const PremiumRequiredFailure();
+      }
+    }
+
+    String? message;
+    if (data is Map<String, dynamic>) {
+      message = data['message']?.toString() ??
+          data['detail']?.toString() ??
+          data['error']?.toString();
+    }
+    return ServerFailure(message: message ?? error.message ?? fallback);
+  }
+
   /// Extrait une PhotoCollection Ã  partir des donnÃ©es JSON
   /// Supporte les deux formats: photos array et main_photo_url/other_photos
   PhotoCollection _extractPhotoCollection(Map<String, dynamic> json) {
@@ -571,12 +593,26 @@ class MatchRepositoryImpl implements MatchRepository {
       if (lastActiveStr != null && lastActiveStr is String) {
         lastActive = DateTime.parse(lastActiveStr);
       } else {
-        // Si last_active est null ou invalide, utiliser la date actuelle
-        lastActive = DateTime.now();
+        final isOnline = json['is_online'] as bool? ?? false;
+        lastActive =
+            isOnline ? DateTime.now() : DateTime.fromMillisecondsSinceEpoch(0);
       }
     } catch (e) {
-      _debugLog('âŒ DEBUG: Erreur parsing last_active: $e');
-      lastActive = DateTime.now();
+      _debugLog('âŒ DEBUG: Erreur parsing last_active: $e');
+      final isOnline = json['is_online'] as bool? ?? false;
+      lastActive =
+          isOnline ? DateTime.now() : DateTime.fromMillisecondsSinceEpoch(0);
+    }
+
+    // Parser liked_at avec gestion des erreurs
+    DateTime? likedAt;
+    try {
+      final likedAtStr = json['liked_at'] as String?;
+      if (likedAtStr != null && likedAtStr.isNotEmpty) {
+        likedAt = DateTime.parse(likedAtStr);
+      }
+    } catch (e) {
+      likedAt = null;
     }
 
     return DiscoveryProfile(
@@ -596,6 +632,7 @@ class MatchRepositoryImpl implements MatchRepository {
       isVerified: json['is_verified'] as bool? ?? false,
       isPremium: json['is_premium'] as bool? ?? false,
       lastActive: lastActive,
+      likedAt: likedAt,
       compatibilityScore:
           (json['compatibility_score'] as num?)?.toDouble() ?? 0.0,
     );
@@ -658,7 +695,9 @@ class MatchRepositoryImpl implements MatchRepository {
       ),
       lastActive: profileData['last_active'] != null
           ? DateTime.parse(profileData['last_active'] as String)
-          : DateTime.now(),
+          : (profileData['is_online'] == true
+              ? DateTime.now()
+              : DateTime.fromMillisecondsSinceEpoch(0)),
       isHidden: profileData['is_hidden'] as bool? ?? false,
       verificationStatus: VerificationStatus(
         status: profileData['verification_status'] as String? ?? 'not_started',

@@ -71,11 +71,11 @@ class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
 
   String _mapFailureToMessage(Failure failure) {
     switch (failure.runtimeType) {
-      case ServerFailure:
+      case const (ServerFailure):
         return 'Erreur de serveur. Veuillez réessayer.';
-      case NetworkFailure:
+      case const (NetworkFailure):
         return 'Erreur de connexion. Vérifiez votre réseau.';
-      case CacheFailure:
+      case const (CacheFailure):
         return 'Erreur de cache local.';
       default:
         return 'Une erreur inattendue s\'est produite.';

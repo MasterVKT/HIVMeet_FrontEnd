@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 
 /// Widget pour afficher une carte de conversation
@@ -47,11 +49,11 @@ class ConversationCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: hasUnread
-              ? theme.colorScheme.primaryContainer.withOpacity(0.05)
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.05)
               : null,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: theme.dividerColor.withOpacity(0.1),
+            color: theme.dividerColor.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
@@ -84,47 +86,68 @@ class ConversationCard extends StatelessWidget {
   }
 
   Widget _buildProfilePhoto(BuildContext context) {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: conversation.unreadCount > 0
-              ? Theme.of(context).colorScheme.primary
-              : Colors.transparent,
-          width: 2,
+    return Stack(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: conversation.unreadCount > 0
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: ClipOval(
+            child: participantPhotoUrl != null &&
+                    participantPhotoUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: participantPhotoUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[300],
+                      child: Icon(
+                        Icons.person,
+                        size: 32,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: Colors.grey[300],
+                    child: Icon(
+                      Icons.person,
+                      size: 32,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+          ),
         ),
-      ),
-      child: ClipOval(
-        child: participantPhotoUrl != null && participantPhotoUrl!.isNotEmpty
-            ? CachedNetworkImage(
-                imageUrl: participantPhotoUrl!,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: Icon(
-                    Icons.person,
-                    size: 32,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              )
-            : Container(
-                color: Colors.grey[300],
-                child: Icon(
-                  Icons.person,
-                  size: 32,
-                  color: Colors.grey[600],
-                ),
+        // F42: badge "en ligne" — l'information isOnline était disponible
+        // sur l'entité mais jamais affichée dans la liste des conversations.
+        if (conversation.isOnline)
+          Positioned(
+            right: 2,
+            bottom: 2,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: AppColors.success,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
               ),
-      ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -155,9 +178,9 @@ class ConversationCard extends StatelessWidget {
 
     if (lastMessage == null) {
       return Text(
-        'Aucun message',
+        LocalizationService.translate('conversations.no_message'),
         style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurface.withOpacity(0.4),
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
           fontStyle: FontStyle.italic,
         ),
         maxLines: 1,
@@ -166,24 +189,33 @@ class ConversationCard extends StatelessWidget {
     }
 
     // Détermine si le message a été envoyé par l'utilisateur actuel
-    final isOwnMessage = lastMessage.senderId == currentUserId;
+    final isOwnMessage = lastMessage.isMine ||
+        (currentUserId.isNotEmpty && lastMessage.senderId == currentUserId);
 
     // Préfixe pour les messages média
     String messageContent = lastMessage.content;
     if (lastMessage.type == MessageType.image) {
-      messageContent = '📷 Photo';
+      messageContent =
+          LocalizationService.translate('conversations.media_photo');
     } else if (lastMessage.type == MessageType.video) {
-      messageContent = '🎥 Vidéo';
+      messageContent =
+          LocalizationService.translate('conversations.media_video');
     } else if (lastMessage.type == MessageType.voice) {
-      messageContent = '🎤 Message vocal';
+      messageContent =
+          LocalizationService.translate('conversations.media_voice');
     }
 
     return Text(
-      isOwnMessage ? 'Vous: $messageContent' : messageContent,
+      isOwnMessage
+          ? LocalizationService.translate(
+              'conversations.own_message_prefix',
+              params: {'message': messageContent},
+            )
+          : messageContent,
       style: theme.textTheme.bodyMedium?.copyWith(
         color: conversation.unreadCount > 0
             ? theme.colorScheme.onSurface
-            : theme.colorScheme.onSurface.withOpacity(0.6),
+            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
         fontWeight:
             conversation.unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
       ),
@@ -205,7 +237,7 @@ class ConversationCard extends StatelessWidget {
         Text(
           _formatTimestamp(timestamp),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             fontSize: 11,
           ),
         ),
@@ -220,7 +252,11 @@ class ConversationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${conversation.unreadCount}',
+              // F43: cap l'affichage à "99+" pour ne pas casser le layout
+              // avec un nombre à 3+ chiffres.
+              conversation.unreadCount > 99
+                  ? '99+'
+                  : '${conversation.unreadCount}',
               style: TextStyle(
                 color: theme.colorScheme.onPrimary,
                 fontSize: 11,
@@ -241,14 +277,25 @@ class ConversationCard extends StatelessWidget {
       // Aujourd'hui: afficher l'heure
       return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
-      return 'Hier';
+      return LocalizationService.translate('common.yesterday');
     } else if (difference.inDays < 7) {
       // Cette semaine: afficher le jour
-      final weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+      final weekdays = [
+        LocalizationService.translate('common.weekday_mon'),
+        LocalizationService.translate('common.weekday_tue'),
+        LocalizationService.translate('common.weekday_wed'),
+        LocalizationService.translate('common.weekday_thu'),
+        LocalizationService.translate('common.weekday_fri'),
+        LocalizationService.translate('common.weekday_sat'),
+        LocalizationService.translate('common.weekday_sun'),
+      ];
       return weekdays[dateTime.weekday - 1];
     } else if (difference.inDays < 30) {
       // Ce mois: afficher "il y a X jours"
-      return 'Il y a ${difference.inDays} j';
+      return LocalizationService.translate(
+        'common.days_ago_short',
+        params: {'count': difference.inDays.toString()},
+      );
     } else {
       // Plus ancien: afficher la date
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';

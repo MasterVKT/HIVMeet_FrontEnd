@@ -1,12 +1,20 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
+import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 import 'package:hivmeet/data/datasources/remote/messaging_api.dart';
+
+/// Taille max d'un fichier média, alignée sur la limite serveur réelle
+/// (`SendMediaMessageView`/`SendMediaMessageSerializer` : 10MB).
+const int _kMaxMediaFileSizeBytes = 10 * 1024 * 1024;
 
 @LazySingleton(as: MessageRepository)
 class MessageRepositoryImpl implements MessageRepository {
@@ -14,15 +22,24 @@ class MessageRepositoryImpl implements MessageRepository {
 
   const MessageRepositoryImpl(this._messagingApi);
 
+  /// Convertit une URL relative en URL absolue en utilisant apiBaseUrl
+  String? _buildAbsoluteUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('http')) return url;
+    return '${AppConfig.apiBaseUrl}/$url';
+  }
+
   @override
-  Future<Either<Failure, List<Conversation>>> getConversations({
+  Future<Either<Failure, ConversationListPage>> getConversations({
     int limit = 20,
-    String? lastConversationId,
+    int page = 1,
+    ConversationFilter filter = ConversationFilter.all,
   }) async {
     try {
       final response = await _messagingApi.getConversations(
-        page: 1,
+        page: page,
         pageSize: limit,
+        filter: filter,
       );
 
       final payload = response.data ?? const <String, dynamic>{};
@@ -30,25 +47,20 @@ class MessageRepositoryImpl implements MessageRepository {
           .cast<Map<String, dynamic>>();
 
       final conversations = list.map(_mapJsonToConversation).toList();
-      return Right(conversations);
-    } on DioException catch (e) {
-      return Left(_mapDioFailure(e));
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
+      // hasMore dérivé du champ DRF `next` (pagination réelle côté backend),
+      // plus fiable qu'une heuristique sur la taille de la page.
+      final hasMore = payload['next'] != null;
 
-  @override
-  Future<Either<Failure, Conversation>> getConversation(
-      String conversationId) async {
-    try {
-      final response = await _messagingApi.getConversation(conversationId);
-      final payload = response.data ?? const <String, dynamic>{};
-      return Right(_mapJsonToConversation(payload));
+      return Right(
+        ConversationListPage(conversations: conversations, hasMore: hasMore),
+      );
     } on DioException catch (e) {
-      return Left(_mapDioFailure(e));
+      return Left(_mapDioFailure(
+        e,
+        validationMessageKey: 'conversations.invalid_filter',
+      ));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('getConversations', e));
     }
   }
 
@@ -92,7 +104,7 @@ class MessageRepositoryImpl implements MessageRepository {
     } on DioException catch (e) {
       return Left(_mapDioFailure(e));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('getMessages', e));
     }
   }
 
@@ -117,6 +129,17 @@ class MessageRepositoryImpl implements MessageRepository {
       final Response<Map<String, dynamic>> response;
 
       if (mediaFile != null) {
+        // Flux média : multipart direct vers /messages/media/ (Option A).
+        // Le backend construit media_url lui-même sur ce path (contrairement
+        // au flux "URL signée" qui laissait media_url vide côté serveur).
+        final fileLength = await mediaFile.length();
+        if (fileLength > _kMaxMediaFileSizeBytes) {
+          return Left(ValidationFailure(
+            message: LocalizationService.translate('chat.file_too_large'),
+            code: 'file-too-large',
+          ));
+        }
+
         response = await _messagingApi.sendMediaMessage(
           conversationId: conversationId,
           mediaFilePath: mediaFile.path,
@@ -137,25 +160,36 @@ class MessageRepositoryImpl implements MessageRepository {
     } on DioException catch (e) {
       return Left(_mapDioFailure(e));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('sendMessage', e));
     }
   }
 
   @override
-  Future<Either<Failure, void>> markAsRead({
+  Future<Either<Failure, MarkAsReadResult>> markAsRead({
     required String conversationId,
     required String messageId,
   }) async {
     try {
-      await _messagingApi.markMessageAsRead(
+      final response = await _messagingApi.markMessageAsRead(
         conversationId: conversationId,
         lastReadMessageId: messageId,
       );
-      return const Right(null);
+      final payload = response.data ?? const <String, dynamic>{};
+      final rawMarked = payload['messages_marked'] ?? 0;
+      final rawUnread = payload['unread_count_for_me'] ?? 0;
+      return Right(MarkAsReadResult(
+        messagesMarked: rawMarked is int
+            ? rawMarked
+            : int.tryParse(rawMarked.toString()) ?? 0,
+        unreadCountForMe: rawUnread is int
+            ? rawUnread
+            : int.tryParse(rawUnread.toString()) ?? 0,
+        readAt: _parseDateTime(payload['read_at']),
+      ));
     } on DioException catch (e) {
       return Left(_mapDioFailure(e));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('markAsRead', e));
     }
   }
 
@@ -173,7 +207,33 @@ class MessageRepositoryImpl implements MessageRepository {
     } on DioException catch (e) {
       return Left(_mapDioFailure(e));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('deleteMessage', e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> getUnreadCount() async {
+    try {
+      final response = await _messagingApi.getUnreadCount();
+      final count = response.data?['unread_count'] as int? ?? 0;
+      return Right(count);
+    } on DioException catch (e) {
+      return Left(_mapDioFailure(e));
+    } catch (e) {
+      return Left(_unexpectedFailure('getUnreadCount', e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteConversation(
+      String conversationId) async {
+    try {
+      await _messagingApi.deleteConversation(conversationId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_mapDioFailure(e));
+    } catch (e) {
+      return Left(_unexpectedFailure('deleteConversation', e));
     }
   }
 
@@ -191,7 +251,7 @@ class MessageRepositoryImpl implements MessageRepository {
     } on DioException catch (e) {
       return Left(_mapDioFailure(e));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('setTypingStatus', e));
     }
   }
 
@@ -217,34 +277,7 @@ class MessageRepositoryImpl implements MessageRepository {
     } on DioException catch (e) {
       return Left(_mapDioFailure(e));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, MediaUploadTarget>> generateMediaUploadUrl({
-    required String fileName,
-    required String contentType,
-  }) async {
-    try {
-      final response = await _messagingApi.generateMediaUploadUrl(
-        fileName: fileName,
-        contentType: contentType,
-      );
-      final payload = response.data ?? const <String, dynamic>{};
-
-      return Right(
-        MediaUploadTarget(
-          uploadUrl: (payload['upload_url'] ?? '') as String,
-          filePathOnStorage: (payload['file_path_on_storage'] ?? '') as String,
-          contentType: (payload['content_type'] ?? contentType) as String,
-          expiresInSeconds: payload['expires_in_seconds'] as int? ?? 0,
-        ),
-      );
-    } on DioException catch (e) {
-      return Left(_mapDioFailure(e));
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(_unexpectedFailure('getPresence', e));
     }
   }
 
@@ -259,6 +292,13 @@ class MessageRepositoryImpl implements MessageRepository {
         (json['conversation_id'] ?? json['id'] ?? '') as String;
     final otherUser = json['other_user'] as Map<String, dynamic>?;
     final otherUserId = (otherUser?['user_id'] ?? '') as String;
+    final participantIds = json['participant_ids'] is List
+        ? (json['participant_ids'] as List<dynamic>)
+            .whereType<String>()
+            .toList()
+        : otherUserId.isEmpty
+            ? const <String>[]
+            : <String>[otherUserId];
 
     final rawUnread = json['unread_count_for_me'] ?? json['unread_count'] ?? 0;
     final unreadCount =
@@ -274,8 +314,13 @@ class MessageRepositoryImpl implements MessageRepository {
 
     return Conversation(
       id: conversationId,
-      participantIds:
-          otherUserId.isEmpty ? const <String>[] : <String>[otherUserId],
+      participantIds: participantIds,
+      otherUserId: otherUserId.isEmpty ? null : otherUserId,
+      otherUserName: otherUser?['display_name'] as String?,
+      otherUserPhotoUrl:
+          _buildAbsoluteUrl(otherUser?['main_photo_url'] as String?),
+      isOnline: otherUser?['is_online'] as bool? ?? false,
+      lastActive: _parseDateTime(otherUser?['last_active']),
       lastMessage: json['last_message'] is Map<String, dynamic>
           ? _mapJsonToMessage(json['last_message'] as Map<String, dynamic>)
           : null,
@@ -289,7 +334,8 @@ class MessageRepositoryImpl implements MessageRepository {
     final messageId = (json['message_id'] ?? json['id'] ?? '') as String;
     final conversationId = (json['conversation_id'] ?? '') as String;
     final senderId = (json['sender_id'] ?? '') as String;
-    final content = (json['content'] ?? '') as String;
+    final content =
+        (json['content'] ?? json['content_preview'] ?? '') as String;
 
     final createdAt = _parseDateTime(json['created_at'] ?? json['sent_at']) ??
         DateTime.fromMillisecondsSinceEpoch(0);
@@ -313,44 +359,102 @@ class MessageRepositoryImpl implements MessageRepository {
       isDelivered:
           (json['status'] == 'delivered') || (json['delivered_at'] != null),
       isSending: json['is_sending'] as bool? ?? false,
-      mediaUrl: json['media_url'] as String?,
+      mediaUrl: _buildAbsoluteUrl(json['media_url'] as String?),
       mediaType: json['media_type'] as String?,
-      mediaThumbnailUrl: json['media_thumbnail_url'] as String?,
+      mediaThumbnailUrl:
+          _buildAbsoluteUrl(json['media_thumbnail_url'] as String?),
+      // Cast défensif : pas d'endpoint reactions exposé actuellement côté
+      // backend (champ toujours vide en pratique), mais si une valeur
+      // non-string arrivait un jour (int/null), on ne veut pas crasher toute
+      // la conversation pour un simple champ décoratif.
       reactions: (json['reactions'] as Map<String, dynamic>? ??
               const <String, dynamic>{})
-          .map((key, value) => MapEntry(key, value.toString())),
+          .map((key, value) => MapEntry(key, value?.toString() ?? '')),
       status: _stringToMessageStatus((json['status'] ?? 'sent') as String),
     );
   }
 
-  Failure _mapDioFailure(DioException error) {
+  Failure _mapDioFailure(
+    DioException error, {
+    String validationMessageKey = 'conversations.request_failed',
+  }) {
     final statusCode = error.response?.statusCode;
     final data = error.response?.data;
-    final message = data is Map<String, dynamic>
-        ? (data['message'] ??
-                data['error'] ??
-                error.message ??
-                'Unknown API error')
-            .toString()
-        : (error.message ?? 'Unknown API error');
+    final errorCode = data is Map<String, dynamic> ? data['error'] : null;
 
     if (statusCode == 401) {
-      return AuthFailure(message: message, code: 'unauthorized');
+      return AuthFailure(
+        message: LocalizationService.translate('conversations.session_expired'),
+        code: 'unauthorized',
+      );
+    }
+    if (statusCode == 400) {
+      return ValidationFailure(
+        message: LocalizationService.translate(validationMessageKey),
+        code: 'bad-request',
+      );
+    }
+    // 402 (Payment Required) et 403 avec `error: "premium_required"` (voir
+    // `subscriptions.utils.premium_required_response`) sont de vrais gates
+    // premium. Un 403 générique (ex: "vous n'avez pas la permission de
+    // supprimer ce message") n'est PAS un problème premium — le confondre
+    // affichait un message trompeur "passez premium" pour de simples
+    // interdictions d'accès.
+    if (statusCode == 402 ||
+        (statusCode == 403 && errorCode == 'premium_required')) {
+      return PremiumFailure(
+        message: LocalizationService.translate('conversations.request_failed'),
+        code: 'premium-required',
+      );
     }
     if (statusCode == 403) {
-      return PremiumFailure(message: message, code: 'forbidden');
+      return PermissionFailure(
+        message:
+            LocalizationService.translate('conversations.action_forbidden'),
+        code: 'forbidden',
+      );
     }
     if (statusCode == 404) {
-      return ServerFailure(message: message, code: 'not-found');
+      return ServerFailure(
+        message: LocalizationService.translate('conversations.unavailable'),
+        code: 'not-found',
+      );
+    }
+    if (statusCode == 429) {
+      return ServerFailure(
+        message: LocalizationService.translate('conversations.rate_limited'),
+        code: 'rate-limited',
+      );
     }
 
     if (error.type == DioExceptionType.connectionError ||
         error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return NetworkFailure(message: message, code: 'network');
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout) {
+      return NetworkFailure(
+        message: LocalizationService.translate('conversations.network_error'),
+        code: 'network',
+      );
     }
 
-    return ServerFailure(message: message, code: statusCode?.toString());
+    return ServerFailure(
+      message: LocalizationService.translate('conversations.request_failed'),
+      code: statusCode?.toString(),
+    );
+  }
+
+  /// Construit une [Failure] générique pour les erreurs inattendues
+  /// (non-[DioException]), sans exposer le détail brut de l'exception à
+  /// l'UI (fuite potentielle d'information technique/PII). Le détail complet
+  /// est loggé en debug uniquement.
+  Failure _unexpectedFailure(String operation, Object error) {
+    if (kDebugMode) {
+      debugPrint('[MessageRepositoryImpl] $operation failed: $error');
+    }
+    return ServerFailure(
+      message: LocalizationService.translate('common.error'),
+      code: 'unknown',
+    );
   }
 
   MessageType _stringToMessageType(String type) {
@@ -417,6 +521,13 @@ class MessageRepositoryImpl implements MessageRepository {
   }
 
   String _buildClientMessageId(String conversationId) {
-    return 'client_${conversationId}_${DateTime.now().microsecondsSinceEpoch}';
+    // Suffixe aléatoire en plus du micro-timestamp: deux envois dans la même
+    // microseconde (rare mais déjà observé sous forte charge de tests) ne
+    // doivent pas produire le même client_message_id, sinon le backend
+    // traite le second envoi comme un doublon du premier (dédup par
+    // client_message_id dans MessageService.send_message) et le message est
+    // silencieusement droppé côté utilisateur.
+    final randomSuffix = Random().nextInt(1 << 31);
+    return 'client_${conversationId}_${DateTime.now().microsecondsSinceEpoch}_$randomSuffix';
   }
 }

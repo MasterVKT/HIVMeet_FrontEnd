@@ -183,7 +183,7 @@ class AppButton extends StatelessWidget {
       width: height, // Carré
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.primaryPurple.withOpacity(0.1),
+        color: AppColors.primaryPurple.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
       child: IconButton(

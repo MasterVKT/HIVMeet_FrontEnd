@@ -38,11 +38,11 @@ class MatchCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: hasUnread
-              ? theme.colorScheme.primaryContainer.withOpacity(0.05)
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.05)
               : null,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: theme.dividerColor.withOpacity(0.1),
+            color: theme.dividerColor.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
@@ -198,7 +198,7 @@ class MatchCard extends StatelessWidget {
       style: theme.textTheme.bodyMedium?.copyWith(
         color: match.hasUnreadMessages
             ? theme.colorScheme.onSurface
-            : theme.colorScheme.onSurface.withOpacity(0.6),
+            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
         fontWeight:
             match.hasUnreadMessages ? FontWeight.w500 : FontWeight.normal,
       ),
@@ -219,7 +219,7 @@ class MatchCard extends StatelessWidget {
         Text(
           _formatTimestamp(lastMessageTime),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             fontSize: 11,
           ),
         ),

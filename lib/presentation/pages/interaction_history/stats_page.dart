@@ -13,8 +13,8 @@ class StatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: getIt<InteractionHistoryBloc>()..add(LoadStats()),
+    return BlocProvider(
+      create: (_) => getIt<InteractionHistoryBloc>(),
       child: const _StatsPageContent(),
     );
   }
@@ -28,6 +28,15 @@ class _StatsPageContent extends StatefulWidget {
 }
 
 class _StatsPageContentState extends State<_StatsPageContent> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<InteractionHistoryBloc>().add(LoadStats());
+    });
+  }
+
   Future<void> _onRefresh() async {
     context.read<InteractionHistoryBloc>().add(LoadStats());
     await Future.delayed(const Duration(milliseconds: 500));
@@ -185,14 +194,16 @@ class _StatsPageContentState extends State<_StatsPageContent> {
                     value: stats.todayInteractions.toString(),
                     subtitle: 'interactions',
                   ),
-                  const SizedBox(height: 12),
-                  _StatCard(
-                    icon: Icons.calendar_month,
-                    iconColor: Colors.green,
-                    title: 'Activité cette semaine',
-                    value: stats.weekInteractions.toString(),
-                    subtitle: 'interactions',
-                  ),
+                  if (stats.weekInteractions != null) ...[
+                    const SizedBox(height: 12),
+                    _StatCard(
+                      icon: Icons.calendar_month,
+                      iconColor: Colors.green,
+                      title: 'Activité cette semaine',
+                      value: stats.weekInteractions.toString(),
+                      subtitle: 'interactions',
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _StatCard(
                     icon: Icons.timeline,
@@ -242,7 +253,7 @@ class _StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -259,7 +270,7 @@ class _StatCard extends StatelessWidget {
                   Text(
                     title,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -274,7 +285,7 @@ class _StatCard extends StatelessWidget {
                     Text(
                       subtitle!,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ],

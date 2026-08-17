@@ -21,10 +21,10 @@ class ProfileApi {
   }
 
   /// Mettre à jour le profil actuel
-  /// PUT /api/v1/user-profiles/me/
+  /// PATCH /api/v1/user-profiles/me/
   Future<Response<Map<String, dynamic>>> updateProfile(
       Map<String, dynamic> profileData) async {
-    return await _apiClient.put('/user-profiles/me/', data: profileData);
+    return await _apiClient.patch('/user-profiles/me/', data: profileData);
   }
 
   /// Ajouter une photo au profil
@@ -32,12 +32,12 @@ class ProfileApi {
   Future<Response<Map<String, dynamic>>> addPhoto(
     String photoPath, {
     bool isMain = false,
-    int? order,
+    String? caption,
   }) async {
     FormData formData = FormData.fromMap({
-      'photo': await MultipartFile.fromFile(photoPath),
+      'file': await MultipartFile.fromFile(photoPath),
       'is_main': isMain,
-      if (order != null) 'order': order,
+      if (caption != null) 'caption': caption,
     });
 
     return await _apiClient.post('/user-profiles/me/photos/', data: formData);
@@ -63,13 +63,11 @@ class ProfileApi {
     String? city,
     String? country,
   }) async {
-    return await _apiClient.put('/user-profiles/me/', data: {
-      'location': {
-        'latitude': latitude,
-        'longitude': longitude,
-        'city': city,
-        'country': country,
-      }
+    return await _apiClient.patch('/user-profiles/me/', data: {
+      'latitude': latitude,
+      'longitude': longitude,
+      if (city != null) 'city': city,
+      if (country != null) 'country': country,
     });
   }
 
@@ -81,26 +79,69 @@ class ProfileApi {
 
   /// Générer une URL d'upload pour la vérification
   /// POST /api/v1/user-profiles/me/verification/generate-upload-url/
-  Future<Response<Map<String, dynamic>>> generateVerificationUploadUrl(
-      String documentType) async {
-    return await _apiClient.post(
-        '/user-profiles/me/verification/generate-upload-url/',
-        data: {'document_type': documentType});
+  Future<Response<Map<String, dynamic>>> generateVerificationUploadUrl({
+    required String documentType,
+    required String fileType,
+    required int fileSize,
+  }) async {
+    return await _apiClient
+        .post('/user-profiles/me/verification/generate-upload-url/', data: {
+      'document_type': documentType,
+      'file_type': fileType,
+      'file_size': fileSize,
+    });
+  }
+
+  /// Envoyer le fichier vers l'URL Firebase signÃ©e.
+  Future<Response<dynamic>> uploadFileToSignedUrl({
+    required String uploadUrl,
+    required List<int> bytes,
+    required String fileType,
+  }) async {
+    final dio = Dio();
+    return await dio.put(
+      uploadUrl,
+      data: Stream.fromIterable([bytes]),
+      options: Options(
+        headers: {'Content-Type': fileType},
+        contentType: fileType,
+      ),
+    );
   }
 
   /// Soumettre des documents de vérification
   /// POST /api/v1/user-profiles/me/verification/submit-documents/
   Future<Response<Map<String, dynamic>>> submitVerificationDocuments({
-    required String frontDocumentUrl,
-    required String backDocumentUrl,
-    String? selfieUrl,
+    required List<Map<String, dynamic>> documents,
+    required String selfieCodeUsed,
   }) async {
     return await _apiClient
         .post('/user-profiles/me/verification/submit-documents/', data: {
-      'front_document_url': frontDocumentUrl,
-      'back_document_url': backDocumentUrl,
-      if (selfieUrl != null) 'selfie_url': selfieUrl,
+      'documents': documents,
+      'selfie_code_used': selfieCodeUsed,
     });
+  }
+
+  /// GET /api/v1/user-profiles/premium-status/
+  Future<Response<Map<String, dynamic>>> getPremiumStatus() async {
+    return await _apiClient.get('/user-profiles/premium-status/');
+  }
+
+  Future<Response<Map<String, dynamic>>> getLikesReceived(
+      {int page = 1}) async {
+    return await _apiClient.get(
+      '/user-profiles/likes-received/',
+      queryParameters: {'page': page},
+    );
+  }
+
+  Future<Response<Map<String, dynamic>>> getSuperLikesReceived({
+    int page = 1,
+  }) async {
+    return await _apiClient.get(
+      '/user-profiles/super-likes-received/',
+      queryParameters: {'page': page},
+    );
   }
 
   /// Récupérer les profils de découverte
@@ -135,39 +176,15 @@ class ProfileApi {
   }) async {
     Map<String, dynamic> data = {};
 
-    if (minAge != null) data['search_preferences'] = {'min_age': minAge};
-    if (maxAge != null) {
-      data['search_preferences'] = {
-        ...?data['search_preferences'],
-        'max_age': maxAge
-      };
-    }
-    if (maxDistance != null) {
-      data['search_preferences'] = {
-        ...?data['search_preferences'],
-        'max_distance': maxDistance
-      };
-    }
+    if (minAge != null) data['age_min_preference'] = minAge;
+    if (maxAge != null) data['age_max_preference'] = maxAge;
+    if (maxDistance != null) data['distance_max_km'] = maxDistance;
     if (relationshipTypes != null) {
-      data['search_preferences'] = {
-        ...?data['search_preferences'],
-        'relationship_types': relationshipTypes
-      };
+      data['relationship_types_sought'] = relationshipTypes;
     }
-    if (interests != null) {
-      data['search_preferences'] = {
-        ...?data['search_preferences'],
-        'interests': interests
-      };
-    }
-    if (verifiedOnly != null) {
-      data['search_preferences'] = {
-        ...?data['search_preferences'],
-        'verified_only': verifiedOnly
-      };
-    }
+    if (interests != null) data['interests'] = interests;
 
-    return await _apiClient.put('/user-profiles/me/', data: data);
+    return await _apiClient.patch('/user-profiles/me/', data: data);
   }
 
   /// Mettre à jour les paramètres de confidentialité
@@ -180,27 +197,12 @@ class ProfileApi {
   }) async {
     Map<String, dynamic> data = {};
 
-    if (showAge != null) data['privacy_settings'] = {'show_age': showAge};
-    if (showDistance != null) {
-      data['privacy_settings'] = {
-        ...?data['privacy_settings'],
-        'show_distance': showDistance
-      };
-    }
+    if (showDistance != null) data['hide_exact_location'] = !showDistance;
     if (showOnlineStatus != null) {
-      data['privacy_settings'] = {
-        ...?data['privacy_settings'],
-        'show_online_status': showOnlineStatus
-      };
-    }
-    if (allowMessagesFromNonMatches != null) {
-      data['privacy_settings'] = {
-        ...?data['privacy_settings'],
-        'allow_messages_from_non_matches': allowMessagesFromNonMatches
-      };
+      data['show_online_status'] = showOnlineStatus;
     }
 
-    return await _apiClient.put('/user-profiles/me/', data: data);
+    return await _apiClient.patch('/user-profiles/me/', data: data);
   }
 
   /// Récupérer les profils de découverte avec filtres

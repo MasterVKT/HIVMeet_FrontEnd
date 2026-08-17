@@ -18,9 +18,8 @@ class MyLikesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      // Fournit le singleton sans le fermer à la sortie de page
-      value: getIt<InteractionHistoryBloc>(),
+    return BlocProvider(
+      create: (_) => getIt<InteractionHistoryBloc>(),
       child: const _MyLikesPageContent(),
     );
   }
@@ -40,8 +39,13 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Charger les likes au démarrage de la page (refresh: true pour vider la liste)
-    getIt<InteractionHistoryBloc>().add(const LoadLikes(refresh: true));
+    // Charger les likes sur l'instance de BLoC fournie à cette page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<InteractionHistoryBloc>()
+          .add(const LoadLikes(refresh: true));
+    });
   }
 
   @override
@@ -234,7 +238,7 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
                               '${profile.age} ans${profile.distance != null ? ' • ${profile.distance} km' : ''}',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurface
-                                    .withOpacity(0.6),
+                                    .withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -248,8 +252,8 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
                         ),
                         decoration: BoxDecoration(
                           color: interaction.type == InteractionType.superLike
-                              ? AppColors.primaryPurple.withOpacity(0.2)
-                              : AppColors.primaryPurple.withOpacity(0.1),
+                              ? AppColors.primaryPurple.withValues(alpha: 0.2)
+                              : AppColors.primaryPurple.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -284,7 +288,7 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
                       Text(
                         timeago.format(interaction.timestamp, locale: 'fr'),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                       if (interaction.isMatched) ...[
@@ -295,7 +299,7 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.success.withOpacity(0.2),
+                            color: AppColors.success.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -351,7 +355,7 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
             Icon(
               Icons.favorite_border,
               size: 80,
-              color: AppColors.slate.withOpacity(0.3),
+              color: AppColors.slate.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -368,7 +372,7 @@ class _MyLikesPageContentState extends State<_MyLikesPageContent> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: AppColors.slate.withOpacity(0.8),
+                color: AppColors.slate.withValues(alpha: 0.8),
               ),
             ),
           ],

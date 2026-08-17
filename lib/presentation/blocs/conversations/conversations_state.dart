@@ -9,15 +9,24 @@ abstract class ConversationsState extends Equatable {
 
 class ConversationsInitial extends ConversationsState {}
 
-class ConversationsLoading extends ConversationsState {}
+class ConversationsLoading extends ConversationsState {
+  final ConversationFilter activeFilter;
+
+  const ConversationsLoading({this.activeFilter = ConversationFilter.all});
+
+  @override
+  List<Object?> get props => [activeFilter];
+}
 
 class ConversationsLoaded extends ConversationsState {
-  final List<Conversation> conversations; // Liste filtrée/recherchée
-  final List<Conversation> allConversations; // Liste complète
-  final bool hasMore; // Plus de conversations à charger
-  final bool isLoadingMore; // Chargement en cours (pagination)
-  final int totalUnreadCount; // Nombre total de messages non lus
-  final String searchQuery; // Requête de recherche actuelle
+  final List<Conversation> conversations;
+  final List<Conversation> allConversations;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final int totalUnreadCount;
+  final String searchQuery;
+  final ConversationFilter activeFilter;
+  final String? actionError;
 
   const ConversationsLoaded({
     required this.conversations,
@@ -26,6 +35,8 @@ class ConversationsLoaded extends ConversationsState {
     required this.isLoadingMore,
     required this.totalUnreadCount,
     required this.searchQuery,
+    this.activeFilter = ConversationFilter.all,
+    this.actionError,
   });
 
   @override
@@ -36,6 +47,8 @@ class ConversationsLoaded extends ConversationsState {
         isLoadingMore,
         totalUnreadCount,
         searchQuery,
+        activeFilter,
+        actionError,
       ];
 
   ConversationsLoaded copyWith({
@@ -45,6 +58,8 @@ class ConversationsLoaded extends ConversationsState {
     bool? isLoadingMore,
     int? totalUnreadCount,
     String? searchQuery,
+    ConversationFilter? activeFilter,
+    Object? actionError = _actionErrorUnchanged,
   }) {
     return ConversationsLoaded(
       conversations: conversations ?? this.conversations,
@@ -53,9 +68,15 @@ class ConversationsLoaded extends ConversationsState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       totalUnreadCount: totalUnreadCount ?? this.totalUnreadCount,
       searchQuery: searchQuery ?? this.searchQuery,
+      activeFilter: activeFilter ?? this.activeFilter,
+      actionError: identical(actionError, _actionErrorUnchanged)
+          ? this.actionError
+          : actionError as String?,
     );
   }
 }
+
+const Object _actionErrorUnchanged = Object();
 
 class ConversationsError extends ConversationsState {
   final String message;

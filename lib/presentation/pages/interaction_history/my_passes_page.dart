@@ -18,9 +18,8 @@ class MyPassesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      // Fournit le singleton sans le fermer à la sortie de page
-      value: getIt<InteractionHistoryBloc>(),
+    return BlocProvider(
+      create: (_) => getIt<InteractionHistoryBloc>(),
       child: const _MyPassesPageContent(),
     );
   }
@@ -40,8 +39,13 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Charger les passes au démarrage de la page (refresh: true pour vider la liste)
-    getIt<InteractionHistoryBloc>().add(const LoadPasses(refresh: true));
+    // Charger les passes sur l'instance de BLoC fournie à cette page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<InteractionHistoryBloc>()
+          .add(const LoadPasses(refresh: true));
+    });
   }
 
   @override
@@ -163,7 +167,7 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
                     Icon(
                       Icons.close_rounded,
                       size: 80,
-                      color: theme.colorScheme.primary.withOpacity(0.5),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -174,7 +178,8 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
                     Text(
                       'Vous n\'avez passé aucun profil',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -261,7 +266,7 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
                                             style: theme.textTheme.bodyMedium
                                                 ?.copyWith(
                                               color: theme.colorScheme.onSurface
-                                                  .withOpacity(0.6),
+                                                  .withValues(alpha: 0.6),
                                             ),
                                           ),
                                         ],
@@ -274,7 +279,8 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.withOpacity(0.2),
+                                        color:
+                                            Colors.grey.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Row(
@@ -306,7 +312,7 @@ class _MyPassesPageContentState extends State<_MyPassesPageContent> {
                                       locale: 'fr'),
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurface
-                                        .withOpacity(0.5),
+                                        .withValues(alpha: 0.5),
                                   ),
                                 ),
                                 // Bouton d'annulation

@@ -5,6 +5,7 @@ import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/domain/entities/resource.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hivmeet/presentation/widgets/common/safe_circle_avatar.dart';
 
 class FeedPostCard extends StatelessWidget {
   final FeedPost post;
@@ -56,20 +57,18 @@ class FeedPostCard extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
-        CircleAvatar(
+        SafeCircleAvatar(
           radius: 20,
-          backgroundImage: post.authorPhotoUrl.isNotEmpty
-              ? NetworkImage(post.authorPhotoUrl)
-              : null,
-          child: post.authorPhotoUrl.isEmpty
-              ? Text(
-                  post.authorName.substring(0, 1).toUpperCase(),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                )
-              : null,
+          imageUrl:
+              post.authorPhotoUrl.isNotEmpty ? post.authorPhotoUrl : null,
+          backgroundColor: AppColors.primaryPurple,
+          fallbackWidget: Text(
+            post.authorName.substring(0, 1).toUpperCase(),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(

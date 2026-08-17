@@ -3,10 +3,13 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/usecases/message/get_conversations.dart';
 import 'package:hivmeet/domain/usecases/message/send_message.dart';
 import 'package:hivmeet/domain/usecases/message/mark_as_read.dart';
+import 'package:hivmeet/domain/usecases/message/delete_conversation.dart'
+    as delete_conversation;
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -16,21 +19,41 @@ class MockSendMessage extends Mock implements SendMessage {}
 
 class MockMarkAsRead extends Mock implements MarkAsRead {}
 
+class MockDeleteConversation extends Mock
+    implements delete_conversation.DeleteConversation {}
+
+/// Enveloppe une liste de conversations dans une [ConversationListPage], comme
+/// le fait désormais `MessageRepositoryImpl.getConversations` (pagination
+/// page-based, `hasMore` dérivé du champ DRF `next`).
+Either<Failure, ConversationListPage> _rightPage(
+  List<Conversation> conversations, {
+  bool hasMore = false,
+}) {
+  return Right(
+      ConversationListPage(conversations: conversations, hasMore: hasMore));
+}
+
 void main() {
   late ConversationsBloc bloc;
   late MockGetConversations mockGetConversations;
   late MockSendMessage mockSendMessage;
   late MockMarkAsRead mockMarkAsRead;
+  late MockDeleteConversation mockDeleteConversation;
+  late RealtimeEventBus realtimeBus;
 
   setUp(() {
     mockGetConversations = MockGetConversations();
     mockSendMessage = MockSendMessage();
     mockMarkAsRead = MockMarkAsRead();
+    mockDeleteConversation = MockDeleteConversation();
+    realtimeBus = RealtimeEventBus();
 
     bloc = ConversationsBloc(
       getConversations: mockGetConversations,
       sendMessage: mockSendMessage,
       markAsRead: mockMarkAsRead,
+      deleteConversation: mockDeleteConversation,
+      realtimeBus: realtimeBus,
     );
 
     // Register fallback values
@@ -38,10 +61,15 @@ void main() {
     registerFallbackValue(
       const MarkAsReadParams(conversationId: 'test', messageId: 'msg_test'),
     );
+    registerFallbackValue(
+      const delete_conversation.DeleteConversationParams(
+          conversationId: 'test'),
+    );
   });
 
   tearDown(() {
     bloc.close();
+    realtimeBus.dispose();
   });
 
   final tConversations = [
@@ -92,7 +120,7 @@ void main() {
           () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
 
         // assert later
         final expected = [
@@ -136,7 +164,7 @@ void main() {
         ];
 
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(conversationsWithUnread));
+            .thenAnswer((_) async => _rightPage(conversationsWithUnread));
 
         // act
         bloc.add(LoadConversations());
@@ -159,8 +187,8 @@ void main() {
           ),
         );
 
-        when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(twentyConversations));
+        when(() => mockGetConversations(any())).thenAnswer(
+            (_) async => _rightPage(twentyConversations, hasMore: true));
 
         // assert later
         expectLater(
@@ -199,7 +227,7 @@ void main() {
       test('should reset state when refresh=true', () async {
         // arrange - first load
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -225,22 +253,26 @@ void main() {
           ),
         );
 
-        when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(twentyConversations));
+        when(() => mockGetConversations(any())).thenAnswer(
+            (_) async => _rightPage(twentyConversations, hasMore: true));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
-        // arrange - load more
+        // arrange - load more. Uses an id disjoint from the first page:
+        // `_sortConversations` dedupes by id (a conversation can legitimately
+        // be re-sent across pages if its `updatedAt` shifted), so reusing an
+        // id already present on page 1 (e.g. 'conv_3') would collapse the
+        // two into one and make the length/unread assertions below wrong.
         final moreConversations = [
           Conversation(
-            id: 'conv_3',
+            id: 'conv_20',
             participantIds: const ['user_1', 'user_4'],
             updatedAt: DateTime(2024, 1, 20, 13, 00),
             unreadCount: 1,
           ),
         ];
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(moreConversations));
+            .thenAnswer((_) async => _rightPage(moreConversations));
 
         // assert later
         expectLater(
@@ -259,12 +291,14 @@ void main() {
         bloc.add(LoadMoreConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
-        // assert - should use last conversation ID as cursor
+        // assert - pagination page-based: page 1 (initial) puis page 2
+        // (pas de curseur par ID, le backend est un DRF PageNumberPagination
+        // réel pour cette ressource).
         verify(() => mockGetConversations(any(
               that: isA<GetConversationsParams>().having(
-                (p) => p.lastConversationId,
-                'lastConversationId',
-                'conv_19',
+                (p) => p.page,
+                'page',
+                2,
               ),
             ))).called(1);
       });
@@ -272,13 +306,13 @@ void main() {
       test('should set hasMore=false when no more conversations', () async {
         // arrange - initial load
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
         // arrange - load more returns empty
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => const Right([]));
+            .thenAnswer((_) async => _rightPage(const []));
 
         // act
         bloc.add(LoadMoreConversations());
@@ -292,7 +326,7 @@ void main() {
       test('should not load more if already loading', () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -311,7 +345,10 @@ void main() {
         verifyNever(() => mockGetConversations(any()));
       });
 
-      test('should emit error when loading more fails', () async {
+      test(
+          'should NOT emit ConversationsError when loading more fails '
+          '(regression: used to flash an error over the loaded list)',
+          () async {
         // arrange - initial load must contain 20 items so internal _hasMore is true
         final twentyConversations = List.generate(
           20,
@@ -323,8 +360,8 @@ void main() {
           ),
         );
 
-        when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(twentyConversations));
+        when(() => mockGetConversations(any())).thenAnswer(
+            (_) async => _rightPage(twentyConversations, hasMore: true));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -333,20 +370,26 @@ void main() {
         when(() => mockGetConversations(any()))
             .thenAnswer((_) async => const Left(tFailure));
 
-        // assert later
+        // assert later: seulement isLoadingMore true -> false, jamais un
+        // ConversationsError qui effacerait temporairement la liste déjà
+        // chargée pour un simple échec de pagination.
         expectLater(
           bloc.stream,
           emitsInOrder([
             isA<ConversationsLoaded>()
                 .having((s) => s.isLoadingMore, 'isLoadingMore', true),
             isA<ConversationsLoaded>()
-                .having((s) => s.isLoadingMore, 'isLoadingMore', false),
-            const ConversationsError(message: 'No internet'),
+                .having((s) => s.isLoadingMore, 'isLoadingMore', false)
+                .having((s) => s.conversations.length, 'still 20', 20),
           ]),
         );
 
         // act
         bloc.add(LoadMoreConversations());
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // assert - le stream ne doit jamais avoir émis de ConversationsError
+        expect(bloc.state, isNot(isA<ConversationsError>()));
       });
     });
 
@@ -354,7 +397,7 @@ void main() {
       test('should delegate to LoadConversations with refresh=true', () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
 
         // assert later - should emit loading twice (refresh triggers new load)
         expectLater(
@@ -374,16 +417,20 @@ void main() {
       });
     });
 
-    group('MarkConversationAsRead - Optimistic Update', () {
-      test('should optimistically update unread count', () async {
+    group('MarkConversationAsRead', () {
+      test('uses the server unread count after a successful mark', () async {
         // arrange - load conversations first
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
-        when(() => mockMarkAsRead(any()))
-            .thenAnswer((_) async => const Right(null));
+        when(() => mockMarkAsRead(any())).thenAnswer(
+          (_) async => const Right(MarkAsReadResult(
+            messagesMarked: 3,
+            unreadCountForMe: 0,
+          )),
+        );
 
         // assert later
         expectLater(
@@ -408,12 +455,16 @@ void main() {
       test('should call MarkAsRead use case with correct params', () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
-        when(() => mockMarkAsRead(any()))
-            .thenAnswer((_) async => const Right(null));
+        when(() => mockMarkAsRead(any())).thenAnswer(
+          (_) async => const Right(MarkAsReadResult(
+            messagesMarked: 3,
+            unreadCountForMe: 0,
+          )),
+        );
 
         // act
         bloc.add(const MarkConversationAsRead(conversationId: 'conv_1'));
@@ -425,33 +476,81 @@ void main() {
                   conversationId: 'conv_1', messageId: 'msg_1'),
             )).called(1);
       });
-    });
 
-    group('MarkConversationAsRead - Rollback', () {
-      test('should rollback on failure', () async {
-        // arrange - load conversations
+      test(
+          'preserves otherUserName/otherUserPhotoUrl/isOnline (regression: '
+          'used to reconstruct Conversation manually and lose these fields)',
+          () async {
+        // arrange
+        final enrichedConversation = Conversation(
+          id: 'conv_enriched',
+          participantIds: const ['user_1', 'user_9'],
+          otherUserId: 'user_9',
+          otherUserName: 'Alice',
+          otherUserPhotoUrl: 'https://example.com/alice.jpg',
+          isOnline: true,
+          lastActive: DateTime(2024, 1, 20, 15, 0),
+          updatedAt: DateTime(2024, 1, 20, 15, 30),
+          unreadCount: 2,
+          lastMessage: Message(
+            id: 'msg_enriched',
+            conversationId: 'conv_enriched',
+            senderId: 'user_9',
+            content: 'Salut !',
+            type: MessageType.text,
+            createdAt: DateTime(2024, 1, 20, 15, 30),
+            reactions: const {},
+            status: MessageStatus.sent,
+          ),
+        );
+
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage([enrichedConversation]));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
-        final initialState = bloc.state as ConversationsLoaded;
+        when(() => mockMarkAsRead(any())).thenAnswer(
+          (_) async => const Right(MarkAsReadResult(
+            messagesMarked: 2,
+            unreadCountForMe: 0,
+          )),
+        );
+
+        // act
+        bloc.add(const MarkConversationAsRead(conversationId: 'conv_enriched'));
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // assert
+        final state = bloc.state as ConversationsLoaded;
+        final updated =
+            state.conversations.firstWhere((c) => c.id == 'conv_enriched');
+        expect(updated.unreadCount, 0);
+        expect(updated.otherUserName, 'Alice');
+        expect(updated.otherUserPhotoUrl, 'https://example.com/alice.jpg');
+        expect(updated.isOnline, true);
+        expect(updated.otherUserId, 'user_9');
+      });
+    });
+
+    group('MarkConversationAsRead failure', () {
+      test('keeps the list and exposes a transient action error on failure',
+          () async {
+        // arrange - load conversations
+        when(() => mockGetConversations(any()))
+            .thenAnswer((_) async => _rightPage(tConversations));
+        bloc.add(LoadConversations());
+        await Future.delayed(const Duration(milliseconds: 100));
 
         // arrange - mark as read fails
         const tFailure = ServerFailure(message: 'Failed to mark as read');
         when(() => mockMarkAsRead(any()))
             .thenAnswer((_) async => const Left(tFailure));
 
-        // assert later
         expectLater(
           bloc.stream,
-          emitsInOrder([
-            isA<ConversationsLoaded>()
-                .having((s) => s.totalUnreadCount, 'totalUnread', 0),
-            isA<ConversationsLoaded>().having(
-                (s) => s.totalUnreadCount, 'totalUnread', 3), // Rollback
-            const ConversationsError(message: 'Failed to mark as read'),
-          ]),
+          emits(isA<ConversationsLoaded>()
+              .having((s) => s.totalUnreadCount, 'totalUnread', 3)
+              .having((s) => s.actionError, 'actionError', isNotNull)),
         );
 
         // act
@@ -463,7 +562,7 @@ void main() {
       test('should filter conversations by last message content', () async {
         // arrange - load conversations
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -489,7 +588,7 @@ void main() {
       test('should return all conversations when query is empty', () async {
         // arrange - load and search first
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -513,7 +612,7 @@ void main() {
       test('should be case insensitive', () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -527,10 +626,67 @@ void main() {
         expect(state.conversations.first.id, 'conv_1');
       });
 
+      test('should filter conversations by participant name', () async {
+        // Régression F35: la recherche ne filtrait auparavant que sur le
+        // contenu du dernier message, pas sur le nom du participant — alors
+        // que otherUserName est disponible sur l'entité depuis longtemps.
+        final withNames = [
+          Conversation(
+            id: 'conv_alice',
+            participantIds: const ['user_1', 'user_9'],
+            otherUserName: 'Alice Wonderland',
+            updatedAt: DateTime(2024, 1, 20, 15, 0),
+            unreadCount: 0,
+            lastMessage: Message(
+              id: 'msg_a',
+              conversationId: 'conv_alice',
+              senderId: 'user_9',
+              content: 'On se voit quand ?',
+              type: MessageType.text,
+              createdAt: DateTime(2024, 1, 20, 15, 0),
+              reactions: const {},
+              status: MessageStatus.sent,
+            ),
+          ),
+          Conversation(
+            id: 'conv_bob',
+            participantIds: const ['user_1', 'user_8'],
+            otherUserName: 'Bob',
+            updatedAt: DateTime(2024, 1, 20, 14, 0),
+            unreadCount: 0,
+            lastMessage: Message(
+              id: 'msg_b',
+              conversationId: 'conv_bob',
+              senderId: 'user_8',
+              content: 'Salut',
+              type: MessageType.text,
+              createdAt: DateTime(2024, 1, 20, 14, 0),
+              reactions: const {},
+              status: MessageStatus.sent,
+            ),
+          ),
+        ];
+
+        when(() => mockGetConversations(any()))
+            .thenAnswer((_) async => _rightPage(withNames));
+        bloc.add(LoadConversations());
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // act: recherche par nom, aucun des deux derniers messages ne
+        // contient "alice" ou "wonderland".
+        bloc.add(const SearchConversations(query: 'wonderland'));
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // assert
+        final state = bloc.state as ConversationsLoaded;
+        expect(state.conversations.length, 1);
+        expect(state.conversations.first.id, 'conv_alice');
+      });
+
       test('should preserve allConversations while filtering', () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 
@@ -545,11 +701,76 @@ void main() {
       });
     });
 
+    group('Conversation filters and hiding', () {
+      test('changes filter, clears search and keeps it on page two', () async {
+        when(() => mockGetConversations(any()))
+            .thenAnswer((_) async => _rightPage(tConversations, hasMore: true));
+
+        bloc.add(LoadConversations());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const SearchConversations(query: 'hello'));
+        bloc.add(
+            const ChangeConversationFilter(filter: ConversationFilter.unread));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(LoadMoreConversations());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final state = bloc.state as ConversationsLoaded;
+        expect(state.activeFilter, ConversationFilter.unread);
+        expect(state.searchQuery, isEmpty);
+        final captured = verify(() => mockGetConversations(captureAny()))
+            .captured
+            .cast<GetConversationsParams>();
+        expect(captured.last.page, 2);
+        expect(captured.last.filter, ConversationFilter.unread);
+      });
+
+      test('keeps the optimistic hide when the conversation is already absent',
+          () async {
+        when(() => mockGetConversations(any()))
+            .thenAnswer((_) async => _rightPage(tConversations));
+        when(() => mockDeleteConversation(any())).thenAnswer(
+          (_) async => const Left(ServerFailure(
+            message: 'missing',
+            code: 'not-found',
+          )),
+        );
+
+        bloc.add(LoadConversations());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const DeleteConversation(conversationId: 'conv_1'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final state = bloc.state as ConversationsLoaded;
+        expect(state.allConversations.map((item) => item.id),
+            isNot(contains('conv_1')));
+        expect(state.totalUnreadCount, 0);
+      });
+
+      test('restores the exact snapshot when hiding fails', () async {
+        when(() => mockGetConversations(any()))
+            .thenAnswer((_) async => _rightPage(tConversations));
+        when(() => mockDeleteConversation(any())).thenAnswer(
+          (_) async => const Left(NetworkFailure(message: 'offline')),
+        );
+
+        bloc.add(LoadConversations());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        bloc.add(const DeleteConversation(conversationId: 'conv_1'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final state = bloc.state as ConversationsLoaded;
+        expect(state.allConversations, tConversations);
+        expect(state.totalUnreadCount, 3);
+        expect(state.actionError, isNotNull);
+      });
+    });
+
     group('State copyWith', () {
       test('should copy state with updated fields', () async {
         // arrange
         when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => Right(tConversations));
+            .thenAnswer((_) async => _rightPage(tConversations));
         bloc.add(LoadConversations());
         await Future.delayed(const Duration(milliseconds: 100));
 

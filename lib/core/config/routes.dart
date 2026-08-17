@@ -12,12 +12,21 @@ import 'package:hivmeet/presentation/pages/discovery/discovery_page.dart';
 import 'package:hivmeet/presentation/pages/discovery/filters_page.dart';
 import 'package:hivmeet/presentation/pages/profile/profile_detail_page.dart'
     as profile;
+import 'package:hivmeet/presentation/pages/profile/profile_edit_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_photos_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_privacy_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_notifications_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_blocked_users_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_data_page.dart';
+import 'package:hivmeet/presentation/pages/profile/public_profile_page.dart';
 import 'package:hivmeet/presentation/pages/discovery/profile_detail_page.dart'
     as discovery;
 import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/presentation/pages/matches/matches_page.dart';
+import 'package:hivmeet/presentation/pages/chat/chat_page.dart';
 import 'package:hivmeet/presentation/pages/conversations/conversations_page.dart';
-import 'package:hivmeet/presentation/pages/settings/settings_page.dart';
+
 import 'package:hivmeet/presentation/pages/feed/feed_page.dart';
 import 'package:hivmeet/presentation/pages/resources/resources_page.dart';
 import 'package:hivmeet/presentation/pages/premium/premium_page.dart';
@@ -30,6 +39,8 @@ import 'package:hivmeet/presentation/pages/interaction_history/interaction_histo
 import 'package:hivmeet/presentation/pages/interaction_history/my_likes_page.dart';
 import 'package:hivmeet/presentation/pages/interaction_history/my_passes_page.dart';
 import 'package:hivmeet/presentation/pages/interaction_history/stats_page.dart';
+import 'package:hivmeet/presentation/pages/notifications/notifications_page.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 
 class AppRoutes {
   // Routes principales
@@ -45,12 +56,18 @@ class AppRoutes {
   static const String matches = '/matches';
   static const String conversations = '/conversations';
   static const String chat = '/chat';
+  static const String chatDetail = '/chat/:conversationId';
   static const String feed = '/feed';
   static const String resources = '/resources';
 
   // Routes de profil
   static const String profile = '/profile';
-  static const String profileCreate = '/profile/create';
+  static const String profileEdit = '/profile/edit';
+  static const String profilePhotos = '/profile/photos';
+  static const String profilePrivacy = '/profile/privacy';
+  static const String profileNotifications = '/profile/notifications';
+  static const String profileBlockedUsers = '/profile/blocked-users';
+  static const String profileData = '/profile/data';
   static const String profileId = '/profile/:id';
   static const String profileDetail = '/profile-detail';
 
@@ -58,10 +75,8 @@ class AppRoutes {
   static const String verification = '/verification';
   static const String likesReceived = '/likes-received';
   static const String premium = '/premium';
-  static const String payment = '/payment';
 
   // Routes de paramètres et légales
-  static const String settings = '/settings';
   static const String about = '/about';
   static const String privacy = '/privacy';
   static const String terms = '/terms';
@@ -71,6 +86,9 @@ class AppRoutes {
   static const String myLikes = '/interaction-history/likes';
   static const String myPasses = '/interaction-history/passes';
   static const String interactionStats = '/interaction-history/stats';
+
+  // Notifications in-app
+  static const String notifications = '/notifications';
 }
 
 class AppRouter {
@@ -86,10 +104,10 @@ class AppRouter {
         AppRoutes.discovery,
         AppRoutes.matches,
         AppRoutes.conversations,
+        AppRoutes.chat,
         AppRoutes.feed,
         AppRoutes.resources,
         AppRoutes.profile,
-        AppRoutes.settings,
         AppRoutes.premium,
         AppRoutes.verification,
         AppRoutes.likesReceived,
@@ -101,8 +119,8 @@ class AppRouter {
 
       if (isProtectedRoute) {
         if (authState is! Authenticated) {
-          print(
-              '🔒 Route protégée accédée sans authentification: ${state.matchedLocation}');
+          debugPrint(
+              'Route protegee accedee sans authentification: ${state.matchedLocation}');
           return AppRoutes.login;
         }
       }
@@ -155,6 +173,29 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: AppRoutes.chatDetail,
+        builder: (context, state) {
+          final conversationId = state.pathParameters['conversationId'];
+          final conversation =
+              state.extra is Conversation ? state.extra as Conversation : null;
+
+          if (conversationId == null || conversationId.isEmpty) {
+            return Scaffold(
+              body: Center(
+                child: Text(LocalizationService.translate(
+                  'navigation.page_not_found',
+                )),
+              ),
+            );
+          }
+
+          return ChatPage(
+            conversationId: conversationId,
+            conversation: conversation,
+          );
+        },
+      ),
+      GoRoute(
         path: AppRoutes.feed,
         builder: (context, state) => const FeedPage(),
       ),
@@ -169,10 +210,43 @@ class AppRouter {
         builder: (context, state) => const profile.ProfileDetailPage(),
       ),
       GoRoute(
+        path: AppRoutes.profileEdit,
+        builder: (context, state) => const ProfileEditPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profilePhotos,
+        builder: (context, state) => const ProfilePhotosPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profilePrivacy,
+        builder: (context, state) => const ProfilePrivacyPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileNotifications,
+        builder: (context, state) => const ProfileNotificationsPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileBlockedUsers,
+        builder: (context, state) => const ProfileBlockedUsersPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileData,
+        builder: (context, state) => const ProfileDataPage(),
+      ),
+      GoRoute(
         path: AppRoutes.profileId,
         builder: (context, state) {
-          // TODO: Récupérer le profil par ID
-          return const profile.ProfileDetailPage();
+          final userId = state.pathParameters['id'];
+          if (userId == null || userId.isEmpty) {
+            return Scaffold(
+              body: Center(
+                child: Text(LocalizationService.translate(
+                  'profile.profile_not_found',
+                )),
+              ),
+            );
+          }
+          return PublicProfilePage(userId: userId);
         },
       ),
       GoRoute(
@@ -180,13 +254,19 @@ class AppRouter {
         builder: (context, state) {
           final profile = state.extra as DiscoveryProfile?;
           if (profile == null) {
-            return const Scaffold(
+            return Scaffold(
               body: Center(
-                child: Text('Profil non trouvé'),
+                child: Text(LocalizationService.translate(
+                  'profile.profile_not_found',
+                )),
               ),
             );
           }
-          return discovery.ProfileDetailPage(profile: profile);
+          final readOnly = state.uri.queryParameters['readonly'] == 'true';
+          return discovery.ProfileDetailPage(
+            profile: profile,
+            enableActions: !readOnly,
+          );
         },
       ),
 
@@ -203,19 +283,7 @@ class AppRouter {
         path: AppRoutes.premium,
         builder: (context, state) => const PremiumPage(),
       ),
-      GoRoute(
-        path: AppRoutes.payment,
-        builder: (context, state) {
-          // Page de paiement par défaut - rediriger vers premium
-          return const PremiumPage();
-        },
-      ),
-
       // Pages de paramètres et légales
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => const SettingsPage(),
-      ),
       GoRoute(
         path: AppRoutes.about,
         builder: (context, state) => const AboutPage(),
@@ -246,6 +314,12 @@ class AppRouter {
         path: AppRoutes.interactionStats,
         builder: (context, state) => const StatsPage(),
       ),
+
+      // Notifications in-app
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsPage(),
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -259,18 +333,22 @@ class AppRouter {
             ),
             const SizedBox(height: 16),
             Text(
-              'Page introuvable',
+              LocalizationService.translate('navigation.page_not_found'),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              'La page ${state.uri.toString()} n\'existe pas.',
+              LocalizationService.translate(
+                'navigation.page_not_found_message',
+                params: {'path': state.uri.toString()},
+              ),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => context.go('/discovery'),
-              child: const Text('Retour à l\'accueil'),
+              child:
+                  Text(LocalizationService.translate('navigation.back_home')),
             ),
           ],
         ),

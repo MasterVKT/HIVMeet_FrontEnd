@@ -90,7 +90,7 @@ class InteractionHistoryPage extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: iconColor, size: 24),
@@ -134,7 +134,7 @@ class InteractionHistoryPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryPurple.withOpacity(0.1),
+        color: AppColors.primaryPurple.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -163,7 +163,7 @@ class InteractionHistoryPage extends StatelessWidget {
                   'Vous pouvez annuler une interaction pour qu\'un profil réapparaisse dans votre découverte. Cependant, vous ne pouvez pas annuler un like qui a abouti à un match actif.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.charcoal.withOpacity(0.7),
+                    color: AppColors.charcoal.withValues(alpha: 0.7),
                   ),
                 ),
               ],

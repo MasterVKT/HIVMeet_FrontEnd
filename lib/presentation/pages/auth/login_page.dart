@@ -38,15 +38,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    print('🔄 DEBUG: _handleLogin DÉMARRÉ avec AuthBlocSimple');
+    debugPrint('🔄 DEBUG: _handleLogin DÉMARRÉ avec AuthBlocSimple');
 
     if (!_formKey.currentState!.validate()) {
-      print('❌ DEBUG: Validation formulaire échouée');
+      debugPrint('❌ DEBUG: Validation formulaire échouée');
       return;
     }
 
-    print('✅ DEBUG: Validation formulaire OK');
-    print('Tentative de connexion pour: ${_emailController.text.trim()}');
+    debugPrint('✅ DEBUG: Validation formulaire OK');
+    debugPrint('Tentative de connexion pour: ${_emailController.text.trim()}');
 
     // Utiliser le nouveau système AuthBlocSimple
     context.read<AuthBlocSimple>().add(
@@ -56,7 +56,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
 
-    print('✅ DEBUG: LoginRequested envoyé au AuthBlocSimple');
+    debugPrint('✅ DEBUG: LoginRequested envoyé au AuthBlocSimple');
   }
 
   // Méthodes de debug (à retirer en production)
@@ -66,6 +66,7 @@ class _LoginPageState extends State<LoginPage> {
       const testEmail = 'test@hivmeet.com';
       const testPassword = 'Test123456!';
 
+      if (!mounted) return;
       HIVToast.showInfo(
         context: context,
         message: 'Création de l\'utilisateur test...',
@@ -87,11 +88,13 @@ class _LoginPageState extends State<LoginPage> {
               email: testEmail,
               password: testPassword,
             );
+            if (!mounted) return;
             HIVToast.showInfo(
               context: context,
               message: 'Utilisateur test existe déjà',
             );
           } catch (signInError) {
+            if (!mounted) return;
             HIVToast.showError(
               context: context,
               message:
@@ -100,6 +103,7 @@ class _LoginPageState extends State<LoginPage> {
             return;
           }
         } else {
+          if (!mounted) return;
           HIVToast.showError(
             context: context,
             message: 'Erreur création: ${e.toString()}',
@@ -121,17 +125,20 @@ class _LoginPageState extends State<LoginPage> {
             // Note: Cette approche est uniquement pour le développement
             await user.reload();
 
+            if (!mounted) return;
             HIVToast.showSuccess(
               context: context,
               message: 'Utilisateur test créé et email vérifié',
             );
           } catch (verificationError) {
+            if (!mounted) return;
             HIVToast.showWarning(
               context: context,
               message: 'Utilisateur créé mais vérification email échouée',
             );
           }
         } else {
+          if (!mounted) return;
           HIVToast.showSuccess(
             context: context,
             message: 'Utilisateur test prêt (email déjà vérifié)',
@@ -142,12 +149,14 @@ class _LoginPageState extends State<LoginPage> {
         _emailController.text = testEmail;
         _passwordController.text = testPassword;
 
+        if (!mounted) return;
         HIVToast.showInfo(
           context: context,
           message: 'Identifiants remplis automatiquement',
         );
       }
     } catch (e) {
+      if (!mounted) return;
       HIVToast.showError(
         context: context,
         message: 'Erreur générale: ${e.toString()}',
@@ -167,19 +176,19 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    print('🔄 DEBUG LoginPage: Début du build');
+    debugPrint('🔄 DEBUG LoginPage: Début du build');
 
     return BlocListener<AuthBlocSimple, AuthState>(
       listener: (context, state) {
-        print('🔄 DEBUG LoginPage: BlocListener state change: $state');
+        debugPrint('🔄 DEBUG LoginPage: BlocListener state change: $state');
 
         if (state is AuthLoading) {
-          print('🔄 DEBUG LoginPage: AuthLoading détecté');
+          debugPrint('🔄 DEBUG LoginPage: AuthLoading détecté');
           setState(() {
             _isLoading = true;
           });
         } else if (state is Authenticated) {
-          print('✅ DEBUG LoginPage: Authenticated détecté, navigation...');
+          debugPrint('✅ DEBUG LoginPage: Authenticated détecté, navigation...');
 
           // Arrêter le loading
           setState(() {
@@ -188,9 +197,9 @@ class _LoginPageState extends State<LoginPage> {
 
           // Naviguer vers la découverte (page principale)
           context.go('/discovery');
-          print('✅ DEBUG LoginPage: Navigation vers /discovery effectuée');
+          debugPrint('✅ DEBUG LoginPage: Navigation vers /discovery effectuée');
         } else if (state is AuthError) {
-          print('❌ DEBUG LoginPage: AuthError détecté: ${state.message}');
+          debugPrint('❌ DEBUG LoginPage: AuthError détecté: ${state.message}');
 
           // Arrêter le loading
           setState(() {
@@ -214,7 +223,7 @@ class _LoginPageState extends State<LoginPage> {
             message: message,
           );
         } else if (state is Unauthenticated) {
-          print('❌ DEBUG LoginPage: Unauthenticated détecté');
+          debugPrint('❌ DEBUG LoginPage: Unauthenticated détecté');
 
           // Arrêter le loading si nécessaire
           setState(() {

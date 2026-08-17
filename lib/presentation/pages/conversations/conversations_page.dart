@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/injection.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/widgets/conversations/conversations_widgets.dart';
 import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
+import 'package:hivmeet/presentation/widgets/notifications/notification_bell_button.dart';
 
 /// Page principale des conversations
 ///
@@ -32,7 +34,7 @@ class ConversationsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => getIt<ConversationsBloc>()..add(LoadConversations()),
+      create: (_) => getIt<ConversationsBloc>()..add(LoadConversations()),
       child: const _ConversationsPageContent(),
     );
   }
@@ -81,8 +83,13 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
           MarkConversationAsRead(conversationId: conversation.id),
         );
 
-    // Naviguer vers le chat
-    context.push('/chat/${conversation.id}');
+    // Naviguer vers le chat, puis resynchroniser la liste au retour: le
+    // badge non-lu total et les cards doivent refléter les messages
+    // échangés pendant que le chat était ouvert (F39/F85).
+    context.push('/chat/${conversation.id}', extra: conversation).then((_) {
+      if (!mounted) return;
+      context.read<ConversationsBloc>().add(LoadConversations(refresh: true));
+    });
   }
 
   void _toggleSearch() {
@@ -98,12 +105,11 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
 
   /// Obtenir le nom du participant (temporaire - voir TODO)
   String _getParticipantName(Conversation conversation) {
-    // TODO: Fetch real participant profile
-    // Pour l'instant, on utilise l'ID du premier participant qui n'est pas l'utilisateur actuel
-    final participantId = conversation.participantIds.isNotEmpty
-        ? conversation.participantIds.first
-        : 'unknown';
-    return 'Participant $participantId';
+    final name = conversation.otherUserName?.trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+    return LocalizationService.translate('chat.default_user');
   }
 
   @override
@@ -122,9 +128,9 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
 
                   return Row(
                     children: [
-                      const Text(
-                        'Messages',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      Text(
+                        LocalizationService.translate('navigation.messages'),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       if (totalUnread > 0) ...[
                         const SizedBox(width: 8),
@@ -152,19 +158,12 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                 },
               ),
         actions: [
+          if (!_showSearch) const NotificationBellButton(),
           if (!_showSearch)
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: _toggleSearch,
-              tooltip: 'Rechercher',
-            ),
-          if (!_showSearch)
-            IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: () {
-                // TODO: Menu d'options (marquer tout comme lu, paramètres, etc.)
-              },
-              tooltip: 'Options',
+              tooltip: LocalizationService.translate('conversations.search'),
             ),
         ],
       ),
@@ -180,6 +179,48 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
               },
             ),
 
+          BlocBuilder<ConversationsBloc, ConversationsState>(
+            builder: (context, state) {
+              final activeFilter = state is ConversationsLoaded
+                  ? state.activeFilter
+                  : state is ConversationsLoading
+                      ? state.activeFilter
+                      : ConversationFilter.all;
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Semantics(
+                  label: LocalizationService.translate(
+                    'conversations.filter_label',
+                  ),
+                  child: SegmentedButton<ConversationFilter>(
+                    segments: [
+                      ButtonSegment(
+                        value: ConversationFilter.all,
+                        label: Text(LocalizationService.translate(
+                          'conversations.filter_all',
+                        )),
+                      ),
+                      ButtonSegment(
+                        value: ConversationFilter.unread,
+                        label: Text(LocalizationService.translate(
+                          'conversations.filter_unread',
+                        )),
+                      ),
+                    ],
+                    selected: {activeFilter},
+                    onSelectionChanged: (selection) {
+                      context.read<ConversationsBloc>().add(
+                            ChangeConversationFilter(
+                              filter: selection.first,
+                            ),
+                          );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+
           // Liste des conversations
           Expanded(
             child: BlocConsumer<ConversationsBloc, ConversationsState>(
@@ -190,7 +231,7 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                       content: Text(state.message),
                       backgroundColor: theme.colorScheme.error,
                       action: SnackBarAction(
-                        label: 'Réessayer',
+                        label: LocalizationService.translate('common.retry'),
                         textColor: Colors.white,
                         onPressed: () {
                           context
@@ -200,6 +241,17 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                       ),
                     ),
                   );
+                }
+                if (state is ConversationsLoaded && state.actionError != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.actionError!),
+                      backgroundColor: theme.colorScheme.error,
+                    ),
+                  );
+                  context
+                      .read<ConversationsBloc>()
+                      .add(ClearConversationActionError());
                 }
               },
               builder: (context, state) {
@@ -260,10 +312,8 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                           child: ConversationCard(
                             conversation: conversation,
                             participantName: _getParticipantName(conversation),
-                            participantPhotoUrl:
-                                null, // TODO: Fetch from profile
-                            currentUserId:
-                                'current_user_id', // TODO: Get from auth
+                            participantPhotoUrl: conversation.otherUserPhotoUrl,
+                            currentUserId: '',
                             onTap: () => _onConversationTap(conversation),
                             onLongPress: () =>
                                 _showConversationOptions(context, conversation),
@@ -307,7 +357,9 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
           children: [
             ListTile(
               leading: const Icon(Icons.chat),
-              title: const Text('Ouvrir la conversation'),
+              title: Text(
+                LocalizationService.translate('conversations.open'),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _onConversationTap(conversation);
@@ -319,7 +371,9 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                   Icons.check_circle,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-                title: const Text('Marquer comme lu'),
+                title: Text(
+                  LocalizationService.translate('conversations.mark_read'),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   context.read<ConversationsBloc>().add(
@@ -331,33 +385,39 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
               ),
             ListTile(
               leading: const Icon(Icons.person),
-              title: const Text('Voir le profil'),
+              title: Text(LocalizationService.translate('common.view_profile')),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to participant profile
-                final participantId = conversation.participantIds.isNotEmpty
-                    ? conversation.participantIds.first
-                    : null;
-                if (participantId != null) {
+                // otherUserId est la source de vérité; participantIds.first
+                // n'est qu'un fallback défensif (ordre non garanti côté
+                // backend — l'utiliser en priorité pouvait ouvrir le mauvais
+                // profil, y compris le sien propre).
+                final participantId = conversation.otherUserId ??
+                    (conversation.participantIds.isNotEmpty
+                        ? conversation.participantIds.first
+                        : null);
+                if (participantId != null && participantId.isNotEmpty) {
                   context.push('/profile/$participantId');
                 }
               },
             ),
-            const Divider(),
+            // Pas d'option "Supprimer": le backend n'expose aucun endpoint
+            // DELETE /conversations/{id}/ (voir
+            // BACKEND_MESSAGING_DELETE_CONVERSATION.md). Une action qui
+            // affiche juste "indisponible" est une UI morte trompeuse —
+            // mieux vaut ne pas la proposer tant qu'elle ne fonctionne pas
+            // réellement.
             ListTile(
               leading: Icon(
-                Icons.delete_outline,
+                Icons.visibility_off_outlined,
                 color: Theme.of(context).colorScheme.error,
               ),
               title: Text(
-                'Supprimer la conversation',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                LocalizationService.translate('conversations.hide'),
               ),
               onTap: () {
                 Navigator.pop(context);
-                _confirmDeleteConversation(context, conversation);
+                _confirmHideConversation(context, conversation);
               },
             ),
             const SizedBox(height: 8),
@@ -367,37 +427,33 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
     );
   }
 
-  void _confirmDeleteConversation(
-      BuildContext context, Conversation conversation) {
-    showDialog(
+  Future<void> _confirmHideConversation(
+    BuildContext context,
+    Conversation conversation,
+  ) async {
+    final shouldHide = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Supprimer cette conversation?'),
-        content: const Text(
-          'Cette action est irréversible. Tous les messages seront supprimés.',
+        title: Text(LocalizationService.translate('conversations.hide_title')),
+        content: Text(
+          LocalizationService.translate('conversations.hide_message'),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annuler'),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(LocalizationService.translate('common.cancel')),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              // TODO: Add DeleteConversation event to ConversationsBloc
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Fonctionnalité non implémentée'),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Supprimer'),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(LocalizationService.translate('conversations.hide')),
           ),
         ],
       ),
     );
+    if (shouldHide == true && context.mounted) {
+      context.read<ConversationsBloc>().add(
+            DeleteConversation(conversationId: conversation.id),
+          );
+    }
   }
 }

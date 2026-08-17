@@ -26,6 +26,7 @@ class PremiumBloc extends Bloc<PremiumEvent, PremiumState> {
     on<LoadPremiumStats>(_onLoadPremiumStats);
     on<LoadPaymentHistory>(_onLoadPaymentHistory);
     on<RetryPayment>(_onRetryPayment);
+    on<ModifySubscription>(_onModifySubscription);
   }
 
   Future<void> _onLoadPremiumPlans(
@@ -213,6 +214,27 @@ class PremiumBloc extends Bloc<PremiumEvent, PremiumState> {
           emit(PremiumError(
               message: paymentResult.errorMessage ?? 'Payment failed'));
         }
+      },
+    );
+  }
+
+  Future<void> _onModifySubscription(
+    ModifySubscription event,
+    Emitter<PremiumState> emit,
+  ) async {
+    emit(PremiumProcessing());
+
+    final result = await _premiumRepository.modifySubscription(
+      newPlanId: event.newPlanId,
+      proration: event.proration,
+    );
+
+    result.fold(
+      (failure) => emit(PremiumModifyError(message: failure.message)),
+      (subscription) {
+        emit(PremiumModifySuccess(subscription: subscription));
+        // Recharger les plans + abonnement courant pour rafraîchir l'UI
+        add(LoadPremiumPlans());
       },
     );
   }

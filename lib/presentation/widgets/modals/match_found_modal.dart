@@ -248,7 +248,7 @@ class _MatchFoundModalState extends State<MatchFoundModal>
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.success.withOpacity(0.3),
+            color: AppColors.success.withValues(alpha: 0.3),
             blurRadius: 10,
             spreadRadius: 2,
           ),
@@ -274,7 +274,7 @@ class _MatchFoundModalState extends State<MatchFoundModal>
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryPurple.withOpacity(0.3),
+            color: AppColors.primaryPurple.withValues(alpha: 0.3),
             blurRadius: 10,
             spreadRadius: 2,
           ),

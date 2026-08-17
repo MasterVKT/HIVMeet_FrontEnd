@@ -6,6 +6,38 @@ enum MessageType { text, image, video, audio, voice, system, callLog }
 
 enum MessageStatus { sending, sent, delivered, read, failed }
 
+/// Filtre de conversations accepté par l'API.
+///
+/// Garder la conversion HTTP ici évite de propager des chaînes libres entre la
+/// présentation, le domaine et la datasource.
+enum ConversationFilter {
+  all,
+  unread,
+  archived;
+
+  String get apiValue => switch (this) {
+        ConversationFilter.all => 'all',
+        ConversationFilter.unread => 'unread',
+        ConversationFilter.archived => 'archived',
+      };
+}
+
+/// Résultat autoritatif du marquage comme lu retourné par le backend.
+class MarkAsReadResult extends Equatable {
+  final int messagesMarked;
+  final int unreadCountForMe;
+  final DateTime? readAt;
+
+  const MarkAsReadResult({
+    required this.messagesMarked,
+    required this.unreadCountForMe,
+    this.readAt,
+  });
+
+  @override
+  List<Object?> get props => [messagesMarked, unreadCountForMe, readAt];
+}
+
 class ParticipantPresence extends Equatable {
   final String userId;
   final bool isOnline;
@@ -23,28 +55,6 @@ class ParticipantPresence extends Equatable {
   List<Object?> get props => [userId, isOnline, lastActive, isTyping];
 }
 
-class MediaUploadTarget extends Equatable {
-  final String uploadUrl;
-  final String filePathOnStorage;
-  final String contentType;
-  final int expiresInSeconds;
-
-  const MediaUploadTarget({
-    required this.uploadUrl,
-    required this.filePathOnStorage,
-    required this.contentType,
-    required this.expiresInSeconds,
-  });
-
-  @override
-  List<Object?> get props => [
-        uploadUrl,
-        filePathOnStorage,
-        contentType,
-        expiresInSeconds,
-      ];
-}
-
 class ConversationMessagesPage extends Equatable {
   final List<Message> messages;
   final bool hasMore;
@@ -58,6 +68,23 @@ class ConversationMessagesPage extends Equatable {
 
   @override
   List<Object?> get props => [messages, hasMore, showPremiumPrompt];
+}
+
+/// Page de résultats pour `getConversations`.
+///
+/// [hasMore] est dérivé du champ DRF `next` (page-based pagination réelle
+/// côté backend), pas d'une heuristique sur la taille de la liste.
+class ConversationListPage extends Equatable {
+  final List<Conversation> conversations;
+  final bool hasMore;
+
+  const ConversationListPage({
+    required this.conversations,
+    required this.hasMore,
+  });
+
+  @override
+  List<Object?> get props => [conversations, hasMore];
 }
 
 class Message extends Equatable {
@@ -116,7 +143,7 @@ class Message extends Equatable {
       conversationId: json['conversation_id'] as String,
       senderId: json['sender_id'] as String,
       isMine: json['is_mine'] as bool? ?? false,
-      content: json['content'] as String,
+      content: (json['content'] ?? json['content_preview'] ?? '') as String,
       type: MessageType.values.firstWhere(
           (e) => e.toString() == 'MessageType.$rawType',
           orElse: () =>
@@ -141,7 +168,9 @@ class Message extends Equatable {
               ?.map((k, v) => MapEntry(k, v as String)) ??
           {},
       status: MessageStatus.values.firstWhere(
-          (e) => e.toString() == 'MessageStatus.${json['status'] as String}'),
+        (e) => e.toString() == 'MessageStatus.${json['status'] ?? 'sent'}',
+        orElse: () => MessageStatus.sent,
+      ),
     );
   }
 
@@ -253,6 +282,11 @@ class Message extends Equatable {
 class Conversation extends Equatable {
   final String id;
   final List<String> participantIds;
+  final String? otherUserId;
+  final String? otherUserName;
+  final String? otherUserPhotoUrl;
+  final bool isOnline;
+  final DateTime? lastActive;
   final Message? lastMessage;
   final int unreadCount;
   final DateTime updatedAt;
@@ -261,6 +295,11 @@ class Conversation extends Equatable {
   const Conversation({
     required this.id,
     required this.participantIds,
+    this.otherUserId,
+    this.otherUserName,
+    this.otherUserPhotoUrl,
+    this.isOnline = false,
+    this.lastActive,
     this.lastMessage,
     this.unreadCount = 0,
     required this.updatedAt,
@@ -272,9 +311,24 @@ class Conversation extends Equatable {
   }
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
+    final otherUser = json['other_user'] is Map<String, dynamic>
+        ? json['other_user'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+    final otherUserId = otherUser['user_id'] as String?;
+    final participantIds = json['participant_ids'] is List
+        ? (json['participant_ids'] as List).whereType<String>().toList()
+        : otherUserId == null || otherUserId.isEmpty
+            ? const <String>[]
+            : <String>[otherUserId];
+
     return Conversation(
-      id: json['id'] as String,
-      participantIds: (json['participant_ids'] as List).cast<String>(),
+      id: (json['conversation_id'] ?? json['id']) as String,
+      participantIds: participantIds,
+      otherUserId: otherUserId,
+      otherUserName: otherUser['display_name'] as String?,
+      otherUserPhotoUrl: otherUser['main_photo_url'] as String?,
+      isOnline: otherUser['is_online'] as bool? ?? false,
+      lastActive: _dateTimeOrNull(otherUser['last_active'] as String?),
       lastMessage: json['last_message'] != null
           ? Message.fromJson(json['last_message'] as Map<String, dynamic>)
           : null,
@@ -292,15 +346,83 @@ class Conversation extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'conversation_id': id,
       'participant_ids': participantIds,
+      'other_user': {
+        'user_id': otherUserId,
+        'display_name': otherUserName,
+        'main_photo_url': otherUserPhotoUrl,
+        'is_online': isOnline,
+        'last_active': lastActive?.toIso8601String(),
+      },
       'last_message': lastMessage?.toJson(),
       'unread_count': unreadCount,
+      'unread_count_for_me': unreadCount,
       'updated_at': updatedAt.toIso8601String(),
       'last_activity_at': lastActivityAt?.toIso8601String(),
     };
   }
 
+  /// Crée une copie de cette conversation avec les champs optionnels remplacés.
+  ///
+  /// Toujours utiliser cette méthode pour les mises à jour partielles (ex:
+  /// marquer comme lu) plutôt que de reconstruire l'entité manuellement —
+  /// reconstruire à la main a déjà causé la perte silencieuse de
+  /// otherUserName/otherUserPhotoUrl/isOnline/lastActive par le passé.
+  Conversation copyWith({
+    String? id,
+    List<String>? participantIds,
+    Object? otherUserId = _conversationUnset,
+    Object? otherUserName = _conversationUnset,
+    Object? otherUserPhotoUrl = _conversationUnset,
+    bool? isOnline,
+    Object? lastActive = _conversationUnset,
+    Object? lastMessage = _conversationUnset,
+    int? unreadCount,
+    DateTime? updatedAt,
+    Object? lastActivityAt = _conversationUnset,
+  }) {
+    return Conversation(
+      id: id ?? this.id,
+      participantIds: participantIds ?? this.participantIds,
+      otherUserId: identical(otherUserId, _conversationUnset)
+          ? this.otherUserId
+          : otherUserId as String?,
+      otherUserName: identical(otherUserName, _conversationUnset)
+          ? this.otherUserName
+          : otherUserName as String?,
+      otherUserPhotoUrl: identical(otherUserPhotoUrl, _conversationUnset)
+          ? this.otherUserPhotoUrl
+          : otherUserPhotoUrl as String?,
+      isOnline: isOnline ?? this.isOnline,
+      lastActive: identical(lastActive, _conversationUnset)
+          ? this.lastActive
+          : lastActive as DateTime?,
+      lastMessage: identical(lastMessage, _conversationUnset)
+          ? this.lastMessage
+          : lastMessage as Message?,
+      unreadCount: unreadCount ?? this.unreadCount,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastActivityAt: identical(lastActivityAt, _conversationUnset)
+          ? this.lastActivityAt
+          : lastActivityAt as DateTime?,
+    );
+  }
+
   @override
-  List<Object?> get props =>
-      [id, participantIds, lastMessage, unreadCount, updatedAt, lastActivityAt];
+  List<Object?> get props => [
+        id,
+        participantIds,
+        otherUserId,
+        otherUserName,
+        otherUserPhotoUrl,
+        isOnline,
+        lastActive,
+        lastMessage,
+        unreadCount,
+        updatedAt,
+        lastActivityAt,
+      ];
 }
+
+const Object _conversationUnset = Object();

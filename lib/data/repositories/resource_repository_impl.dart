@@ -2,6 +2,7 @@
 
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
+import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/data/datasources/remote/resources_api.dart';
 import 'package:hivmeet/data/models/resource_model.dart';
@@ -283,7 +284,7 @@ class ResourceRepositoryImpl implements ResourceRepository {
       categoryId: json['category_id'] as String,
       categoryName: json['category_name'] as String,
       tags: List<String>.from(json['tags'] ?? []),
-      thumbnailUrl: json['thumbnail_url'] as String?,
+      thumbnailUrl: _buildAbsoluteUrl(json['thumbnail_url'] as String?),
       publicationDate: DateTime.parse(json['publication_date'] as String),
       lastUpdatedAt: json['last_updated_at'] != null
           ? DateTime.parse(json['last_updated_at'] as String)
@@ -305,9 +306,10 @@ class ResourceRepositoryImpl implements ResourceRepository {
       id: json['id'] as String,
       authorId: json['author_id'] as String,
       authorName: json['author_name'] as String,
-      authorPhotoUrl: json['author_photo_url'] as String? ?? '',
+      authorPhotoUrl:
+          _buildAbsoluteUrl(json['author_photo_url'] as String?) ?? '',
       content: json['content'] as String,
-      imageUrl: json['image_url'] as String?,
+      imageUrl: _buildAbsoluteUrl(json['image_url'] as String?),
       tags: List<String>.from(json['tags'] ?? []),
       createdAt: DateTime.parse(json['created_at'] as String),
       likeCount: json['like_count'] as int? ?? 0,
@@ -327,7 +329,8 @@ class ResourceRepositoryImpl implements ResourceRepository {
       postId: json['post_id'] as String,
       authorId: json['author_id'] as String,
       authorName: json['author_name'] as String,
-      authorPhotoUrl: json['author_photo_url'] as String? ?? '',
+      authorPhotoUrl:
+          _buildAbsoluteUrl(json['author_photo_url'] as String?) ?? '',
       content: json['content'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       isOwnComment: json['is_own_comment'] as bool? ?? false,
@@ -339,9 +342,16 @@ class ResourceRepositoryImpl implements ResourceRepository {
       id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
-      iconUrl: json['icon_url'] as String?,
+      iconUrl: _buildAbsoluteUrl(json['icon_url'] as String?),
       resourceCount: json['resource_count'] as int? ?? 0,
       isPremiumOnly: json['is_premium_only'] as bool? ?? false,
     );
+  }
+
+  /// Convertit une URL relative en URL absolue en utilisant apiBaseUrl
+  String? _buildAbsoluteUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('http')) return url;
+    return '${AppConfig.apiBaseUrl}/$url';
   }
 }

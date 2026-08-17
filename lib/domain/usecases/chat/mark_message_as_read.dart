@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 
 /// Use case pour marquer un message comme lu
@@ -25,7 +26,8 @@ class MarkMessageAsRead {
 
   MarkMessageAsRead(this.repository);
 
-  Future<Either<Failure, void>> call(MarkMessageAsReadParams params) async {
+  Future<Either<Failure, MarkAsReadResult>> call(
+      MarkMessageAsReadParams params) async {
     return await repository.markAsRead(
       conversationId: params.conversationId,
       messageId: params.messageId,

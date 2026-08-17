@@ -14,10 +14,12 @@ import 'package:hivmeet/presentation/widgets/common/optimized_image.dart';
 
 class ProfileDetailPage extends StatefulWidget {
   final DiscoveryProfile profile;
+  final bool enableActions;
 
   const ProfileDetailPage({
     super.key,
     required this.profile,
+    this.enableActions = true,
   });
 
   @override
@@ -68,7 +70,7 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
             _buildPhotoSection(),
             _buildProfileInfo(),
             _buildInterestsSection(),
-            _buildActionsSection(),
+            if (widget.enableActions) _buildActionsSection(),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
@@ -86,7 +88,7 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
       leading: Container(
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withOpacityValues(0.5),
           shape: BoxShape.circle,
         ),
         child: IconButton(
@@ -98,7 +100,7 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
         Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withOpacityValues(0.5),
             shape: BoxShape.circle,
           ),
           child: IconButton(
@@ -163,7 +165,7 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
             decoration: BoxDecoration(
               color: index == _currentPhotoIndex
                   ? Colors.white
-                  : Colors.white.withOpacity(0.5),
+                  : Colors.white.withOpacityValues(0.5),
               shape: BoxShape.circle,
             ),
           ),
@@ -249,47 +251,83 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    '${widget.profile.displayName}, ${widget.profile.age}',
-                    style: GoogleFonts.openSans(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.charcoal,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.profile.displayName}, ${widget.profile.age}',
+                        style: GoogleFonts.openSans(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.charcoal,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Ville et pays
+                      if (widget.profile.city.isNotEmpty ||
+                          widget.profile.country.isNotEmpty)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: AppColors.slate,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.profile.country.isNotEmpty
+                                  ? widget.profile.city.isNotEmpty
+                                      ? '${widget.profile.city}, ${widget.profile.country}'
+                                      : widget.profile.country
+                                  : widget.profile.city,
+                              style: GoogleFonts.openSans(
+                                fontSize: 14,
+                                color: AppColors.slate,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
                 ),
-                if (widget.profile.distance != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryPurple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: AppColors.primaryPurple,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (widget.profile.distance != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${widget.profile.distance!.round()} km',
-                          style: GoogleFonts.openSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryPurple,
-                          ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryPurple.withOpacityValues(0.1),
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                      ],
-                    ),
-                  ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.near_me,
+                              size: 16,
+                              color: AppColors.primaryPurple,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${widget.profile.distance!.round()} km',
+                              style: GoogleFonts.openSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryPurple,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
             if (widget.profile.bio.isNotEmpty) ...[
@@ -308,7 +346,7 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withOpacityValues(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -372,10 +410,10 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryPurple.withOpacity(0.1),
+                    color: AppColors.primaryPurple.withOpacityValues(0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.primaryPurple.withOpacity(0.3),
+                      color: AppColors.primaryPurple.withOpacityValues(0.3),
                     ),
                   ),
                   child: Text(
@@ -428,14 +466,14 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
   }
 
   void _handleAction(SwipeDirection direction) {
-    // Récupérer le DiscoveryBloc depuis le contexte
-    final discoveryBloc = BlocProvider.of<DiscoveryBloc>(context, listen: false);
-    
-    // Exécuter l'action de swipe sur le profil actuel
+    final DiscoveryBloc discoveryBloc;
+    try {
+      discoveryBloc = context.read<DiscoveryBloc>();
+    } catch (_) {
+      context.pop();
+      return;
+    }
     discoveryBloc.add(SwipeProfile(direction: direction));
-    
-    // Fermer la page de détail pour revenir à la page de découverte
-    // qui affichera automatiquement le profil suivant grâce au BLoC
     context.pop();
   }
 

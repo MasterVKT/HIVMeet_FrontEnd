@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 
 class OptimizedImage extends StatefulWidget {
   final String imageUrl;
@@ -63,7 +64,7 @@ class _OptimizedImageState extends State<OptimizedImage>
     if (widget.imageUrl.isEmpty || widget.imageUrl == 'placeholder') {
       return _buildEmptyPlaceholder();
     }
-    
+
     if (widget.enableLazyLoading) {
       return _buildLazyImage();
     } else {
@@ -84,8 +85,8 @@ class _OptimizedImageState extends State<OptimizedImage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primaryPurple.withOpacity(0.1),
-            AppColors.primaryPurple.withOpacity(0.05),
+            AppColors.primaryPurple.withOpacityValues(0.1),
+            AppColors.primaryPurple.withOpacityValues(0.05),
           ],
         ),
       ),
@@ -96,11 +97,11 @@ class _OptimizedImageState extends State<OptimizedImage>
             Icon(
               Icons.person,
               size: widget.height != null ? widget.height! * 0.3 : 60,
-              color: AppColors.primaryPurple.withOpacity(0.3),
+              color: AppColors.primaryPurple.withOpacityValues(0.3),
             ),
             const SizedBox(height: 8),
             Text(
-              'Pas de photo',
+              LocalizationService.translate('profile.no_photo'),
               style: TextStyle(
                 color: AppColors.slate,
                 fontSize: 12,
@@ -192,8 +193,8 @@ class _OptimizedImageState extends State<OptimizedImage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.slate.withOpacity(0.1),
-            AppColors.slate.withOpacity(0.05),
+            AppColors.slate.withOpacityValues(0.1),
+            AppColors.slate.withOpacityValues(0.05),
           ],
         ),
       ),
@@ -212,7 +213,7 @@ class _OptimizedImageState extends State<OptimizedImage>
             ),
             const SizedBox(height: 8),
             Text(
-              'Chargement...',
+              LocalizationService.translate('common.loading'),
               style: TextStyle(
                 color: AppColors.slate,
                 fontSize: 10,
@@ -237,8 +238,8 @@ class _OptimizedImageState extends State<OptimizedImage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primaryPurple.withOpacity(0.3),
-            AppColors.primaryPurple.withOpacity(0.1),
+            AppColors.primaryPurple.withOpacityValues(0.3),
+            AppColors.primaryPurple.withOpacityValues(0.1),
           ],
         ),
       ),
@@ -252,7 +253,7 @@ class _OptimizedImageState extends State<OptimizedImage>
           ),
           const SizedBox(height: 8),
           Text(
-            'Photo de profil',
+            LocalizationService.translate('profile.profile_photo'),
             style: TextStyle(
               color: AppColors.primaryPurple,
               fontSize: 12,

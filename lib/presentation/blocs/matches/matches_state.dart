@@ -118,9 +118,10 @@ class LikesReceivedLoaded extends MatchesState {
 
 class MatchesError extends MatchesState {
   final String message;
+  final String? code;
 
-  const MatchesError({required this.message});
+  const MatchesError({required this.message, this.code});
 
   @override
-  List<Object> get props => [message];
+  List<Object?> get props => [message, code];
 }

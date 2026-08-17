@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 
 /// Barre de recherche pour filtrer les conversations
 ///
@@ -72,7 +73,7 @@ class _ConversationsSearchBarState extends State<ConversationsSearchBar> {
         color: theme.colorScheme.surface,
         border: Border(
           bottom: BorderSide(
-            color: theme.dividerColor.withOpacity(0.1),
+            color: theme.dividerColor.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -81,25 +82,26 @@ class _ConversationsSearchBarState extends State<ConversationsSearchBar> {
         focusNode: _focusNode,
         onChanged: _onSearchChanged,
         decoration: InputDecoration(
-          hintText: 'Rechercher une conversation...',
+          hintText: LocalizationService.translate(
+              'conversations.search_placeholder'),
           hintStyle: TextStyle(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           prefixIcon: Icon(
             Icons.search,
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
           suffixIcon: _controller.text.isNotEmpty
               ? IconButton(
                   icon: Icon(
                     Icons.clear,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   onPressed: _clearSearch,
                 )
               : null,
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,

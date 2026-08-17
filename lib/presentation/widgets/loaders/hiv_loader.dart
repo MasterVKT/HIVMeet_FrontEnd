@@ -48,7 +48,7 @@ class HIVFullScreenLoader extends StatelessWidget {
     
     return Container(
       color: showBackground
-          ? Colors.black.withOpacity(0.5)
+          ? Colors.black.withValues(alpha: 0.5)
           : Colors.transparent,
       child: Center(
         child: Card(

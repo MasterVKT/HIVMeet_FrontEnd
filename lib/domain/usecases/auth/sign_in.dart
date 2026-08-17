@@ -2,6 +2,7 @@
 
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
@@ -16,20 +17,20 @@ class SignIn implements UseCase<User, SignInParams> {
 
   @override
   Future<Either<Failure, User>> call(SignInParams params) async {
-    print('🔄 DEBUG SignIn: Début call avec email: ${params.email}');
+    debugPrint('🔄 DEBUG SignIn: Début call avec email: ${params.email}');
 
     try {
-      print('🔄 DEBUG SignIn: Appel repository.signIn...');
+      debugPrint('🔄 DEBUG SignIn: Appel repository.signIn...');
       final result = await repository.signIn(
         email: params.email,
         password: params.password,
       );
-      print('✅ DEBUG SignIn: Repository.signIn terminé');
+      debugPrint('✅ DEBUG SignIn: Repository.signIn terminé');
 
       return result;
     } catch (e) {
-      print('❌ DEBUG SignIn: Exception dans call: $e');
-      print('Type exception: ${e.runtimeType}');
+      debugPrint('❌ DEBUG SignIn: Exception dans call: $e');
+      debugPrint('Type exception: ${e.runtimeType}');
       rethrow;
     }
   }

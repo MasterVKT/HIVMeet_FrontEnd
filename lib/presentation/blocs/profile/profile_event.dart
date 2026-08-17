@@ -14,16 +14,67 @@ abstract class ProfileEvent extends Equatable {
 /// Événement pour charger le profil
 class LoadProfile extends ProfileEvent {}
 
+class LoadProfileSection extends ProfileEvent {}
+
+/// Événement pour créer le profil lors de l'onboarding
+class CreateProfile extends ProfileEvent {
+  final File mainPhoto;
+  final String bio;
+  final List<String> interests;
+  final String relationshipType;
+  final List<String> relationshipTypesSought;
+  final String city;
+  final String country;
+  final double latitude;
+  final double longitude;
+  final int minAge;
+  final int maxAge;
+  final double maxDistance;
+  final List<String> interestedIn;
+
+  const CreateProfile({
+    required this.mainPhoto,
+    required this.bio,
+    required this.interests,
+    required this.relationshipType,
+    required this.relationshipTypesSought,
+    required this.city,
+    required this.country,
+    required this.latitude,
+    required this.longitude,
+    required this.minAge,
+    required this.maxAge,
+    required this.maxDistance,
+    required this.interestedIn,
+  });
+
+  @override
+  List<Object?> get props => [
+        mainPhoto,
+        bio,
+        interests,
+        relationshipType,
+        relationshipTypesSought,
+        city,
+        country,
+        latitude,
+        longitude,
+        minAge,
+        maxAge,
+        maxDistance,
+        interestedIn,
+      ];
+}
+
 /// Événement pour mettre à jour le profil
 class UpdateProfileEvent extends ProfileEvent {
   final String? displayName;
   final String? bio;
   final String? city;
   final String? country;
-  final double? latitude;
-  final double? longitude;
   final List<String>? interests;
   final String? relationshipType;
+  final List<String>? relationshipTypesSought;
   final SearchPreferences? searchPreferences;
   final PrivacySettings? privacySettings;
 
@@ -32,10 +83,9 @@ class UpdateProfileEvent extends ProfileEvent {
     this.bio,
     this.city,
     this.country,
-    this.latitude,
-    this.longitude,
     this.interests,
     this.relationshipType,
+    this.relationshipTypesSought,
     this.searchPreferences,
     this.privacySettings,
   });
@@ -46,10 +96,9 @@ class UpdateProfileEvent extends ProfileEvent {
         bio,
         city,
         country,
-        latitude,
-        longitude,
         interests,
         relationshipType,
+        relationshipTypesSought,
         searchPreferences,
         privacySettings,
       ];
@@ -60,35 +109,39 @@ class UploadPhoto extends ProfileEvent {
   final File photo;
   final bool isMain;
   final bool isPrivate;
+  final String? caption;
 
   const UploadPhoto({
     required this.photo,
     required this.isMain,
     this.isPrivate = false,
+    this.caption,
   });
 
   @override
-  List<Object?> get props => [photo, isMain, isPrivate];
+  List<Object?> get props => [photo, isMain, isPrivate, caption];
 }
 
 /// Événement pour supprimer une photo
 class DeletePhoto extends ProfileEvent {
   final String photoUrl;
+  final String? photoId;
 
-  const DeletePhoto({required this.photoUrl});
+  const DeletePhoto({required this.photoUrl, this.photoId});
 
   @override
-  List<Object> get props => [photoUrl];
+  List<Object?> get props => [photoUrl, photoId];
 }
 
 /// Événement pour définir une photo principale
 class SetMainPhoto extends ProfileEvent {
   final String photoUrl;
+  final String? photoId;
 
-  const SetMainPhoto({required this.photoUrl});
+  const SetMainPhoto({required this.photoUrl, this.photoId});
 
   @override
-  List<Object> get props => [photoUrl];
+  List<Object?> get props => [photoUrl, photoId];
 }
 
 /// Événement pour réorganiser les photos
@@ -147,4 +200,56 @@ class UnblockUser extends ProfileEvent {
 
   @override
   List<Object> get props => [userId];
+}
+
+class LoadPrivacyPreferences extends ProfileEvent {}
+
+class SavePrivacyPreferences extends ProfileEvent {
+  final PrivacyPreferences preferences;
+
+  const SavePrivacyPreferences(this.preferences);
+
+  @override
+  List<Object> get props => [preferences];
+}
+
+class LoadNotificationPreferences extends ProfileEvent {}
+
+class SaveNotificationPreferences extends ProfileEvent {
+  final NotificationPreferences preferences;
+
+  const SaveNotificationPreferences(this.preferences);
+
+  @override
+  List<Object> get props => [preferences];
+}
+
+class LoadBlockedUsers extends ProfileEvent {}
+
+class RequestDataExport extends ProfileEvent {}
+
+class RequestAccountDeletion extends ProfileEvent {}
+
+class LoadVerificationDetails extends ProfileEvent {}
+
+class SubmitVerificationDocuments extends ProfileEvent {
+  final File identityDocument;
+  final File medicalDocument;
+  final File selfieWithCode;
+  final String selfieCode;
+
+  const SubmitVerificationDocuments({
+    required this.identityDocument,
+    required this.medicalDocument,
+    required this.selfieWithCode,
+    required this.selfieCode,
+  });
+
+  @override
+  List<Object> get props => [
+        identityDocument,
+        medicalDocument,
+        selfieWithCode,
+        selfieCode,
+      ];
 }

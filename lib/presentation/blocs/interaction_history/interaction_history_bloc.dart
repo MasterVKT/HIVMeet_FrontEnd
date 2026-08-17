@@ -1,5 +1,6 @@
 // lib/presentation/blocs/interaction_history/interaction_history_bloc.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/domain/entities/interaction_history.dart';
@@ -201,7 +202,7 @@ class InteractionHistoryBloc
           // Cela force Flutter à détecter le changement et à rebuild l'UI
           _allLikes =
               _allLikes.where((l) => l.id != event.interactionId).toList();
-          print(
+          debugPrint(
               '🔄 InteractionHistoryBloc: Liste likes mise à jour - ${_allLikes.length} restants');
           emit(LikesLoaded(
             likes: _allLikes,
@@ -218,7 +219,7 @@ class InteractionHistoryBloc
           // Cela force Flutter à détecter le changement et à rebuild l'UI
           _allPasses =
               _allPasses.where((p) => p.id != event.interactionId).toList();
-          print(
+          debugPrint(
               '🔄 InteractionHistoryBloc: Liste passes mise à jour - ${_allPasses.length} restants');
           emit(PassesLoaded(
             passes: _allPasses,
@@ -227,7 +228,7 @@ class InteractionHistoryBloc
         }
 
         // Notifier que le profil doit réapparaître dans Discovery
-        print(
+        debugPrint(
             '📢 InteractionHistoryBloc: Notification révocation profil $profileId');
         AppEvents().notifyInteractionRevoked(profileId);
       },

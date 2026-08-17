@@ -59,6 +59,7 @@ class MatchRepositoryMock implements MatchRepository {
         isVerified: globalIndex % 3 == 0,
         isPremium: globalIndex % 5 == 0,
         lastActive: DateTime.now().subtract(Duration(minutes: globalIndex * 5)),
+        likedAt: null,
         compatibilityScore: 60.0 + (globalIndex * 2.0),
       );
     });
@@ -85,6 +86,7 @@ class MatchRepositoryMock implements MatchRepository {
       isVerified: true,
       isPremium: false,
       lastActive: DateTime.now(),
+      likedAt: null,
       compatibilityScore: 85.0,
     );
     return Right(profile);

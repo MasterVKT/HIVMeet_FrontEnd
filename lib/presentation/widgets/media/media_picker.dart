@@ -1,14 +1,14 @@
-// lib/presentation/widgets/media/media_picker.dart
-
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 
 class MediaPicker extends StatelessWidget {
-  final Function(File, MessageType) onMediaSelected;
+  final void Function(File, MessageType) onMediaSelected;
 
   const MediaPicker({
     super.key,
@@ -17,10 +17,14 @@ class MediaPicker extends StatelessWidget {
 
   static Future<void> show({
     required BuildContext context,
-    required Function(File, MessageType) onMediaSelected,
+    required void Function(File, MessageType) onMediaSelected,
   }) {
-    return showModalBottomSheet(
+    return showModalBottomSheet<void>(
       context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      clipBehavior: Clip.antiAlias,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -30,41 +34,53 @@ class MediaPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: EdgeInsets.only(bottom: AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.silver,
-              borderRadius: BorderRadius.circular(2),
-            ),
+          Text(
+            LocalizationService.translate('chat.attach_media'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.charcoal,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
+          const SizedBox(height: AppSpacing.lg),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildOption(
-                icon: Icons.photo_camera,
-                label: 'Caméra',
-                onTap: () => _pickImage(ImageSource.camera, context),
+              Expanded(
+                child: _buildOption(
+                  icon: Icons.photo_camera_outlined,
+                  label: LocalizationService.translate('chat.camera'),
+                  onTap: () => _pickImage(ImageSource.camera, context),
+                ),
               ),
-              _buildOption(
-                icon: Icons.photo_library,
-                label: 'Galerie',
-                onTap: () => _pickImage(ImageSource.gallery, context),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _buildOption(
+                  icon: Icons.photo_library_outlined,
+                  label: LocalizationService.translate('chat.gallery'),
+                  onTap: () => _pickImage(ImageSource.gallery, context),
+                ),
               ),
-              _buildOption(
-                icon: Icons.videocam,
-                label: 'Vidéo',
-                onTap: () => _pickVideo(context),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _buildOption(
+                  icon: Icons.videocam_outlined,
+                  label: LocalizationService.translate('chat.video'),
+                  onTap: () => _pickVideo(context),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
@@ -78,24 +94,34 @@ class MediaPicker extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.all(AppSpacing.lg),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.sm,
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: AppColors.primaryPurple.withOpacity(0.1),
+                color: AppColors.primaryPurple.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                size: 32,
+                size: 28,
                 color: AppColors.primaryPurple,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text(label),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
@@ -103,22 +129,25 @@ class MediaPicker extends StatelessWidget {
   }
 
   Future<void> _pickImage(ImageSource source, BuildContext context) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+    final pickedFile = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 80,
+    );
 
-    if (pickedFile != null) {
-      Navigator.of(context).pop();
-      onMediaSelected(File(pickedFile.path), MessageType.image);
-    }
+    if (pickedFile == null || !context.mounted) return;
+
+    Navigator.of(context).pop();
+    onMediaSelected(File(pickedFile.path), MessageType.image);
   }
 
   Future<void> _pickVideo(BuildContext context) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
+    final pickedFile = await ImagePicker().pickVideo(
+      source: ImageSource.gallery,
+    );
 
-    if (pickedFile != null) {
-      Navigator.of(context).pop();
-      onMediaSelected(File(pickedFile.path), MessageType.video);
-    }
+    if (pickedFile == null || !context.mounted) return;
+
+    Navigator.of(context).pop();
+    onMediaSelected(File(pickedFile.path), MessageType.video);
   }
 }

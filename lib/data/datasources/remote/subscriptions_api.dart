@@ -78,13 +78,13 @@ class SubscriptionsApi {
     return await _apiClient.get('/subscriptions/available-features');
   }
 
-  /// Modifier l'abonnement actuel
-  /// PUT /api/v1/subscriptions/current
+  /// Modifier l'abonnement actuel (changement de plan / upgrade / downgrade)
+  /// POST /api/v1/subscriptions/current/modify/
   Future<Response<Map<String, dynamic>>> modifySubscription({
     required String newPlanId,
     bool proration = true,
   }) async {
-    return await _apiClient.put('/subscriptions/current', data: {
+    return await _apiClient.post('/subscriptions/current/modify/', data: {
       'new_plan_id': newPlanId,
       'proration': proration,
     });

@@ -2,6 +2,8 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 /// Service de gestion des événements globaux de l'application
 /// Permet la communication entre BLoCs sans créer de dépendances circulaires
 class AppEvents {
@@ -18,7 +20,7 @@ class AppEvents {
 
   /// Émettre un événement d'annulation d'interaction
   void notifyInteractionRevoked(String profileId) {
-    print('📢 AppEvents: Interaction révoquée pour profil $profileId');
+    debugPrint('📢 AppEvents: Interaction révoquée pour profil $profileId');
     _interactionRevokedController.add(profileId);
   }
 

@@ -14,6 +14,10 @@ void main() {
   late GetConversations usecase;
   late MockMessageRepository mockRepository;
 
+  setUpAll(() {
+    registerFallbackValue(ConversationFilter.all);
+  });
+
   setUp(() {
     mockRepository = MockMessageRepository();
     usecase = GetConversations(mockRepository);
@@ -45,22 +49,28 @@ void main() {
     ),
   ];
 
+  final tPage =
+      ConversationListPage(conversations: tConversations, hasMore: false);
+
   group('GetConversations', () {
-    test('should get conversations with default params (20 items)', () async {
+    test('should get conversations with default params (page 1, 20 items)',
+        () async {
       // arrange
       when(() => mockRepository.getConversations(
             limit: any(named: 'limit'),
-            lastConversationId: any(named: 'lastConversationId'),
-          )).thenAnswer((_) async => Right(tConversations));
+            page: any(named: 'page'),
+            filter: any(named: 'filter'),
+          )).thenAnswer((_) async => Right(tPage));
 
       // act
       final result = await usecase(GetConversationsParams.initial());
 
       // assert
-      expect(result, Right(tConversations));
+      expect(result, Right(tPage));
       verify(() => mockRepository.getConversations(
             limit: 20,
-            lastConversationId: null,
+            page: 1,
+            filter: ConversationFilter.all,
           )).called(1);
     });
 
@@ -68,36 +78,42 @@ void main() {
       // arrange
       when(() => mockRepository.getConversations(
             limit: any(named: 'limit'),
-            lastConversationId: any(named: 'lastConversationId'),
-          )).thenAnswer((_) async => Right(tConversations));
+            page: any(named: 'page'),
+            filter: any(named: 'filter'),
+          )).thenAnswer((_) async => Right(tPage));
 
       // act
       final result = await usecase(const GetConversationsParams(limit: 50));
 
       // assert
-      expect(result, Right(tConversations));
+      expect(result, Right(tPage));
       verify(() => mockRepository.getConversations(
             limit: 50,
-            lastConversationId: null,
+            page: 1,
+            filter: ConversationFilter.all,
           )).called(1);
     });
 
-    test('should get conversations with pagination cursor', () async {
-      // arrange
+    test('should get conversations for a given page (page-based pagination)',
+        () async {
+      // Le backend (ConversationListView) est un vrai DRF
+      // PageNumberPagination — pas de curseur par ID pour cette ressource.
       when(() => mockRepository.getConversations(
             limit: any(named: 'limit'),
-            lastConversationId: any(named: 'lastConversationId'),
-          )).thenAnswer((_) async => Right(tConversations));
+            page: any(named: 'page'),
+            filter: any(named: 'filter'),
+          )).thenAnswer((_) async => Right(tPage));
 
       // act
-      final params = GetConversationsParams.initial().nextPage('conv_20');
+      final params = GetConversationsParams.initial().nextPage(2);
       final result = await usecase(params);
 
       // assert
-      expect(result, Right(tConversations));
+      expect(result, Right(tPage));
       verify(() => mockRepository.getConversations(
             limit: 20,
-            lastConversationId: 'conv_20',
+            page: 2,
+            filter: ConversationFilter.all,
           )).called(1);
     });
 
@@ -106,7 +122,8 @@ void main() {
       const tFailure = ServerFailure(message: 'Server error');
       when(() => mockRepository.getConversations(
             limit: any(named: 'limit'),
-            lastConversationId: any(named: 'lastConversationId'),
+            page: any(named: 'page'),
+            filter: any(named: 'filter'),
           )).thenAnswer((_) async => const Left(tFailure));
 
       // act
@@ -121,7 +138,8 @@ void main() {
       const tFailure = NetworkFailure(message: 'No internet connection');
       when(() => mockRepository.getConversations(
             limit: any(named: 'limit'),
-            lastConversationId: any(named: 'lastConversationId'),
+            page: any(named: 'page'),
+            filter: any(named: 'filter'),
           )).thenAnswer((_) async => const Left(tFailure));
 
       // act
@@ -131,16 +149,28 @@ void main() {
       expect(result, const Left(tFailure));
     });
 
-    test('nextPage helper should preserve limit and add cursor', () {
+    test('nextPage helper should preserve limit and advance the page number',
+        () {
       // arrange
-      final params = const GetConversationsParams(limit: 30);
+      const params = GetConversationsParams(limit: 30);
 
       // act
-      final nextPageParams = params.nextPage('last_conv_id');
+      final nextPageParams = params.nextPage(2);
 
       // assert
       expect(nextPageParams.limit, 30);
-      expect(nextPageParams.lastConversationId, 'last_conv_id');
+      expect(nextPageParams.page, 2);
+    });
+
+    test('nextPage preserves the active server filter', () {
+      final params = GetConversationsParams.initial(
+        filter: ConversationFilter.unread,
+      );
+
+      final nextPage = params.nextPage(2);
+
+      expect(nextPage.filter, ConversationFilter.unread);
+      expect(nextPage.filter.apiValue, 'unread');
     });
   });
 }

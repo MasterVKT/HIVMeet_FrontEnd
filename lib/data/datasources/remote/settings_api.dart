@@ -18,10 +18,8 @@ class SettingsApi {
   /// PUT /api/v1/user-settings/notification-preferences
   Future<Response<Map<String, dynamic>>> updateNotificationPreferences(
       Map<String, dynamic> preferences) async {
-    return await _apiClient
-        .put('/user-settings/notification-preferences', data: {
-      'notification_preferences': preferences,
-    });
+    return await _apiClient.put('/user-settings/notification-preferences',
+        data: preferences);
   }
 
   /// Récupérer les préférences de confidentialité
@@ -34,9 +32,10 @@ class SettingsApi {
   /// PUT /api/v1/user-settings/privacy-preferences
   Future<Response<Map<String, dynamic>>> updatePrivacyPreferences(
       Map<String, dynamic> preferences) async {
-    return await _apiClient.put('/user-settings/privacy-preferences', data: {
-      'privacy_preferences': preferences,
-    });
+    return await _apiClient.put(
+      '/user-settings/privacy-preferences',
+      data: preferences,
+    );
   }
 
   /// Récupérer la liste des utilisateurs bloqués
@@ -48,21 +47,29 @@ class SettingsApi {
   /// Bloquer un utilisateur
   /// POST /api/v1/user-settings/blocks/{user_id}
   Future<Response<Map<String, dynamic>>> blockUser(String userId) async {
-    return await _apiClient.post('/user-settings/blocks/$userId', data: {
-      'user_id': userId,
-    });
+    return await _apiClient.post('/user-settings/blocks/$userId');
+  }
+
+  /// DÃ©bloquer un utilisateur
+  /// DELETE /api/v1/user-settings/blocks/{user_id}
+  Future<Response<dynamic>> unblockUser(String userId) async {
+    return await _apiClient.delete('/user-settings/blocks/$userId');
   }
 
   /// Demander la suppression du compte
   /// POST /api/v1/user-settings/delete-account
   Future<Response<Map<String, dynamic>>> requestAccountDeletion({
-    required String reason,
+    String? reason,
     String? feedback,
   }) async {
-    return await _apiClient.post('/user-settings/delete-account', data: {
-      'reason': reason,
+    final data = <String, dynamic>{
+      if (reason != null) 'reason': reason,
       if (feedback != null) 'feedback': feedback,
-    });
+    };
+    return await _apiClient.post(
+      '/user-settings/delete-account',
+      data: data.isEmpty ? null : data,
+    );
   }
 
   /// Exporter les données utilisateur

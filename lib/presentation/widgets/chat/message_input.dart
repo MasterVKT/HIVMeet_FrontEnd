@@ -1,8 +1,11 @@
 // lib/presentation/widgets/chat/message_input.dart
 
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
@@ -14,7 +17,6 @@ class MessageInput extends StatefulWidget {
   final Function(File file, MessageType type) onSendMediaMessage;
   final VoidCallback onStartTyping;
   final VoidCallback onStopTyping;
-  final Function(bool isRecording) onRecordingStateChanged;
   final bool isPremium;
 
   const MessageInput({
@@ -23,7 +25,6 @@ class MessageInput extends StatefulWidget {
     required this.onSendMediaMessage,
     required this.onStartTyping,
     required this.onStopTyping,
-    required this.onRecordingStateChanged,
     this.isPremium = false,
   });
 
@@ -35,15 +36,19 @@ class _MessageInputState extends State<MessageInput>
     with TickerProviderStateMixin {
   late TextEditingController _textController;
   late FocusNode _focusNode;
-  late AnimationController _recordingController;
   late AnimationController _sendButtonController;
-  late Animation<double> _recordingAnimation;
   late Animation<double> _sendButtonAnimation;
 
-  bool _isRecording = false;
   bool _isTyping = false;
   bool _showEmojiPicker = false;
-  final String _recordingDuration = '0:00';
+
+  /// Timeout d'inactivité de saisie (F6): si l'utilisateur arrête de taper
+  /// sans vider le champ ni envoyer, le TTL cache backend (10s) expire en
+  /// silence — sans notification WS explicite à l'interlocuteur, qui
+  /// resterait affiché "en train d'écrire..." indéfiniment. On envoie donc
+  /// nous-même un stop après une courte pause.
+  static const _typingIdleTimeout = Duration(seconds: 3);
+  Timer? _typingIdleTimer;
 
   @override
   void initState() {
@@ -52,23 +57,10 @@ class _MessageInputState extends State<MessageInput>
     _textController = TextEditingController();
     _focusNode = FocusNode();
 
-    _recordingController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
     _sendButtonController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-
-    _recordingAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _recordingController,
-      curve: Curves.easeInOut,
-    ));
 
     _sendButtonAnimation = Tween<double>(
       begin: 0.0,
@@ -84,9 +76,9 @@ class _MessageInputState extends State<MessageInput>
 
   @override
   void dispose() {
+    _typingIdleTimer?.cancel();
     _textController.dispose();
     _focusNode.dispose();
-    _recordingController.dispose();
     _sendButtonController.dispose();
     super.dispose();
   }
@@ -94,19 +86,33 @@ class _MessageInputState extends State<MessageInput>
   void _onTextChanged() {
     final hasText = _textController.text.isNotEmpty;
 
-    if (hasText && !_isTyping) {
-      setState(() {
-        _isTyping = true;
-      });
-      widget.onStartTyping();
-      _sendButtonController.forward();
-    } else if (!hasText && _isTyping) {
+    if (hasText) {
+      if (!_isTyping) {
+        setState(() {
+          _isTyping = true;
+        });
+        widget.onStartTyping();
+        _sendButtonController.forward();
+      }
+      _typingIdleTimer?.cancel();
+      _typingIdleTimer = Timer(_typingIdleTimeout, _stopTypingIfIdle);
+    } else if (_isTyping) {
+      _typingIdleTimer?.cancel();
       setState(() {
         _isTyping = false;
       });
       widget.onStopTyping();
       _sendButtonController.reverse();
     }
+  }
+
+  void _stopTypingIfIdle() {
+    if (!mounted || !_isTyping) return;
+    setState(() {
+      _isTyping = false;
+    });
+    widget.onStopTyping();
+    _sendButtonController.reverse();
   }
 
   void _onFocusChanged() {
@@ -119,77 +125,34 @@ class _MessageInputState extends State<MessageInput>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isRecording) _buildRecordingIndicator(),
-          _buildInputRow(),
-          if (_showEmojiPicker) _buildEmojiPicker(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecordingIndicator() {
-    return AnimatedBuilder(
-      animation: _recordingAnimation,
-      builder: (context, child) {
-        return Container(
-          height: 60,
-          decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: 0.1),
-            border: Border(
-              bottom: BorderSide(
-                color: AppColors.error.withValues(alpha: 0.2),
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Transform.scale(
-                scale: _recordingAnimation.value,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                LocalizationService.translate('chat.recording', params: {}),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-              const Spacer(),
-              Text(
-                _recordingDuration,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.charcoal,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-              const SizedBox(width: 16),
-            ],
-          ),
-        );
+    return TapRegion(
+      // F9: ferme le picker emoji au tap en dehors de tout ce groupe
+      // (bouton + panneau + champ de saisie) — sans ça il fallait rouvrir le
+      // clavier manuellement pour le faire disparaître.
+      onTapOutside: (_) {
+        if (_showEmojiPicker) {
+          setState(() => _showEmojiPicker = false);
+        }
       },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildInputRow(),
+            if (_showEmojiPicker) _buildEmojiPicker(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -235,6 +198,30 @@ class _MessageInputState extends State<MessageInput>
                         controller: _textController,
                         focusNode: _focusNode,
                         maxLines: null,
+                        // F48: limite alignée sur AppLimits.maxMessageLength
+                        // (déjà la limite serveur) — auparavant l'utilisateur
+                        // pouvait taper un texte trop long et se le voir
+                        // rejeté (400) sans explication au moment d'envoyer.
+                        maxLength: AppLimits.maxMessageLength,
+                        buildCounter: (
+                          context, {
+                          required currentLength,
+                          required isFocused,
+                          maxLength,
+                        }) {
+                          if (!isFocused || maxLength == null) return null;
+                          final remaining = maxLength - currentLength;
+                          if (remaining > 100) return null;
+                          return Text(
+                            '$currentLength/$maxLength',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: remaining <= 0
+                                  ? AppColors.error
+                                  : AppColors.slate,
+                            ),
+                          );
+                        },
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           hintText: LocalizationService.translate(
@@ -257,13 +244,13 @@ class _MessageInputState extends State<MessageInput>
                       IconButton(
                         icon: Icon(Icons.gif, color: AppColors.warning),
                         onPressed: _showGifPicker,
-                        tooltip: 'GIFs',
+                        tooltip: LocalizationService.translate('chat.gifs'),
                       ),
                       IconButton(
                         icon: Icon(Icons.face_retouching_natural,
                             color: AppColors.info),
                         onPressed: _showStickerPicker,
-                        tooltip: 'Stickers',
+                        tooltip: LocalizationService.translate('chat.stickers'),
                       ),
                     ],
                   ],
@@ -307,26 +294,28 @@ class _MessageInputState extends State<MessageInput>
       builder: (context, child) {
         final hasText = _textController.text.isNotEmpty;
 
+        // Enregistrement vocal désactivé proprement (décision produit): le
+        // flux précédent était cassé (envoyait la chaîne littérale "0:00"
+        // comme contenu du message). Plutôt que de laisser un bouton qui
+        // semble fonctionner mais ne fait rien d'utile, le bouton micro
+        // affiche un message "bientôt disponible" — même traitement que
+        // GIF/stickers.
         return GestureDetector(
-          onTap: hasText ? _sendTextMessage : null,
-          onLongPressStart: hasText ? null : _startRecording,
-          onLongPressEnd: hasText ? null : _stopRecording,
+          onTap: hasText ? _sendTextMessage : _showVoiceComingSoon,
           child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
               color: hasText
                   ? AppColors.primaryPurple
-                  : (_isRecording
-                      ? AppColors.error
-                      : AppColors.slate.withValues(alpha: 0.2)),
+                  : AppColors.slate.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Transform.scale(
               scale: hasText ? _sendButtonAnimation.value : 1.0,
               child: Icon(
-                hasText ? Icons.send : (_isRecording ? Icons.stop : Icons.mic),
-                color: hasText || _isRecording ? Colors.white : AppColors.slate,
+                hasText ? Icons.send : Icons.mic,
+                color: hasText ? Colors.white : AppColors.slate,
                 size: 20,
               ),
             ),
@@ -408,50 +397,18 @@ class _MessageInputState extends State<MessageInput>
     }
   }
 
-  void _startRecording(LongPressStartDetails details) {
-    if (!widget.isPremium) {
-      _showPremiumDialog();
-      return;
-    }
-
-    setState(() {
-      _isRecording = true;
-    });
-
-    widget.onRecordingStateChanged(true);
-    _recordingController.repeat(reverse: true);
-    HapticFeedback.heavyImpact();
-
-    // TODO: Démarrer l'enregistrement audio
-  }
-
-  void _stopRecording(LongPressEndDetails details) {
-    if (!_isRecording) return;
-
-    setState(() {
-      _isRecording = false;
-    });
-
-    widget.onRecordingStateChanged(false);
-    _recordingController.stop();
-    _recordingController.reset();
-
-    // TODO: Arrêter l'enregistrement et envoyer le message vocal
-    widget.onSendMessage(_recordingDuration, MessageType.voice);
-    HapticFeedback.lightImpact();
+  void _showVoiceComingSoon() {
+    HIVToast.showInfo(
+      context: context,
+      message:
+          LocalizationService.translate('chat.feature_coming_soon', params: {}),
+    );
   }
 
   void _showMediaPicker() {
-    showModalBottomSheet(
+    MediaPicker.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => MediaPicker(
-        onMediaSelected: (file, type) {
-          Navigator.pop(context);
-          _sendMediaMessageFile(file, type);
-        },
-      ),
+      onMediaSelected: _sendMediaMessageFile,
     );
   }
 
@@ -501,7 +458,7 @@ class _MessageInputState extends State<MessageInput>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: Naviguer vers la page premium
+              context.push('/premium');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPurple,

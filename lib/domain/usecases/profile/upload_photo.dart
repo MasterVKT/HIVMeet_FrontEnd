@@ -32,9 +32,20 @@ class UploadPhoto {
     // Validation: taille du fichier (limite à 10MB avant compression)
     final fileSize = await params.photo.length();
     final fileSizeMB = fileSize / (1024 * 1024);
-    if (fileSizeMB > 10) {
+    if (fileSizeMB > 5) {
       return Left(ServerFailure(
-        message: 'La photo est trop volumineuse (${fileSizeMB.toStringAsFixed(1)}MB). Maximum: 10MB',
+        message:
+            'La photo est trop volumineuse (${fileSizeMB.toStringAsFixed(1)}MB). Maximum: 5MB',
+      ));
+    }
+
+    final path = params.photo.path.toLowerCase();
+    final isSupportedImage = path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png');
+    if (!isSupportedImage) {
+      return Left(ServerFailure(
+        message: 'Format accepte: JPEG, JPG ou PNG',
       ));
     }
 
@@ -42,6 +53,7 @@ class UploadPhoto {
       photo: params.photo,
       isMain: params.isMain,
       isPrivate: params.isPrivate,
+      caption: params.caption,
     );
   }
 }
@@ -50,13 +62,15 @@ class UploadPhotoParams extends Equatable {
   final File photo;
   final bool isMain;
   final bool isPrivate;
+  final String? caption;
 
   const UploadPhotoParams({
     required this.photo,
     this.isMain = false,
     this.isPrivate = false,
+    this.caption,
   });
 
   @override
-  List<Object> get props => [photo, isMain, isPrivate];
+  List<Object?> get props => [photo, isMain, isPrivate, caption];
 }

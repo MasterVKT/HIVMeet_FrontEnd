@@ -38,9 +38,14 @@ abstract class ProfileRepository {
     double? longitude,
     List<String>? interests,
     String? relationshipType,
+    List<String>? relationshipTypesSought,
     SearchPreferences? searchPreferences,
     PrivacySettings? privacySettings,
   });
+
+  /// Mise Ã  jour avancÃ©e alignÃ©e sur le serializer backend plat.
+  Future<Either<Failure, Profile>> updateProfileFields(
+      Map<String, dynamic> fields);
 
   /// Stream du profil de l'utilisateur connecté
   Stream<Profile?> watchCurrentUserProfile();
@@ -50,13 +55,22 @@ abstract class ProfileRepository {
     required File photo,
     required bool isMain,
     bool isPrivate = false,
+    String? caption,
+  });
+
+  Future<Either<Failure, ProfilePhoto>> uploadProfilePhotoDetails({
+    required File photo,
+    required bool isMain,
+    String? caption,
   });
 
   /// Supprime une photo de profil
   Future<Either<Failure, void>> deleteProfilePhoto(String photoUrl);
+  Future<Either<Failure, void>> deleteProfilePhotoById(String photoId);
 
   /// Définit une photo comme photo principale
   Future<Either<Failure, void>> setMainPhoto(String photoUrl);
+  Future<Either<Failure, void>> setMainPhotoById(String photoId);
 
   /// Réorganise l'ordre des photos
   Future<Either<Failure, void>> reorderPhotos(List<String> photoUrls);
@@ -71,6 +85,32 @@ abstract class ProfileRepository {
 
   /// Récupère le statut de vérification
   Future<Either<Failure, VerificationStatus>> getVerificationStatus();
+  Future<Either<Failure, VerificationDetails>> getVerificationDetails();
+  Future<Either<Failure, VerificationUploadResult>>
+      generateVerificationUploadUrl({
+    required String documentType,
+    required String fileType,
+    required int fileSize,
+  });
+  Future<Either<Failure, void>> uploadFileToSignedUrl({
+    required String uploadUrl,
+    required File file,
+    required String fileType,
+  });
+  Future<Either<Failure, void>> submitVerificationDocumentPaths({
+    required List<VerificationSubmissionDocument> documents,
+    required String selfieCode,
+  });
+
+  Future<Either<Failure, PremiumProfileStatus>> getPremiumProfileStatus();
+
+  Future<Either<Failure, PrivacyPreferences>> getPrivacyPreferences();
+  Future<Either<Failure, void>> updatePrivacyPreferences(
+      PrivacyPreferences preferences);
+
+  Future<Either<Failure, NotificationPreferences>> getNotificationPreferences();
+  Future<Either<Failure, NotificationPreferences>>
+      updateNotificationPreferences(NotificationPreferences preferences);
 
   /// Met à jour la localisation de l'utilisateur
   Future<Either<Failure, void>> updateLocation({
@@ -106,7 +146,10 @@ abstract class ProfileRepository {
   Future<Either<Failure, void>> unblockUser(String userId);
 
   /// Récupère la liste des utilisateurs bloqués
-  Future<Either<Failure, List<String>>> getBlockedUsers();
+  Future<Either<Failure, List<BlockedUser>>> getBlockedUsers();
+
+  Future<Either<Failure, DataRequestResult>> requestDataExport();
+  Future<Either<Failure, DataRequestResult>> requestAccountDeletion();
 
   /// Signale un profil
   Future<Either<Failure, void>> reportProfile({
@@ -114,5 +157,12 @@ abstract class ProfileRepository {
     required String reason,
     String? details,
     List<String>? screenshotUrls,
+  });
+
+  /// Signale un utilisateur via l'API de moderation.
+  Future<Either<Failure, void>> reportUser({
+    required String userId,
+    required String reason,
+    String? description,
   });
 }

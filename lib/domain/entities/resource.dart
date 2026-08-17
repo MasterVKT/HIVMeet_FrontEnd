@@ -298,7 +298,7 @@ class FeedPost extends Equatable {
       ];
 }
 
-enum PostStatus { pending_moderation, published, rejected }
+enum PostStatus { pendingModeration, published, rejected }
 
 class PostComment extends Equatable {
   final String id;

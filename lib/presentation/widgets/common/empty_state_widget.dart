@@ -22,13 +22,8 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🔄 DEBUG EmptyStateWidget: build - title=$title');
-    print('🔄 DEBUG EmptyStateWidget: icon=$icon, message=$message');
-    print(
-        '🔄 DEBUG EmptyStateWidget: actionText=$actionText, onAction=${onAction != null}');
-
     return Container(
-      color: Colors.yellow.withOpacity(0.3), // DEBUG: fond jaune visible
+      color: Colors.yellow.withValues(alpha: 0.3), // DEBUG: fond jaune visible
       child: Center(
         child: SingleChildScrollView(
           child: Padding(
@@ -41,10 +36,10 @@ class EmptyStateWidget extends StatelessWidget {
                   width: 140,
                   height: 140,
                   decoration: BoxDecoration(
-                    color: AppColors.primaryPurple.withOpacity(0.1),
+                    color: AppColors.primaryPurple.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppColors.primaryPurple.withOpacity(0.3),
+                      color: AppColors.primaryPurple.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),
@@ -104,7 +99,8 @@ class EmptyStateWidget extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       elevation: 4,
-                      shadowColor: AppColors.primaryPurple.withOpacity(0.4),
+                      shadowColor:
+                          AppColors.primaryPurple.withValues(alpha: 0.4),
                     ),
                   ),
                 ],

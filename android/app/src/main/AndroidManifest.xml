@@ -1,8 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Permission Internet OBLIGATOIRE pour les requêtes réseau -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Permission pour l'état du réseau (optionnel mais utile) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Notifications push (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Alignement explicite du minSdk sur la valeur Flutter configurée dans gradle.properties -->
+    <uses-sdk android:minSdkVersion="23" tools:overrideLibrary="" />
     
     <application
         android:label="hivmeet"

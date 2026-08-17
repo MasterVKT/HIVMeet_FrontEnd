@@ -1,4 +1,6 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 enum Environment {
   development,
@@ -8,12 +10,40 @@ enum Environment {
 
 class AppConfig {
   static Environment _environment = Environment.development;
+  static bool _isPhysicalDevice = false;
+  static bool _initialized = false;
 
   // Configuration par défaut (développement)
   static Environment get environment => _environment;
 
   static void setEnvironment(Environment env) {
     _environment = env;
+  }
+
+  /// Must be called early (before any network call) to detect the device type.
+  static Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    configure();
+
+    if (kDebugMode && !kIsWeb) {
+      try {
+        final deviceInfo = DeviceInfoPlugin();
+        if (Platform.isAndroid) {
+          final androidInfo = await deviceInfo.androidInfo;
+          _isPhysicalDevice = !androidInfo.isPhysicalDevice;
+          // Invert: isPhysicalDevice = NOT emulator
+          _isPhysicalDevice = !_isPhysicalDevice;
+        } else if (Platform.isIOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          _isPhysicalDevice = iosInfo.isPhysicalDevice;
+        }
+      } catch (_) {
+        // If detection fails, assume emulator (safer default for dev)
+        _isPhysicalDevice = false;
+      }
+    }
   }
 
   // Configuration automatique basée sur le mode de build
@@ -41,15 +71,25 @@ class AppConfig {
 
   // URL de l'API Backend - seule différence entre dev et prod
   static String get apiBaseUrl {
+    // --dart-define=API_URL=http://192.168.1.x:8000 overrides all defaults
+    const overrideUrl = String.fromEnvironment('API_URL');
+    if (overrideUrl.isNotEmpty) {
+      return overrideUrl
+          .replaceAll(RegExp(r'/+$'), '')
+          .replaceAll(RegExp(r'/api/v\d+$'), '');
+    }
     if (kDebugMode) {
       // Mode développement
-      // - Android Emulator: 10.0.2.2
-      // - iOS Simulator: localhost
-      // - Web: même machine -> localhost
-      // - Fallback: 10.0.2.2 (cas Android devices configurés via port-forwarding)
       if (kIsWeb) {
         return 'http://localhost:8000';
       }
+      if (_isPhysicalDevice) {
+        // Physical device: use the host machine's LAN IP.
+        // Default to current machine IP; override with --dart-define=API_URL=...
+        // if your host has a different IP.
+        return 'http://192.168.1.118:8000';
+      }
+      // Emulator / simulator
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
           return 'http://10.0.2.2:8000';

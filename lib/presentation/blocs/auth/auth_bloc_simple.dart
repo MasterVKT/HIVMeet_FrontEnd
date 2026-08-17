@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_event.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_state.dart';
@@ -31,19 +32,19 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
     // Enregistrer les handlers d'événements
     on<AppStarted>(_onAppStarted);
     on<LoginRequested>((event, emit) async {
-      print('🔐 [BLOC] Tentative de connexion: ${event.email}');
-      print(
+      debugPrint('🔐 [BLOC] Tentative de connexion: ${event.email}');
+      debugPrint(
           '📊 [BLOC] État du service avant connexion: ${_authService.status.name}');
 
       emit(AuthLoading());
-      print('📊 [BLOC] État émis: AuthLoading');
+      debugPrint('📊 [BLOC] État émis: AuthLoading');
 
       int retries = 0;
       const maxRetries = 3;
 
       while (retries < maxRetries) {
         try {
-          print(
+          debugPrint(
               '🔄 [BLOC] Appel _authService.signInWithEmailAndPassword... (tentative ${retries + 1}/$maxRetries)');
 
           final result = await _authService.signInWithEmailAndPassword(
@@ -51,21 +52,21 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
             password: event.password,
           );
 
-          print(
+          debugPrint(
               '📊 [BLOC] Résultat de signInWithEmailAndPassword: success=${result.success}');
 
           if (result.success && result.user != null) {
-            print('✅ [BLOC] Connexion réussie pour ${event.email}');
+            debugPrint('✅ [BLOC] Connexion réussie pour ${event.email}');
             emit(Authenticated(user: result.user!));
             return;
           } else {
-            print('❌ [BLOC] Connexion échouée: ${result.error}');
+            debugPrint('❌ [BLOC] Connexion échouée: ${result.error}');
             emit(AuthError(result.error ?? 'Erreur de connexion inconnue'));
             return;
           }
         } catch (e) {
           retries++;
-          print(
+          debugPrint(
               '❌ [BLOC] Exception lors de la connexion (tentative $retries/$maxRetries): $e');
 
           // Gestion spécifique des erreurs réseau Firebase
@@ -73,7 +74,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
               e.toString().contains('timeout') ||
               e.toString().contains('unreachable host')) {
             if (retries < maxRetries) {
-              print(
+              debugPrint(
                   '🔄 [BLOC] Erreur réseau détectée, retry dans 2 secondes...');
               emit(AuthNetworkError(
                 'Problème de connexion réseau. Tentative $retries/$maxRetries...',
@@ -82,14 +83,14 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
               await Future.delayed(const Duration(seconds: 2));
               continue;
             } else {
-              print('❌ [BLOC] Échec final après $maxRetries tentatives');
+              debugPrint('❌ [BLOC] Échec final après $maxRetries tentatives');
               emit(AuthError(
                   'Impossible de se connecter au serveur après $maxRetries tentatives. Vérifiez votre connexion internet.'));
               return;
             }
           } else {
             // Autres erreurs (non-réseau) - pas de retry
-            print('❌ [BLOC] Erreur non-réseau, pas de retry: $e');
+            debugPrint('❌ [BLOC] Erreur non-réseau, pas de retry: $e');
             emit(AuthError('Erreur lors de l\'authentification: $e'));
             return;
           }

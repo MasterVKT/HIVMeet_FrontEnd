@@ -1,6 +1,14 @@
 import 'package:get_it/get_it.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:dio/dio.dart';
+import 'package:hivmeet/data/services/notification_service.dart';
+import 'package:hivmeet/data/services/notifications_local_store.dart';
+import 'package:hivmeet/presentation/blocs/notifications/notifications_bloc.dart';
+import 'package:hivmeet/presentation/blocs/unread/unread_cubit.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
+import 'package:hivmeet/core/services/notification_websocket_service.dart';
 import 'package:hivmeet/core/services/token_manager.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
 import 'package:hivmeet/core/network/api_client.dart';
@@ -8,12 +16,18 @@ import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/services/network_connectivity_service.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
 import 'package:hivmeet/data/datasources/remote/settings_api.dart';
+import 'package:hivmeet/data/datasources/remote/auth_api.dart';
 import 'package:hivmeet/data/datasources/remote/messaging_api.dart';
+import 'package:hivmeet/data/datasources/remote/subscriptions_api.dart';
+import 'package:hivmeet/data/services/payment_service.dart';
 import 'package:hivmeet/data/repositories/message_repository_impl.dart';
 import 'package:hivmeet/domain/repositories/message_repository.dart';
 import 'package:hivmeet/domain/usecases/message/get_conversations.dart';
+import 'package:hivmeet/domain/usecases/message/get_unread_count.dart';
 import 'package:hivmeet/domain/usecases/message/send_message.dart';
 import 'package:hivmeet/domain/usecases/message/mark_as_read.dart';
+import 'package:hivmeet/domain/usecases/message/delete_conversation.dart'
+    as delete_conversation;
 import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
 import 'package:hivmeet/domain/usecases/chat/send_text_message.dart';
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
@@ -21,7 +35,6 @@ import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
 import 'package:hivmeet/domain/usecases/chat/set_typing_status.dart';
 import 'package:hivmeet/domain/usecases/chat/delete_message.dart';
 import 'package:hivmeet/domain/usecases/chat/get_presence.dart';
-import 'package:hivmeet/domain/usecases/chat/generate_media_upload_url.dart';
 import 'package:hivmeet/core/services/chat_websocket_service.dart';
 import 'package:hivmeet/domain/usecases/match/get_discovery_profiles.dart';
 import 'package:hivmeet/domain/usecases/match/like_profile.dart';
@@ -50,6 +63,7 @@ import 'package:hivmeet/core/events/app_events.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
+import 'package:hivmeet/presentation/blocs/premium/premium_bloc.dart';
 import 'package:hivmeet/presentation/blocs/matches/matches_bloc.dart';
 import 'package:hivmeet/presentation/blocs/interaction_history/interaction_history_bloc.dart';
 import 'package:hivmeet/data/repositories/match_repository_impl.dart';
@@ -63,6 +77,7 @@ import 'package:hivmeet/domain/repositories/resource_repository.dart';
 import 'package:hivmeet/presentation/blocs/resources/resources_bloc.dart';
 import 'package:hivmeet/data/datasources/remote/profile_api.dart';
 import 'package:hivmeet/data/repositories/profile_repository_impl.dart';
+import 'package:hivmeet/data/repositories/premium_repository_impl.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
 import 'package:hivmeet/domain/usecases/profile/update_profile.dart';
@@ -72,6 +87,7 @@ import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart';
 import 'package:hivmeet/domain/usecases/profile/reorder_photos.dart';
 import 'package:hivmeet/domain/usecases/profile/update_location.dart';
 import 'package:hivmeet/domain/usecases/profile/block_user.dart';
+import 'package:hivmeet/domain/usecases/profile/report_user.dart';
 import 'package:hivmeet/domain/usecases/profile/unblock_user.dart';
 import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
@@ -99,6 +115,7 @@ Future<void> configureDependencies() async {
   );
 
   getIt.registerSingleton<FirebaseAuth>(FirebaseAuth.instance);
+  getIt.registerSingleton<FirebaseMessaging>(FirebaseMessaging.instance);
 
   // 2. Services de base (dépendances simples)
   getIt.registerSingleton<LocalizationService>(LocalizationService());
@@ -110,6 +127,8 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<AppEvents>(
     () => AppEvents(),
   );
+
+  getIt.registerSingleton<RealtimeEventBus>(RealtimeEventBus());
 
   // 3. TokenManager sans ApiClient d'abord
   getIt.registerSingleton<TokenManager>(
@@ -133,6 +152,28 @@ Future<void> configureDependencies() async {
     ),
   );
 
+  // 6.1 Dio dédié aux paiements externes (MyCoolPay)
+  // Ce client n'utilise pas l'auth HIVMeet et ne doit pas partager les
+  // intercepteurs de l'ApiClient principal.
+  getIt.registerSingleton<Dio>(
+    Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    )),
+    instanceName: 'paymentDio',
+  );
+
+  getIt.registerSingleton<NotificationWebSocketService>(
+    NotificationWebSocketService(
+      getIt<AuthenticationService>(),
+      getIt<RealtimeEventBus>(),
+    ),
+  );
+
   // 7. BLoC simple utilisant AuthenticationService directement
   getIt.registerFactory<AuthBlocSimple>(
     () => AuthBlocSimple(getIt<AuthenticationService>()),
@@ -141,6 +182,10 @@ Future<void> configureDependencies() async {
   // 8. APIs
   getIt.registerSingleton<SettingsApi>(
     SettingsApi(getIt<ApiClient>()),
+  );
+
+  getIt.registerSingleton<AuthApi>(
+    AuthApi(getIt<ApiClient>()),
   );
 
   getIt.registerSingleton<MessagingApi>(
@@ -159,6 +204,15 @@ Future<void> configureDependencies() async {
     ProfileApi(getIt<ApiClient>()),
   );
 
+  getIt.registerSingleton<SubscriptionsApi>(
+    SubscriptionsApi(getIt<ApiClient>()),
+  );
+
+  // 8.1 Service de paiement externe (MyCoolPay)
+  getIt.registerSingleton<PaymentService>(
+    PaymentService(getIt<Dio>(instanceName: 'paymentDio')),
+  );
+
   // 9. Repositories
   getIt.registerSingleton<MessageRepository>(
     MessageRepositoryImpl(getIt<MessagingApi>()),
@@ -174,7 +228,11 @@ Future<void> configureDependencies() async {
   );
 
   getIt.registerSingleton<ProfileRepository>(
-    ProfileRepositoryImpl(getIt<ProfileApi>()),
+    ProfileRepositoryImpl(
+      getIt<ProfileApi>(),
+      getIt<SettingsApi>(),
+      getIt<AuthApi>(),
+    ),
   );
 
   // Repository pour l'historique d'interactions (likes/passes)
@@ -182,9 +240,21 @@ Future<void> configureDependencies() async {
     InteractionHistoryRepositoryImpl(getIt<ApiClient>()),
   );
 
+  // 10.4. Repository Premium
+  getIt.registerSingleton<PremiumRepository>(
+    PremiumRepositoryImpl(
+      getIt<SubscriptionsApi>(),
+      getIt<PaymentService>(),
+    ),
+  );
+
   // 10.5. Use Cases pour Messages/Conversations
   getIt.registerSingleton<GetConversations>(
     GetConversations(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<GetUnreadCount>(
+    GetUnreadCount(getIt<MessageRepository>()),
   );
 
   getIt.registerSingleton<SendMessage>(
@@ -193,6 +263,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<MarkAsRead>(
     MarkAsRead(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<delete_conversation.DeleteConversation>(
+    delete_conversation.DeleteConversation(getIt<MessageRepository>()),
   );
 
   // 10.6. Use Cases pour Chat
@@ -222,10 +296,6 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<GetPresence>(
     GetPresence(getIt<MessageRepository>()),
-  );
-
-  getIt.registerSingleton<GenerateMediaUploadUrl>(
-    GenerateMediaUploadUrl(getIt<MessageRepository>()),
   );
 
   // 10.7. Use Cases pour Match/Discovery
@@ -335,6 +405,10 @@ Future<void> configureDependencies() async {
     BlockUser(getIt<ProfileRepository>()),
   );
 
+  getIt.registerSingleton<ReportUser>(
+    ReportUser(getIt<ProfileRepository>()),
+  );
+
   getIt.registerSingleton<UnblockUser>(
     UnblockUser(getIt<ProfileRepository>()),
   );
@@ -349,6 +423,8 @@ Future<void> configureDependencies() async {
       getConversations: getIt<GetConversations>(),
       sendMessage: getIt<SendMessage>(),
       markAsRead: getIt<MarkAsRead>(),
+      deleteConversation: getIt<delete_conversation.DeleteConversation>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
     ),
   );
 
@@ -387,8 +463,11 @@ Future<void> configureDependencies() async {
       markMessageAsRead: getIt<MarkMessageAsRead>(),
       setTypingStatus: getIt<SetTypingStatusUseCase>(),
       deleteMessage: getIt<DeleteMessage>(),
+      blockUser: getIt<BlockUser>(),
+      reportUser: getIt<ReportUser>(),
       authService: getIt<AuthenticationService>(),
       wsService: getIt<ChatWebSocketService>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
     ),
   );
 
@@ -436,6 +515,34 @@ Future<void> configureDependencies() async {
     GetInteractionStats(getIt<InteractionHistoryRepository>()),
   );
 
+  // 12.3 Notifications
+  getIt.registerSingleton<NotificationsLocalStore>(NotificationsLocalStore());
+
+  getIt.registerSingleton<NotificationService>(
+    NotificationService(
+      getIt<FirebaseMessaging>(),
+      getIt<AuthApi>(),
+      getIt<NotificationsLocalStore>(),
+      getIt<RealtimeEventBus>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<NotificationsBloc>(
+    () => NotificationsBloc(
+      store: getIt<NotificationsLocalStore>(),
+      matchRepository: getIt<MatchRepository>(),
+      messageRepository: getIt<MessageRepository>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<UnreadCubit>(
+    () => UnreadCubit(
+      getUnreadCount: getIt<GetUnreadCount>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
+    ),
+  );
+
   // 12.2 InteractionHistoryBloc - Utilisé pour l'historique des likes/passes
   getIt.registerFactory<InteractionHistoryBloc>(
     () => InteractionHistoryBloc(
@@ -446,33 +553,14 @@ Future<void> configureDependencies() async {
     ),
   );
 
-  /*
-  getIt.registerFactory<DiscoveryBloc>(
-    () => DiscoveryBloc(matchRepository, profileRepository),
-  );
-
-  getIt.registerFactory<ConversationsBloc>(
-    () => ConversationsBloc(messageRepository, profileRepository),
-  );
-
-  getIt.registerFactory<ProfileBloc>(
-    () => ProfileBloc(getCurrentProfile, updateProfile, profileRepository),
-  );
-
-  getIt.registerFactory<SettingsBloc>(
-    () => SettingsBloc(settingsRepository),
-  );
-
-  getIt.registerFactory<ResourcesBloc>(
-    () => ResourcesBloc(resourceRepository),
-  );
-
+  // 12.3 PremiumBloc - Gestion des abonnements et paiements
   getIt.registerFactory<PremiumBloc>(
-    () => PremiumBloc(premiumRepository),
+    () => PremiumBloc(
+      premiumRepository: getIt<PremiumRepository>(),
+    ),
   );
-  */
 
-  // Note: Tous les blocs nécessitent des repositories qui ne sont pas encore implémentés
+  // Note: Tous les blocs sont enregistrés dans leur section dédiée.
   // Ils seront réactivés une fois que les repositories seront créés
 
   /*

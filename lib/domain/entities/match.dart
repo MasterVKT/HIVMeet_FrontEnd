@@ -1,6 +1,7 @@
 // lib/domain/entities/match.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 
@@ -81,6 +82,7 @@ class DiscoveryProfile extends Equatable {
   final bool isVerified;
   final bool isPremium;
   final DateTime lastActive;
+  final DateTime? likedAt;
   final double compatibilityScore;
 
   const DiscoveryProfile({
@@ -99,6 +101,7 @@ class DiscoveryProfile extends Equatable {
     required this.isVerified,
     required this.isPremium,
     required this.lastActive,
+    this.likedAt,
     required this.compatibilityScore,
   });
 
@@ -111,13 +114,14 @@ class DiscoveryProfile extends Equatable {
     if (json.containsKey('main_photo_url')) {
       final mainPhoto = json['main_photo_url'];
       if (mainPhoto != null && mainPhoto is String && mainPhoto.isNotEmpty) {
-        mainPhotoUrl = mainPhoto;
+        mainPhotoUrl = _buildAbsoluteUrl(mainPhoto);
       }
     }
     if (json.containsKey('other_photos_urls')) {
       final otherPhotos = json['other_photos_urls'];
       if (otherPhotos != null && otherPhotos is List) {
-        otherPhotosUrls = otherPhotos.map((e) => e.toString()).toList();
+        otherPhotosUrls =
+            otherPhotos.map((e) => _buildAbsoluteUrl(e.toString())).toList();
       }
     }
 
@@ -125,7 +129,8 @@ class DiscoveryProfile extends Equatable {
     if (mainPhotoUrl.isEmpty && json.containsKey('photos')) {
       final photos = json['photos'];
       if (photos != null && photos is List && photos.isNotEmpty) {
-        final photosList = photos.map((e) => e.toString()).toList();
+        final photosList =
+            photos.map((e) => _buildAbsoluteUrl(e.toString())).toList();
         mainPhotoUrl = photosList.first;
         if (photosList.length > 1) {
           otherPhotosUrls = photosList.sublist(1);
@@ -186,10 +191,24 @@ class DiscoveryProfile extends Equatable {
       isPremium: json['is_premium'] == true,
       lastActive: json.containsKey('last_active') && json['last_active'] != null
           ? DateTime.parse(json['last_active'].toString())
-          : DateTime.now(),
+          : (json['is_online'] == true
+              ? DateTime.now()
+              : DateTime.fromMillisecondsSinceEpoch(0)),
+      likedAt: json['liked_at'] != null
+          ? DateTime.tryParse(json['liked_at'].toString())
+          : null,
       compatibilityScore:
           (json['compatibility_score'] as num?)?.toDouble() ?? 0.0,
     );
+  }
+
+  static String _buildAbsoluteUrl(String url) {
+    if (url.isEmpty || url.startsWith('http')) {
+      return url;
+    }
+    // Nettoyer les préfixes file:/// ou autres
+    String cleanUrl = url.replaceFirst(RegExp(r'^file://+'), '/');
+    return AppConfig.apiBaseUrl + cleanUrl;
   }
 
   Map<String, dynamic> toJson() {
@@ -221,7 +240,13 @@ class DiscoveryProfile extends Equatable {
     // Filtrer les URLs vides et ajouter un placeholder si aucune photo
     final photos = [mainPhotoUrl, ...otherPhotosUrls]
         .where((url) => url.isNotEmpty)
-        .toList();
+        .map((url) {
+      // Convertir les URLs relatives en URLs absolues
+      if (url.isNotEmpty && !url.startsWith('http')) {
+        return AppConfig.apiBaseUrl + url;
+      }
+      return url;
+    }).toList();
 
     // Si aucune photo, retourner une liste avec un placeholder
     if (photos.isEmpty) {
@@ -248,6 +273,7 @@ class DiscoveryProfile extends Equatable {
         isVerified,
         isPremium,
         lastActive,
+        likedAt,
         compatibilityScore,
       ];
 }

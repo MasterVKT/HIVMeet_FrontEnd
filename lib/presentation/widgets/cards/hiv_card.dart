@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/presentation/widgets/common/safe_circle_avatar.dart';
 
 class HIVCard extends StatelessWidget {
   final Widget child;
@@ -143,7 +144,7 @@ class ProfileCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.7),
+                      Colors.black.withValues(alpha: 0.7),
                     ],
                   ),
                 ),
@@ -281,9 +282,9 @@ class MatchCard extends StatelessWidget {
           // Profile image with online indicator
           Stack(
             children: [
-              CircleAvatar(
+              SafeCircleAvatar(
+                imageUrl: imageUrl,
                 radius: 28,
-                backgroundImage: NetworkImage(imageUrl),
                 backgroundColor: theme.colorScheme.surface,
               ),
               if (isOnline)

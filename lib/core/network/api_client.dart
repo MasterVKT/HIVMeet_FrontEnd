@@ -7,19 +7,21 @@ import 'package:hivmeet/injection.dart';
 import 'dart:developer' as developer;
 
 class ApiClient {
+  static const _authRetryMarker = 'hivmeet.auth_retry_performed';
   late final Dio _dio;
   final TokenManager _tokenManager;
 
-  ApiClient(this._tokenManager) {
-    _dio = Dio(BaseOptions(
-      baseUrl: _getBaseUrl(),
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ));
+  ApiClient(this._tokenManager, {Dio? dio}) {
+    _dio = dio ??
+        Dio(BaseOptions(
+          baseUrl: _getBaseUrl(),
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ));
 
     _setupInterceptors();
   }
@@ -68,8 +70,10 @@ class ApiClient {
           excludedPaths.any((path) => options.path.contains(path));
 
       if (isExcluded) {
-        developer.log('⚪ Requête sans authentification: ${options.path}',
-            name: 'ApiClient');
+        developer.log(
+          'Requete sans authentification: ${_sanitizePath(options.path)}',
+          name: 'ApiClient',
+        );
         return;
       }
 
@@ -94,11 +98,15 @@ class ApiClient {
           });
         }
 
-        developer.log('🔐 Token ajouté à la requête: ${options.path}',
-            name: 'ApiClient');
+        developer.log(
+          'Token present pour: ${_sanitizePath(options.path)}',
+          name: 'ApiClient',
+        );
       } else {
-        developer.log('⚠️ Aucun token disponible pour: ${options.path}',
-            name: 'ApiClient');
+        developer.log(
+          'Aucun token disponible pour: ${_sanitizePath(options.path)}',
+          name: 'ApiClient',
+        );
       }
     } catch (e) {
       developer.log('❌ Erreur authentification requête: $e', name: 'ApiClient');
@@ -118,11 +126,21 @@ class ApiClient {
   /// Log les requêtes pour le debugging
   void _logRequest(RequestOptions options) {
     if (kDebugMode) {
-      developer.log('🚀 ${options.method} ${options.uri}', name: 'ApiClient');
-      developer.log('📤 DATA: ${options.data}', name: 'ApiClient');
+      developer.log(
+        '${options.method} ${_sanitizePath(options.path)}',
+        name: 'ApiClient',
+      );
+      developer.log(
+        'DATA: ${_sanitizeForLog(options.data)}',
+        name: 'ApiClient',
+      );
 
-      final hasAuth = options.headers['Authorization'] != null;
-      developer.log('🔐 Auth: ${hasAuth ? "✅" : "❌"}', name: 'ApiClient');
+      final hasAuthHeader = options.headers['Authorization'] != null;
+      developer.log(
+        'Auth: ${hasAuthHeader ? "present" : "absent"}',
+        name: 'ApiClient',
+      );
+      return;
     }
   }
 
@@ -130,9 +148,10 @@ class ApiClient {
   void _logResponse(Response response) {
     if (kDebugMode) {
       developer.log(
-        '✅ ${response.statusCode} ${response.requestOptions.path}',
+        '${response.statusCode} ${_sanitizePath(response.requestOptions.path)}',
         name: 'ApiClient',
       );
+      return;
     }
   }
 
@@ -140,12 +159,14 @@ class ApiClient {
   Future<void> _handleRequestError(
       DioException error, ErrorInterceptorHandler handler) async {
     developer.log(
-      '❌ ${error.response?.statusCode ?? "NETWORK"} ${error.requestOptions.path}',
+      '${error.response?.statusCode ?? "NETWORK"} ${_sanitizePath(error.requestOptions.path)}',
       name: 'ApiClient',
     );
 
     // Gestion spéciale des erreurs 401 (token expiré)
-    if (error.response?.statusCode == 401) {
+    if (error.response?.statusCode == 401 &&
+        error.requestOptions.extra[_authRetryMarker] != true &&
+        !_isRefreshRequest(error.requestOptions)) {
       final retryResult =
           await _handleUnauthorizedWithRetry(error.requestOptions);
 
@@ -158,6 +179,9 @@ class ApiClient {
 
     handler.next(error);
   }
+
+  bool _isRefreshRequest(RequestOptions options) =>
+      options.path.contains('auth/refresh-token');
 
   /// Gère les erreurs 401 avec tentative de retry automatique
   Future<Response?> _handleUnauthorizedWithRetry(
@@ -176,6 +200,7 @@ class ApiClient {
         // Mettre à jour le header Authorization
         originalRequest.headers['Authorization'] =
             'Bearer ${refreshResult.newAccessToken}';
+        originalRequest.extra[_authRetryMarker] = true;
 
         // Retry de la requête originale avec le nouveau token
         return await _dio.fetch(originalRequest);
@@ -194,6 +219,60 @@ class ApiClient {
   }
 
   /// Requête GET
+  String _sanitizePath(String path) {
+    return path
+        .replaceAll(
+          RegExp(
+            r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+          ),
+          ':id',
+        )
+        .replaceAll(RegExp(r'([?&][^=]+)=([^&]+)'), r'$1=<redacted>');
+  }
+
+  Object? _sanitizeForLog(Object? value) {
+    const sensitiveKeys = {
+      'authorization',
+      'access',
+      'refresh',
+      'token',
+      'id_token',
+      'firebase_token',
+      'email',
+      'phone',
+      'phone_number',
+      'user_id',
+      'upload_url',
+      'file_path_on_storage',
+      'identity_document',
+      'medical_document',
+      'selfie_with_code',
+      'documents',
+      'latitude',
+      'longitude',
+    };
+
+    if (value == null) return null;
+    if (value is FormData) return '<multipart form data>';
+    if (value is Map) {
+      return value.map((key, raw) {
+        final normalizedKey = key.toString().toLowerCase();
+        final sanitizedValue = sensitiveKeys.contains(normalizedKey)
+            ? '<redacted>'
+            : _sanitizeForLog(raw);
+        return MapEntry(key, sanitizedValue);
+      });
+    }
+    if (value is Iterable) {
+      return value.map(_sanitizeForLog).toList();
+    }
+    if (value is String &&
+        (value.startsWith('Bearer ') || value.startsWith('https://'))) {
+      return '<redacted>';
+    }
+    return value;
+  }
+
   Future<Response<T>> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,

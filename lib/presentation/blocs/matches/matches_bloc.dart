@@ -71,7 +71,7 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
 
     await matchesResult.fold(
       (failure) async {
-        emit(MatchesError(message: failure.message));
+        emit(MatchesError(message: failure.message, code: failure.code));
       },
       (matches) async {
         _allMatches = matches;
@@ -119,11 +119,12 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
     result.fold(
       (failure) {
         emit(currentState.copyWith(isLoadingMore: false));
-        emit(MatchesError(message: failure.message));
+        emit(MatchesError(message: failure.message, code: failure.code));
       },
       (newMatches) {
         _allMatches.addAll(newMatches);
-        _lastMatchId = newMatches.isNotEmpty ? newMatches.last.id : _lastMatchId;
+        _lastMatchId =
+            newMatches.isNotEmpty ? newMatches.last.id : _lastMatchId;
         _hasMore = newMatches.length >= 20;
 
         emit(currentState.copyWith(
@@ -165,7 +166,7 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
           matches: List.from(_allMatches),
           allMatches: List.from(_allMatches),
         ));
-        emit(MatchesError(message: failure.message));
+        emit(MatchesError(message: failure.message, code: failure.code));
       },
       (_) {
         // Succès: mettre à jour le state persistant
@@ -185,7 +186,7 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
 
     result.fold(
       (failure) {
-        emit(MatchesError(message: failure.message));
+        emit(MatchesError(message: failure.message, code: failure.code));
       },
       (profiles) {
         emit(LikesReceivedLoaded(

@@ -20,7 +20,7 @@ class _SimpleSplashPageState extends State<SimpleSplashPage> {
     // Navigation forcée après 2 secondes
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        print('🔄 Navigation forcée vers login depuis SimpleSplashPage');
+        debugPrint('🔄 Navigation forcée vers login depuis SimpleSplashPage');
         context.go('/login');
       }
     });
@@ -93,7 +93,7 @@ class _SimpleSplashPageState extends State<SimpleSplashPage> {
                 'Version 1.0.0',
                 style: GoogleFonts.openSans(
                   fontSize: 12,
-                  color: AppColors.slate.withOpacity(0.7),
+                  color: AppColors.slate.withValues(alpha: 0.7),
                 ),
               ),
             ],

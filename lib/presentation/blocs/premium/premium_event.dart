@@ -58,3 +58,16 @@ class RetryPayment extends PremiumEvent {
   @override
   List<Object> get props => [sessionId];
 }
+
+class ModifySubscription extends PremiumEvent {
+  final String newPlanId;
+  final bool proration;
+
+  const ModifySubscription({
+    required this.newPlanId,
+    this.proration = true,
+  });
+
+  @override
+  List<Object> get props => [newPlanId, proration];
+}

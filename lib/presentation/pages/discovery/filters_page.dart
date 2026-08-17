@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/entities/search_filters.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
@@ -35,19 +37,21 @@ class _FiltersPageState extends State<FiltersPage> {
     _maxDistance = 100; // ✅ 100 km
     _relationshipType = 'all'; // ✅ Tous types
     _genders = ['all']; // ✅ Tous genres
-    print('🔄 FiltersPage: Initialisation avec filtres larges par défaut');
   }
 
   void _onChanged() {
     setState(() => _hasChanges = true);
   }
 
+  String _tr(String key, {Map<String, dynamic>? params}) =>
+      LocalizationService.translate(key, params: params);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primaryWhite,
       appBar: AppBar(
-        title: const Text('Filtres de recherche'),
+        title: Text(_tr('discovery.filters_title')),
         elevation: 0,
         backgroundColor: Colors.transparent,
         actions: [
@@ -64,7 +68,7 @@ class _FiltersPageState extends State<FiltersPage> {
                   _hasChanges = false;
                 });
               },
-              child: const Text('Réinitialiser'),
+              child: Text(_tr('common.reset')),
             ),
         ],
       ),
@@ -75,7 +79,7 @@ class _FiltersPageState extends State<FiltersPage> {
           children: [
             // Age range
             Text(
-              'Tranche d\'âge',
+              _tr('discovery.age_range_title'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -84,8 +88,14 @@ class _FiltersPageState extends State<FiltersPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${_ageRange.start.round()} ans'),
-                Text('${_ageRange.end.round()} ans'),
+                Text(
+                  _tr('discovery.age_value',
+                      params: {'age': '${_ageRange.start.round()}'}),
+                ),
+                Text(
+                  _tr('discovery.age_value',
+                      params: {'age': '${_ageRange.end.round()}'}),
+                ),
               ],
             ),
             RangeSlider(
@@ -104,7 +114,7 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Distance
             Text(
-              'Distance maximale',
+              _tr('discovery.distance_title'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -113,7 +123,10 @@ class _FiltersPageState extends State<FiltersPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${_maxDistance.round()} km'),
+                Text(
+                  _tr('discovery.distance_value',
+                      params: {'distance': '${_maxDistance.round()}'}),
+                ),
                 if (_maxDistance >= 100)
                   Container(
                     padding: EdgeInsets.symmetric(
@@ -124,9 +137,9 @@ class _FiltersPageState extends State<FiltersPage> {
                       color: AppColors.primaryPurple,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Premium',
-                      style: TextStyle(
+                    child: Text(
+                      _tr('premium.premium_label'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -151,7 +164,7 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Relationship type
             Text(
-              'Type de relation recherchée',
+              _tr('discovery.relationship_title'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -163,7 +176,7 @@ class _FiltersPageState extends State<FiltersPage> {
 
             // Gender preferences
             Text(
-              'Je recherche',
+              _tr('discovery.gender_title'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -176,9 +189,8 @@ class _FiltersPageState extends State<FiltersPage> {
             // Verified only
             Card(
               child: SwitchListTile(
-                title: const Text('Profils vérifiés uniquement'),
-                subtitle: const Text(
-                    'Ne voir que les profils avec badge de vérification'),
+                title: Text(_tr('discovery.verified_only')),
+                subtitle: Text(_tr('discovery.verified_only_subtitle')),
                 secondary: Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: const BoxDecoration(
@@ -192,7 +204,7 @@ class _FiltersPageState extends State<FiltersPage> {
                   ),
                 ),
                 value: _verifiedOnly,
-                activeColor: AppColors.primaryPurple,
+                thumbColor: WidgetStateProperty.all(AppColors.primaryPurple),
                 onChanged: (value) {
                   setState(() => _verifiedOnly = value);
                   _onChanged();
@@ -204,9 +216,8 @@ class _FiltersPageState extends State<FiltersPage> {
 
             Card(
               child: SwitchListTile(
-                title: const Text('Profils en ligne uniquement'),
-                subtitle:
-                    const Text('Ne voir que les profils actifs récemment'),
+                title: Text(_tr('discovery.online_only')),
+                subtitle: Text(_tr('discovery.online_only_subtitle')),
                 secondary: Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: const BoxDecoration(
@@ -220,7 +231,7 @@ class _FiltersPageState extends State<FiltersPage> {
                   ),
                 ),
                 value: _onlineOnly,
-                activeColor: AppColors.primaryPurple,
+                thumbColor: WidgetStateProperty.all(AppColors.primaryPurple),
                 onChanged: (value) {
                   setState(() => _onlineOnly = value);
                   _onChanged();
@@ -237,8 +248,8 @@ class _FiltersPageState extends State<FiltersPage> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.primaryPurple.withOpacity(0.1),
-                      AppColors.lightPurple.withOpacity(0.1),
+                      AppColors.primaryPurple.withOpacityValues(0.1),
+                      AppColors.lightPurple.withOpacityValues(0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -264,7 +275,7 @@ class _FiltersPageState extends State<FiltersPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Filtres Premium',
+                                _tr('discovery.premium_filters_title'),
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
@@ -273,7 +284,7 @@ class _FiltersPageState extends State<FiltersPage> {
                                     ),
                               ),
                               Text(
-                                'Débloquez plus d\'options de filtrage',
+                                _tr('discovery.premium_filters_subtitle'),
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -291,7 +302,7 @@ class _FiltersPageState extends State<FiltersPage> {
                       width: double.infinity,
                       child: OutlinedButton(
                         onPressed: () => context.push('/premium'),
-                        child: const Text('Découvrir Premium'),
+                        child: Text(_tr('discovery.discover_premium')),
                       ),
                     ),
                   ],
@@ -307,14 +318,14 @@ class _FiltersPageState extends State<FiltersPage> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacityValues(0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
           ],
         ),
         child: AppButton(
-          text: 'Appliquer les filtres',
+          text: _tr('discovery.apply_filters'),
           onPressed: _hasChanges ? _applyFilters : null,
         ),
       ),
@@ -323,11 +334,11 @@ class _FiltersPageState extends State<FiltersPage> {
 
   Widget _buildRelationshipOptions() {
     final options = [
-      ('all', 'Tout'),
-      ('friendship', 'Amitié'),
-      ('long_term', 'Relation sérieuse'),
-      ('short_term', 'Relation courte'),
-      ('casual', 'Rencontres occasionnelles'),
+      ('all', _tr('common.all')),
+      ('friendship', _tr('profile.relationship_friendship')),
+      ('long_term', _tr('profile.relationship_long_term')),
+      ('short_term', _tr('profile.relationship_short_term')),
+      ('casual', _tr('profile.relationship_casual')),
     ];
 
     return Wrap(
@@ -355,46 +366,38 @@ class _FiltersPageState extends State<FiltersPage> {
 
   Widget _buildGenderOptions() {
     final options = [
-      ('all', 'Tout le monde'),
-      ('male', 'Hommes'),
-      ('female', 'Femmes'),
-      ('non_binary', 'Non-binaire'),
-      ('trans_male', 'Hommes trans'),
-      ('trans_female', 'Femmes trans'),
-      ('other', 'Autre'),
-      ('prefer_not_to_say', 'Préfère ne pas répondre'),
+      ('all', Gender.getLabel('all'), Icons.people),
+      ('male', Gender.getLabel('male'), Icons.male),
+      ('female', Gender.getLabel('female'), Icons.female),
     ];
 
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
+    return Column(
       children: options.map((option) {
         final isSelected = _genders.contains(option.$1);
-        return FilterChip(
-          label: Text(option.$2),
-          selected: isSelected,
-          selectedColor: AppColors.primaryPurple,
-          labelStyle: TextStyle(
-            color: isSelected ? Colors.white : AppColors.charcoal,
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: ListTile(
+            leading: Icon(
+              option.$3,
+              color: isSelected ? AppColors.primaryPurple : AppColors.slate,
+            ),
+            title: Text(
+              option.$2,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppColors.primaryPurple : null,
+              ),
+            ),
+            trailing: isSelected
+                ? const Icon(Icons.check_circle, color: AppColors.primaryPurple)
+                : const Icon(Icons.circle_outlined, color: AppColors.slate),
+            onTap: () {
+              setState(() {
+                _genders = [option.$1];
+              });
+              _onChanged();
+            },
           ),
-          onSelected: (selected) {
-            setState(() {
-              if (option.$1 == 'all') {
-                _genders = ['all'];
-              } else {
-                _genders.remove('all');
-                if (selected) {
-                  _genders.add(option.$1);
-                } else {
-                  _genders.remove(option.$1);
-                  if (_genders.isEmpty) {
-                    _genders = ['all'];
-                  }
-                }
-              }
-            });
-            _onChanged();
-          },
         );
       }).toList(),
     );
@@ -427,14 +430,6 @@ class _FiltersPageState extends State<FiltersPage> {
       );
       return;
     }
-
-    print('🔄 Applying filters:');
-    print('   - Age: ${filters.minAge} - ${filters.maxAge}');
-    print('   - Distance: ${filters.maxDistance} km');
-    print('   - Genders: $genders');
-    print('   - Relationship types: $relationshipTypes');
-    print('   - Verified only: ${filters.verifiedOnly}');
-    print('   - Online only: ${filters.onlineOnly}');
 
     context
         .read<DiscoveryBloc>()

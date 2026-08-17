@@ -1,21 +1,20 @@
-// lib/presentation/pages/verification/verification_page.dart
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/injection.dart';
-import 'package:hivmeet/presentation/blocs/verification/verification_bloc.dart';
-import 'package:hivmeet/presentation/blocs/verification/verification_event.dart';
-import 'package:hivmeet/presentation/blocs/verification/verification_state.dart';
-import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
+import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
+import 'package:hivmeet/presentation/blocs/profile/profile_event.dart';
+import 'package:hivmeet/presentation/blocs/profile/profile_state.dart';
+import 'package:hivmeet/presentation/widgets/common/hiv_toast.dart';
+import 'package:hivmeet/presentation/widgets/common/retry_panel.dart';
 import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
-import 'package:hivmeet/presentation/pages/verification/steps/identity_document_step.dart';
-import 'package:hivmeet/presentation/pages/verification/steps/medical_document_step.dart';
-import 'package:hivmeet/presentation/pages/verification/steps/selfie_verification_step.dart';
-import 'package:hivmeet/presentation/pages/verification/steps/verification_intro_step.dart';
-import 'package:hivmeet/presentation/pages/verification/steps/verification_review_step.dart';
+import 'package:image_picker/image_picker.dart';
 
 class VerificationPage extends StatefulWidget {
   const VerificationPage({super.key});
@@ -25,249 +24,285 @@ class VerificationPage extends StatefulWidget {
 }
 
 class _VerificationPageState extends State<VerificationPage> {
-  late PageController _pageController;
-  int _currentPageIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
+  File? _identity;
+  File? _medical;
+  File? _selfie;
+  final _codeController = TextEditingController();
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _codeController.dispose();
     super.dispose();
-  }
-
-  void _goToNextPage() {
-    if (_currentPageIndex < 4) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  void _goToPreviousPage() {
-    if (_currentPageIndex > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  void _goToPage(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => getIt<VerificationBloc>()..add(LoadVerificationStatus()),
-      child: Scaffold(
-        backgroundColor: AppColors.primaryWhite,
-        body: SafeArea(
-          child: BlocConsumer<VerificationBloc, VerificationState>(
-            listener: (context, state) {
-              if (state is VerificationError) {
-                HIVToast.showError(
-                  context: context,
-                  message: state.message,
-                );
-                
-                if (state.previousState != null) {
-                  // Restore previous state after error
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    context.read<VerificationBloc>().add(LoadVerificationStatus());
-                  });
-                }
-              }
-              
-              if (state is VerificationSubmitted) {
-                HIVDialog.show(
-                  context: context,
-                  title: 'Vérification soumise',
-                  content: state.message,
-                  actions: [
-                    DialogAction(
-                      label: 'OK',
-                      onPressed: (context) {
-                        Navigator.of(context).pop();
-                        context.go('/home');
-                      },
-                    ),
-                  ],
-                );
-              }
-              
-              if (state is VerificationLoaded) {
-                // Auto navigate to current step
-                switch (state.currentStep) {
-                  case 'identity_document':
-                    _goToPage(1);
-                    break;
-                  case 'medical_document':
-                    _goToPage(2);
-                    break;
-                  case 'selfie_with_code':
-                    _goToPage(3);
-                    break;
-                  case 'ready_to_submit':
-                  case 'pending_review':
-                  case 'verified':
-                    _goToPage(4);
-                    break;
-                  default:
-                    _goToPage(0);
-                }
-              }
-            },
-            builder: (context, state) {
-              if (state is VerificationLoading || state is VerificationInitial) {
-                return const Center(child: HIVLoader());
-              }
-              
-              if (state is DocumentUploading) {
-                return HIVFullScreenLoader(
-                  message: 'Téléchargement en cours... ${(state.uploadProgress * 100).toInt()}%',
-                );
-              }
-              
-              if (state is VerificationSubmitting) {
-                return const HIVFullScreenLoader(
-                  message: 'Soumission de votre vérification...',
-                );
-              }
-              
-              return Column(
-                children: [
-                  // Header with progress
-                  _buildHeader(context, state),
-                  
-                  // Content
-                  Expanded(
-                    child: PageView(
-                      controller: _pageController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentPageIndex = index;
-                        });
-                      },
-                      children: [
-                        VerificationIntroStep(
-                          onStart: _goToNextPage,
-                        ),
-                        IdentityDocumentStep(
-                          onNext: _goToNextPage,
-                          onBack: _goToPreviousPage,
-                        ),
-                        MedicalDocumentStep(
-                          onNext: _goToNextPage,
-                          onBack: _goToPreviousPage,
-                        ),
-                        SelfieVerificationStep(
-                          onNext: _goToNextPage,
-                          onBack: _goToPreviousPage,
-                        ),
-                        VerificationReviewStep(
-                          onBack: _goToPreviousPage,
-                        ),
-                      ],
-                    ),
+      create: (_) => getIt<ProfileBloc>()..add(LoadProfile()),
+      child: BlocConsumer<ProfileBloc, ProfileState>(
+        listener: (context, state) {
+          if (state is ProfileError) {
+            HIVToast.showError(context: context, message: _tr(state.message));
+          }
+          if (state is ProfileActionSuccess) {
+            HIVToast.showSuccess(context: context, message: _tr(state.message));
+            setState(() {
+              _identity = null;
+              _medical = null;
+              _selfie = null;
+            });
+          }
+        },
+        builder: (context, state) {
+          final loaded = _loadedFrom(state);
+          if (state is ProfileLoading || state is ProfileInitial) {
+            return const Scaffold(body: Center(child: HIVLoader()));
+          }
+          if (loaded == null) {
+            return Scaffold(
+              body: RetryPanel(
+                messageKey: 'profile.load_error',
+                onRetry: () => context.read<ProfileBloc>().add(LoadProfile()),
+              ),
+            );
+          }
+
+          final verification = loaded.verification;
+          _codeController.text = _codeController.text.isEmpty
+              ? verification?.verificationCode ?? ''
+              : _codeController.text;
+          final isSubmitting = state is ProfileSectionLoading;
+
+          return Scaffold(
+            backgroundColor: AppColors.primaryWhite,
+            appBar: AppBar(
+              title: Text(_tr('profile.verification')),
+              backgroundColor: AppColors.primaryWhite,
+            ),
+            body: ListView(
+              padding: EdgeInsets.all(AppSpacing.md),
+              children: [
+                _StatusCard(status: verification?.status ?? 'not_started'),
+                const SizedBox(height: 16),
+                Text(
+                  _tr('profile.verification_code'),
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
+                const SizedBox(height: 8),
+                SelectableText(
+                  verification?.verificationCode ??
+                      _tr('profile.code_unavailable'),
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                        color: AppColors.primaryPurple,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _codeController,
+                  decoration: InputDecoration(
+                    labelText: _tr('profile.selfie_code_used'),
                   ),
-                ],
-              );
-            },
+                ),
+                const SizedBox(height: 16),
+                _DocumentPickerTile(
+                  title: _tr('profile.identity_document'),
+                  file: _identity,
+                  onPick: () => _pickDocument(
+                    (file) => setState(() => _identity = file),
+                  ),
+                ),
+                _DocumentPickerTile(
+                  title: _tr('profile.medical_document'),
+                  file: _medical,
+                  onPick: () => _pickDocument(
+                    (file) => setState(() => _medical = file),
+                  ),
+                ),
+                _DocumentPickerTile(
+                  title: _tr('profile.selfie_with_code'),
+                  file: _selfie,
+                  actionLabel: _tr('profile.take_selfie'),
+                  onPick: () => _pickSelfie(
+                    (file) => setState(() => _selfie = file),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _canSubmit(verification) && !isSubmitting
+                      ? () => _submit(context)
+                      : null,
+                  icon: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.verified_user_outlined),
+                  label: Text(_tr('profile.submit_verification')),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  bool _canSubmit(VerificationDetails? verification) {
+    final status = verification?.status;
+    if (status == 'pending_review' || status == 'verified') return false;
+    return _identity != null &&
+        _medical != null &&
+        _selfie != null &&
+        _codeController.text.trim().isNotEmpty;
+  }
+
+  Future<void> _pickDocument(ValueChanged<File> onPicked) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+      allowMultiple: false,
+    );
+    final path = result?.files.single.path;
+    if (path == null || path.isEmpty) return;
+    await _validateAndUse(File(path), onPicked, allowPdf: true);
+  }
+
+  Future<void> _pickSelfie(ValueChanged<File> onPicked) async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+    await _validateAndUse(File(picked.path), onPicked, allowPdf: false);
+  }
+
+  Future<void> _validateAndUse(
+    File file,
+    ValueChanged<File> onPicked, {
+    required bool allowPdf,
+  }) async {
+    final lower = file.path.toLowerCase();
+    final isImage = lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
+    final isPdf = lower.endsWith('.pdf');
+    if (!isImage && !(allowPdf && isPdf)) {
+      if (mounted) {
+        HIVToast.showError(
+          context: context,
+          message: allowPdf
+              ? _tr('profile.document_type_error')
+              : _tr('profile.selfie_type_error'),
+        );
+      }
+      return;
+    }
+    if (await file.length() > 10 * 1024 * 1024) {
+      if (mounted) {
+        HIVToast.showError(
+          context: context,
+          message: _tr('profile.document_size_error'),
+        );
+      }
+      return;
+    }
+    onPicked(file);
+  }
+
+  void _submit(BuildContext context) {
+    context.read<ProfileBloc>().add(SubmitVerificationDocuments(
+          identityDocument: _identity!,
+          medicalDocument: _medical!,
+          selfieWithCode: _selfie!,
+          selfieCode: _codeController.text.trim(),
+        ));
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  final String status;
+
+  const _StatusCard({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: AppColors.primaryPurple),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('${_tr('profile.status')}: ${_statusLabel(status)}'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentPickerTile extends StatelessWidget {
+  final String title;
+  final File? file;
+  final String? actionLabel;
+  final VoidCallback onPick;
+
+  const _DocumentPickerTile({
+    required this.title,
+    required this.file,
+    this.actionLabel,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          file == null ? Icons.upload_file_outlined : Icons.check_circle,
+          color: file == null ? AppColors.slate : AppColors.success,
+        ),
+        title: Text(title),
+        subtitle: Text(
+          file == null
+              ? _tr('profile.no_file_selected')
+              : _tr('profile.file_selected'),
+        ),
+        trailing: TextButton(
+          onPressed: onPick,
+          child: Text(actionLabel ?? _tr('profile.choose_file')),
         ),
       ),
     );
   }
+}
 
-  Widget _buildHeader(BuildContext context, VerificationState state) {
-    double progress = 0.0;
-    String title = 'Vérification du compte';
-    
-    if (state is VerificationLoaded) {
-      progress = state.progress;
-    }
-    
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => context.go('/profile'),
-              ),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(width: 48), // Balance the close button
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          
-          // Progress bar
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: AppColors.platinum,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          
-          // Step indicator
-          Text(
-            _getStepText(_currentPageIndex),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.slate,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getStepText(int index) {
-    switch (index) {
-      case 0:
-        return 'Introduction';
-      case 1:
-        return 'Étape 1 sur 3: Document d\'identité';
-      case 2:
-        return 'Étape 2 sur 3: Document médical';
-      case 3:
-        return 'Étape 3 sur 3: Selfie de vérification';
-      case 4:
-        return 'Révision et soumission';
-      default:
-        return '';
-    }
+String _statusLabel(String status) {
+  switch (status) {
+    case 'verified':
+      return _tr('profile.verified');
+    case 'pending_review':
+      return _tr('profile.verification_pending');
+    case 'rejected':
+      return _tr('profile.verification_rejected');
+    case 'expired':
+      return _tr('profile.verification_expired');
+    default:
+      return _tr('profile.verification_not_started');
   }
 }
+
+ProfileLoaded? _loadedFrom(ProfileState state) {
+  if (state is ProfileLoaded) return state;
+  if (state is ProfileActionSuccess) return state.loadedState;
+  if (state is ProfileError) return state.loadedState;
+  if (state is ProfileSectionLoading) return state.previousState;
+  return null;
+}
+
+String _tr(String key) => LocalizationService.translate(key);

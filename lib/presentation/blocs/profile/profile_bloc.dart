@@ -1,21 +1,25 @@
 // lib/presentation/blocs/profile/profile_bloc.dart
 
-import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
+import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
-import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
+import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
 import 'package:hivmeet/domain/usecases/profile/update_profile.dart';
 import 'package:hivmeet/domain/usecases/profile/upload_photo.dart' as upload;
 import 'package:hivmeet/domain/usecases/profile/delete_photo.dart' as delete;
-import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart' as set_main;
+import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart'
+    as set_main;
 import 'package:hivmeet/domain/usecases/profile/reorder_photos.dart' as reorder;
-import 'package:hivmeet/domain/usecases/profile/update_location.dart' as update_loc;
+import 'package:hivmeet/domain/usecases/profile/update_location.dart'
+    as update_loc;
 import 'package:hivmeet/domain/usecases/profile/block_user.dart' as block;
 import 'package:hivmeet/domain/usecases/profile/unblock_user.dart' as unblock;
-import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart' as toggle;
+import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart'
+    as toggle;
 import 'profile_event.dart';
 import 'profile_state.dart';
 
@@ -32,8 +36,6 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final unblock.UnblockUser _unblockUser;
   final toggle.ToggleProfileVisibility _toggleProfileVisibility;
   final ProfileRepository _profileRepository;
-
-  StreamSubscription<Profile?>? _profileSubscription;
 
   ProfileBloc({
     required GetCurrentProfile getCurrentProfile,
@@ -60,6 +62,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         _profileRepository = profileRepository,
         super(ProfileInitial()) {
     on<LoadProfile>(_onLoadProfile);
+    on<CreateProfile>(_onCreateProfile);
     on<UpdateProfileEvent>(_onUpdateProfile);
     on<UploadPhoto>(_onUploadPhoto);
     on<DeletePhoto>(_onDeletePhoto);
@@ -69,14 +72,15 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<UpdateLocation>(_onUpdateLocation);
     on<BlockUser>(_onBlockUser);
     on<UnblockUser>(_onUnblockUser);
-
-    // Écouter les changements de profil
-    _profileSubscription =
-        _profileRepository.watchCurrentUserProfile().listen((profile) {
-      if (profile != null && state is ProfileLoaded) {
-        add(LoadProfile());
-      }
-    });
+    on<LoadPrivacyPreferences>(_onLoadPrivacyPreferences);
+    on<SavePrivacyPreferences>(_onSavePrivacyPreferences);
+    on<LoadNotificationPreferences>(_onLoadNotificationPreferences);
+    on<SaveNotificationPreferences>(_onSaveNotificationPreferences);
+    on<LoadBlockedUsers>(_onLoadBlockedUsers);
+    on<RequestDataExport>(_onRequestDataExport);
+    on<RequestAccountDeletion>(_onRequestAccountDeletion);
+    on<LoadVerificationDetails>(_onLoadVerificationDetails);
+    on<SubmitVerificationDocuments>(_onSubmitVerificationDocuments);
   }
 
   Future<void> _onLoadProfile(
@@ -85,11 +89,125 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     emit(ProfileLoading());
 
-    final result = await _getCurrentProfile(NoParams());
+    final profileResult = await _getCurrentProfile(NoParams());
+    await profileResult.fold(
+      (failure) async => emit(ProfileError(message: failure.message)),
+      (profile) async {
+        var loaded = ProfileLoaded(profile: profile);
 
-    result.fold(
-      (failure) => emit(ProfileError(message: failure.message)),
-      (profile) => emit(ProfileLoaded(profile: profile)),
+        final premium = await _profileRepository.getPremiumProfileStatus();
+        premium.fold((_) {}, (value) {
+          loaded = loaded.copyWith(premiumStatus: value);
+        });
+
+        final verification = await _profileRepository.getVerificationDetails();
+        verification.fold((_) {}, (value) {
+          loaded = loaded.copyWith(verification: value);
+        });
+
+        final privacy = await _profileRepository.getPrivacyPreferences();
+        privacy.fold((_) {}, (value) {
+          loaded = loaded.copyWith(privacyPreferences: value);
+        });
+
+        final notifications =
+            await _profileRepository.getNotificationPreferences();
+        notifications.fold((_) {}, (value) {
+          loaded = loaded.copyWith(notificationPreferences: value);
+        });
+
+        final blockedUsers = await _profileRepository.getBlockedUsers();
+        blockedUsers.fold((_) {}, (value) {
+          loaded = loaded.copyWith(blockedUsers: value);
+        });
+
+        emit(loaded);
+      },
+    );
+  }
+
+  Future<void> _onCreateProfile(
+    CreateProfile event,
+    Emitter<ProfileState> emit,
+  ) async {
+    emit(ProfileLoading());
+
+    // 1. Charger le profil existant (get_or_create côté backend).
+    final initialProfile = await _getCurrentProfile(NoParams());
+    Profile? currentProfile;
+    initialProfile.fold(
+      (failure) {
+        emit(ProfileError(message: failure.message));
+        return;
+      },
+      (profile) => currentProfile = profile,
+    );
+
+    if (currentProfile == null) return;
+
+    // 2. Uploader la photo principale.
+    emit(PhotoUploading(profile: currentProfile!, progress: 0));
+    final uploadResult = await _uploadPhoto(upload.UploadPhotoParams(
+      photo: event.mainPhoto,
+      isMain: true,
+    ));
+
+    await uploadResult.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: currentProfile,
+      )),
+      (_) async {
+        // 3. Mettre à jour les informations du profil.
+        emit(ProfileUpdating(profile: currentProfile!));
+        final searchPreferences = SearchPreferences(
+          minAge: event.minAge,
+          maxAge: event.maxAge,
+          maxDistance: event.maxDistance,
+          interestedIn: event.interestedIn,
+          relationshipTypes: event.relationshipTypesSought,
+        );
+
+        final updateResult = await _updateProfile(UpdateProfileParams(
+          bio: event.bio,
+          city: event.city,
+          country: event.country,
+          interests: event.interests,
+          relationshipType: event.relationshipType,
+          relationshipTypesSought: event.relationshipTypesSought,
+          searchPreferences: searchPreferences,
+        ));
+
+        await updateResult.fold(
+          (failure) async => emit(ProfileError(
+            message: failure.message,
+            profile: currentProfile,
+          )),
+          (updatedProfile) async {
+            // 4. Mettre à jour la localisation GPS.
+            final locationResult = await _updateLocation(
+              update_loc.UpdateLocationParams(
+                latitude: event.latitude,
+                longitude: event.longitude,
+                city: event.city,
+                country: event.country,
+              ),
+            );
+
+            locationResult.fold(
+              (failure) => emit(ProfileError(
+                message: failure.message,
+                profile: updatedProfile,
+              )),
+              (_) => emit(ProfileActionSuccess(
+                message: 'profile.success_created',
+                profile: updatedProfile,
+                loadedState: ProfileLoaded(profile: updatedProfile),
+              )),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -97,267 +215,531 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     UpdateProfileEvent event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      emit(ProfileUpdating(profile: currentState.profile));
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(ProfileUpdating(profile: current.profile));
 
-      final result = await _updateProfile(
-        UpdateProfileParams(
-          displayName: event.displayName,
-          bio: event.bio,
-          city: event.city,
-          country: event.country,
-          latitude: event.latitude,
-          longitude: event.longitude,
-          interests: event.interests,
-          relationshipType: event.relationshipType,
-          searchPreferences: event.searchPreferences,
-          privacySettings: event.privacySettings,
-        ),
-      );
+    final result = await _updateProfile(
+      UpdateProfileParams(
+        displayName: event.displayName,
+        bio: event.bio,
+        city: event.city,
+        country: event.country,
+        interests: event.interests,
+        relationshipType: event.relationshipType,
+        relationshipTypesSought: event.relationshipTypesSought,
+        searchPreferences: event.searchPreferences,
+        privacySettings: event.privacySettings,
+      ),
+    );
 
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (profile) => emit(ProfileActionSuccess(
-          message: 'Profil mis à jour avec succès',
-          profile: profile,
-        )),
-      );
-
-      // Retour à l'état loaded après succès
-      await Future.delayed(const Duration(seconds: 2));
-      if (state is ProfileActionSuccess) {
-        emit(ProfileLoaded(profile: (state as ProfileActionSuccess).profile));
-      }
-    }
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (profile) => emit(ProfileActionSuccess(
+        message: 'profile.success_updated',
+        profile: profile,
+        loadedState: current.copyWith(profile: profile),
+      )),
+    );
   }
 
   Future<void> _onUploadPhoto(
     UploadPhoto event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      emit(PhotoUploading(
-        profile: currentState.profile,
-        progress: 0.0,
-      ));
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(PhotoUploading(profile: current.profile, progress: 0));
 
-      final params = upload.UploadPhotoParams(
-        photo: event.photo,
-        isMain: event.isMain,
-        isPrivate: event.isPrivate,
-      );
+    final result = await _uploadPhoto(upload.UploadPhotoParams(
+      photo: event.photo,
+      isMain: event.isMain,
+      isPrivate: event.isPrivate,
+      caption: event.caption,
+    ));
 
-      final result = await _uploadPhoto(params);
-
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (photoUrl) async {
-          emit(ProfileActionSuccess(
-            message: 'Photo téléchargée avec succès',
-            profile: currentState.profile,
-          ));
-
-          // Recharger le profil pour obtenir la mise à jour
-          add(LoadProfile());
-        },
-      );
-    }
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async => _reloadAfterAction(emit, 'profile.success_photo_uploaded'),
+    );
   }
 
   Future<void> _onDeletePhoto(
     DeletePhoto event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = delete.DeletePhotoParams(photoUrl: event.photoUrl);
-      final result = await _deletePhoto(params);
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result = event.photoId != null
+        ? await _profileRepository.deleteProfilePhotoById(event.photoId!)
+        : await _deletePhoto(
+            delete.DeletePhotoParams(photoUrl: event.photoUrl));
 
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          emit(ProfileActionSuccess(
-            message: 'Photo supprimée avec succès',
-            profile: currentState.profile,
-          ));
-          add(LoadProfile());
-        },
-      );
-    }
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async => _reloadAfterAction(emit, 'profile.success_photo_deleted'),
+    );
   }
 
   Future<void> _onSetMainPhoto(
     SetMainPhoto event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = set_main.SetMainPhotoParams(photoUrl: event.photoUrl);
-      final result = await _setMainPhoto(params);
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result = event.photoId != null
+        ? await _profileRepository.setMainPhotoById(event.photoId!)
+        : await _setMainPhoto(
+            set_main.SetMainPhotoParams(photoUrl: event.photoUrl),
+          );
 
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          emit(ProfileActionSuccess(
-            message: 'Photo principale définie',
-            profile: currentState.profile,
-          ));
-          add(LoadProfile());
-        },
-      );
-    }
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async => _reloadAfterAction(emit, 'profile.success_main_photo'),
+    );
   }
 
   Future<void> _onReorderPhotos(
     ReorderPhotos event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = reorder.ReorderPhotosParams(photoUrls: event.photoUrls);
-      final result = await _reorderPhotos(params);
-
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          emit(ProfileActionSuccess(
-            message: 'Photos réorganisées',
-            profile: currentState.profile,
-          ));
-          add(LoadProfile());
-        },
-      );
-    }
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result = await _reorderPhotos(
+        reorder.ReorderPhotosParams(photoUrls: event.photoUrls));
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) => emit(ProfileActionSuccess(
+        message: 'profile.feature_unavailable',
+        profile: current.profile,
+        loadedState: current,
+      )),
+    );
   }
 
   Future<void> _onToggleProfileVisibility(
     ToggleProfileVisibility event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = toggle.ToggleProfileVisibilityParams(
-        isHidden: event.isHidden,
-      );
-      final result = await _toggleProfileVisibility(params);
-
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          final message = event.isHidden
-              ? 'Profil masqué de la découverte'
-              : 'Profil visible dans la découverte';
-          emit(ProfileActionSuccess(
-            message: message,
-            profile: currentState.profile,
-          ));
-          add(LoadProfile());
-        },
-      );
-    }
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result = await _toggleProfileVisibility(
+      toggle.ToggleProfileVisibilityParams(isHidden: event.isHidden),
+    );
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async => _reloadAfterAction(emit, 'profile.success_privacy_saved'),
+    );
   }
 
   Future<void> _onUpdateLocation(
     UpdateLocation event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = update_loc.UpdateLocationParams(
-        latitude: event.latitude,
-        longitude: event.longitude,
-        city: event.city,
-        country: event.country,
-      );
-      final result = await _updateLocation(params);
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result = await _updateLocation(update_loc.UpdateLocationParams(
+      latitude: event.latitude,
+      longitude: event.longitude,
+      city: event.city,
+      country: event.country,
+    ));
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async => _reloadAfterAction(emit, 'profile.success_updated'),
+    );
+  }
 
+  Future<void> _onLoadPrivacyPreferences(
+    LoadPrivacyPreferences event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) {
+      final result = await _profileRepository.getPrivacyPreferences();
       result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          emit(ProfileActionSuccess(
-            message: 'Localisation mise à jour',
-            profile: currentState.profile,
-          ));
-          add(LoadProfile());
-        },
+        (failure) => emit(ProfileError(message: failure.message)),
+        (prefs) => emit(_emptyProfile.copyWith(privacyPreferences: prefs)),
       );
+      return;
     }
+
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.getPrivacyPreferences();
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (prefs) => emit(current.copyWith(privacyPreferences: prefs)),
+    );
+  }
+
+  Future<void> _onSavePrivacyPreferences(
+    SavePrivacyPreferences event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.updatePrivacyPreferences(
+      event.preferences,
+    );
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async => _reloadAfterAction(emit, 'profile.success_privacy_saved'),
+    );
+  }
+
+  Future<void> _onLoadNotificationPreferences(
+    LoadNotificationPreferences event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) {
+      final result = await _profileRepository.getNotificationPreferences();
+      result.fold(
+        (failure) => emit(ProfileError(message: failure.message)),
+        (prefs) => emit(_emptyProfile.copyWith(notificationPreferences: prefs)),
+      );
+      return;
+    }
+
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.getNotificationPreferences();
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (prefs) => emit(current.copyWith(notificationPreferences: prefs)),
+    );
+  }
+
+  Future<void> _onSaveNotificationPreferences(
+    SaveNotificationPreferences event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.updateNotificationPreferences(
+      event.preferences,
+    );
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (prefs) => emit(ProfileActionSuccess(
+        message: 'profile.success_notifications_saved',
+        profile: current.profile,
+        loadedState: current.copyWith(notificationPreferences: prefs),
+      )),
+    );
+  }
+
+  Future<void> _onLoadBlockedUsers(
+    LoadBlockedUsers event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) {
+      final result = await _profileRepository.getBlockedUsers();
+      result.fold(
+        (failure) => emit(ProfileError(message: failure.message)),
+        (blockedUsers) =>
+            emit(_emptyProfile.copyWith(blockedUsers: blockedUsers)),
+      );
+      return;
+    }
+
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.getBlockedUsers();
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (blockedUsers) => emit(current.copyWith(blockedUsers: blockedUsers)),
+    );
   }
 
   Future<void> _onBlockUser(
     BlockUser event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = block.BlockUserParams(userId: event.userId);
-      final result = await _blockUser(params);
-
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          emit(ProfileActionSuccess(
-            message: 'Utilisateur bloqué',
-            profile: currentState.profile,
-          ));
-        },
-      );
-    }
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result =
+        await _blockUser(block.BlockUserParams(userId: event.userId));
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async {
+        final blocked = await _profileRepository.getBlockedUsers();
+        emit(ProfileActionSuccess(
+          message: 'profile.success_user_blocked',
+          profile: current.profile,
+          loadedState: current.copyWith(
+            blockedUsers: blocked.getOrElse(() => current.blockedUsers),
+          ),
+        ));
+      },
+    );
   }
 
   Future<void> _onUnblockUser(
     UnblockUser event,
     Emitter<ProfileState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is ProfileLoaded) {
-      final params = unblock.UnblockUserParams(userId: event.userId);
-      final result = await _unblockUser(params);
-
-      result.fold(
-        (failure) => emit(ProfileError(
-          message: failure.message,
-          profile: currentState.profile,
-        )),
-        (_) {
-          emit(ProfileActionSuccess(
-            message: 'Utilisateur débloqué',
-            profile: currentState.profile,
-          ));
-        },
-      );
-    }
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result =
+        await _unblockUser(unblock.UnblockUserParams(userId: event.userId));
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async {
+        final blocked = await _profileRepository.getBlockedUsers();
+        emit(ProfileActionSuccess(
+          message: 'profile.success_user_unblocked',
+          profile: current.profile,
+          loadedState: current.copyWith(
+            blockedUsers: blocked.getOrElse(() => current.blockedUsers),
+          ),
+        ));
+      },
+    );
   }
 
-  @override
-  Future<void> close() {
-    _profileSubscription?.cancel();
-    return super.close();
+  Future<void> _onRequestDataExport(
+    RequestDataExport event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.requestDataExport();
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (request) => emit(ProfileActionPending(
+        message: request.message,
+        requestId: request.requestId,
+        actionType: 'export',
+        requestedAt: request.requestedAt,
+        loadedState: current,
+      )),
+    );
+  }
+
+  Future<void> _onRequestAccountDeletion(
+    RequestAccountDeletion event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.requestAccountDeletion();
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (request) => emit(ProfileActionPending(
+        message: request.message,
+        requestId: request.requestId,
+        actionType: 'deletion',
+        requestedAt: request.requestedAt,
+        loadedState: current,
+      )),
+    );
+  }
+
+  Future<void> _onLoadVerificationDetails(
+    LoadVerificationDetails event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    final result = await _profileRepository.getVerificationDetails();
+    result.fold(
+      (failure) => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (verification) => emit(current.copyWith(verification: verification)),
+    );
+  }
+
+  Future<void> _onSubmitVerificationDocuments(
+    SubmitVerificationDocuments event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(ProfileSectionLoading(current));
+    final result = await _profileRepository.submitVerificationDocuments(
+      identityDocument: event.identityDocument,
+      medicalDocument: event.medicalDocument,
+      selfieWithCode: event.selfieWithCode,
+      verificationCode: event.selfieCode,
+    );
+    await result.fold(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) async =>
+          _reloadAfterAction(emit, 'profile.success_verification_submitted'),
+    );
+  }
+
+  ProfileLoaded? get _currentLoaded {
+    final current = state;
+    if (current is ProfileLoaded) return current;
+    if (current is ProfileActionSuccess) return current.loadedState;
+    if (current is ProfileActionPending) return current.loadedState;
+    if (current is ProfileError) return current.loadedState;
+    if (current is ProfileSectionLoading) return current.previousState;
+    return null;
+  }
+
+  Future<void> _reloadAfterAction(
+    Emitter<ProfileState> emit,
+    String message,
+  ) async {
+    final result = await _loadProfileSnapshot();
+    result.fold(
+      (failure) => emit(ProfileError(message: failure.message)),
+      (loaded) => emit(ProfileActionSuccess(
+        message: message,
+        profile: loaded.profile,
+        loadedState: loaded,
+      )),
+    );
+  }
+
+  ProfileLoaded get _emptyProfile {
+    final now = DateTime.now();
+    return ProfileLoaded(
+      profile: Profile(
+        id: '',
+        userId: '',
+        displayName: '',
+        birthDate: now,
+        bio: '',
+        location: const Location(latitude: 0, longitude: 0, geohash: ''),
+        city: '',
+        country: '',
+        interests: const [],
+        relationshipType: '',
+        relationshipTypesSought: const [],
+        photos: const PhotoCollection(main: ''),
+        searchPreferences: const SearchPreferences(
+          minAge: 18,
+          maxAge: 99,
+          maxDistance: 50,
+          interestedIn: [],
+          relationshipTypes: [],
+        ),
+        lastActive: now,
+        isHidden: false,
+        verificationStatus: const VerificationStatus(
+          status: 'not_started',
+          documents: {},
+        ),
+        privacySettings: const PrivacySettings(),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  Future<Either<Failure, ProfileLoaded>> _loadProfileSnapshot() async {
+    final profileResult = await _getCurrentProfile(NoParams());
+    return await profileResult.fold(
+      (failure) async => Left<Failure, ProfileLoaded>(failure),
+      (profile) async {
+        var loaded = ProfileLoaded(profile: profile);
+
+        final premium = await _profileRepository.getPremiumProfileStatus();
+        premium.fold((_) {}, (value) {
+          loaded = loaded.copyWith(premiumStatus: value);
+        });
+
+        final verification = await _profileRepository.getVerificationDetails();
+        verification.fold((_) {}, (value) {
+          loaded = loaded.copyWith(verification: value);
+        });
+
+        final privacy = await _profileRepository.getPrivacyPreferences();
+        privacy.fold((_) {}, (value) {
+          loaded = loaded.copyWith(privacyPreferences: value);
+        });
+
+        final notifications =
+            await _profileRepository.getNotificationPreferences();
+        notifications.fold((_) {}, (value) {
+          loaded = loaded.copyWith(notificationPreferences: value);
+        });
+
+        final blockedUsers = await _profileRepository.getBlockedUsers();
+        blockedUsers.fold((_) {}, (value) {
+          loaded = loaded.copyWith(blockedUsers: value);
+        });
+
+        return Right<Failure, ProfileLoaded>(loaded);
+      },
+    );
   }
 }

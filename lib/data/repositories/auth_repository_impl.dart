@@ -1,6 +1,7 @@
 // lib/data/repositories/auth_repository_impl.dart
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/exceptions.dart';
 import 'package:hivmeet/core/error/failures.dart';
@@ -58,69 +59,70 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) async {
-    print('🔄 DEBUG Repository: signIn DÉMARRÉ pour $email');
+    debugPrint('🔄 DEBUG Repository: signIn DÉMARRÉ pour $email');
 
     try {
-      print('🔄 DEBUG Repository: Appel _remoteDataSource.signIn...');
+      debugPrint('🔄 DEBUG Repository: Appel _remoteDataSource.signIn...');
       final userModel = await _remoteDataSource.signIn(
         email: email,
         password: password,
       );
-      print(
+      debugPrint(
           '✅ DEBUG Repository: _remoteDataSource.signIn terminé pour ${userModel.email}');
 
       // Essayer de cache l'utilisateur (non bloquant)
       try {
-        print('🔄 DEBUG Repository: Début cache utilisateur...');
+        debugPrint('🔄 DEBUG Repository: Début cache utilisateur...');
         await _localDataSource.cacheUser(userModel);
-        print('✅ DEBUG Repository: Utilisateur mis en cache avec succès');
+        debugPrint('✅ DEBUG Repository: Utilisateur mis en cache avec succès');
       } catch (cacheError) {
-        print(
+        debugPrint(
             '❌ DEBUG Repository: Erreur cache utilisateur (non bloquant): $cacheError');
         // Continue sans bloquer la connexion
       }
 
       // Essayer de cache le token (non bloquant)
       try {
-        print('🔄 DEBUG Repository: Début cache token...');
+        debugPrint('🔄 DEBUG Repository: Début cache token...');
         final token = await _remoteDataSource.getAuthToken();
         if (token != null) {
           await _localDataSource.cacheAuthToken(token);
-          print('✅ DEBUG Repository: Token mis en cache avec succès');
+          debugPrint('✅ DEBUG Repository: Token mis en cache avec succès');
         } else {
-          print('⚠️ DEBUG Repository: Aucun token à cache');
+          debugPrint('⚠️ DEBUG Repository: Aucun token à cache');
         }
       } catch (tokenError) {
-        print(
+        debugPrint(
             '❌ DEBUG Repository: Erreur cache token (non bloquant): $tokenError');
         // Continue sans bloquer la connexion
       }
 
-      print('✅ DEBUG Repository: Connexion réussie pour: ${userModel.email}');
-      print('🔄 DEBUG Repository: Conversion vers Entity...');
+      debugPrint(
+          '✅ DEBUG Repository: Connexion réussie pour: ${userModel.email}');
+      debugPrint('🔄 DEBUG Repository: Conversion vers Entity...');
       final userEntity = userModel.toEntity();
-      print('✅ DEBUG Repository: Conversion terminée, retour Right(user)');
+      debugPrint('✅ DEBUG Repository: Conversion terminée, retour Right(user)');
 
       return Right(userEntity);
     } on UserNotFoundException {
-      print('❌ DEBUG Repository: UserNotFoundException');
+      debugPrint('❌ DEBUG Repository: UserNotFoundException');
       return const Left(UserNotFoundFailure());
     } on WrongPasswordException {
-      print('❌ DEBUG Repository: WrongPasswordException');
+      debugPrint('❌ DEBUG Repository: WrongPasswordException');
       return const Left(WrongCredentialsFailure());
     } on EmailNotVerifiedException {
-      print('❌ DEBUG Repository: EmailNotVerifiedException');
+      debugPrint('❌ DEBUG Repository: EmailNotVerifiedException');
       return const Left(EmailNotVerifiedFailure());
     } on UserDisabledException {
-      print('❌ DEBUG Repository: UserDisabledException');
+      debugPrint('❌ DEBUG Repository: UserDisabledException');
       return const Left(UserDisabledFailure());
     } on ServerException catch (e) {
-      print('❌ DEBUG Repository: ServerException: ${e.message}');
+      debugPrint('❌ DEBUG Repository: ServerException: ${e.message}');
       return Left(ServerFailure(message: e.message));
     } catch (e) {
-      print('❌ DEBUG Repository: Exception générale: $e');
-      print('Type exception: ${e.runtimeType}');
-      print('StackTrace: ${StackTrace.current}');
+      debugPrint('❌ DEBUG Repository: Exception générale: $e');
+      debugPrint('Type exception: ${e.runtimeType}');
+      debugPrint('StackTrace: ${StackTrace.current}');
       return Left(UnknownFailure(message: e.toString()));
     }
   }
@@ -179,7 +181,7 @@ class AuthRepositoryImpl implements AuthRepository {
           await _localDataSource.cacheUser(userModel);
         } catch (e) {
           // Ignorer les erreurs de cache pour ne pas interrompre le flux d'auth
-          print('Erreur de cache dans authStateChanges: $e');
+          debugPrint('Erreur de cache dans authStateChanges: $e');
         }
         return userModel.toEntity();
       }

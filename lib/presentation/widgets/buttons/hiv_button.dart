@@ -59,7 +59,7 @@ class HIVButton extends StatelessWidget {
           backgroundColor: AppColors.primaryPurple,
           foregroundColor: Colors.white,
           elevation: 2,
-          shadowColor: AppColors.primaryPurple.withOpacity(0.4),
+          shadowColor: AppColors.primaryPurple.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -81,7 +81,7 @@ class HIVButton extends StatelessWidget {
           backgroundColor: AppColors.coral,
           foregroundColor: Colors.white,
           elevation: 2,
-          shadowColor: AppColors.coral.withOpacity(0.4),
+          shadowColor: AppColors.coral.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

@@ -1,7 +1,11 @@
-﻿// lib/presentation/widgets/navigation/app_scaffold.dart
+// lib/presentation/widgets/navigation/app_scaffold.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/presentation/blocs/unread/unread_cubit.dart';
+import 'package:provider/provider.dart';
 
 const bool _enableVerboseLogs = false;
 
@@ -86,22 +90,76 @@ class AppScaffold extends StatelessWidget {
       type: BottomNavigationBarType.fixed,
       currentIndex: currentIndex,
       onTap: (index) => _onNavigationTap(context, index),
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.explore),
-          label: 'Decouvrir',
+          icon: const Icon(Icons.explore),
+          label: LocalizationService.translate('navigation.discovery'),
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.favorite),
-          label: 'Matches',
+          icon: const Icon(Icons.favorite),
+          label: LocalizationService.translate('navigation.matches'),
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.chat),
-          label: 'Messages',
+          icon: _MessagesTabIcon(unreadCount: _watchUnreadCount(context)),
+          label: LocalizationService.translate('navigation.messages'),
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profil',
+          icon: const Icon(Icons.person),
+          label: LocalizationService.translate('navigation.profile'),
+        ),
+      ],
+    );
+  }
+
+  /// Lit le compteur global de non-lus, sans planter si `UnreadCubit` n'est
+  /// pas fourni dans l'arbre (ex: pages testées isolément) — le badge est
+  /// alors simplement absent plutôt que de faire échouer tout l'écran.
+  int _watchUnreadCount(BuildContext context) {
+    try {
+      return context.watch<UnreadCubit>().state;
+    } on ProviderNotFoundException {
+      return 0;
+    }
+  }
+}
+
+/// Icône de l'onglet Messages avec pastille de compteur non-lus.
+class _MessagesTabIcon extends StatelessWidget {
+  final int unreadCount;
+
+  const _MessagesTabIcon({required this.unreadCount});
+
+  @override
+  Widget build(BuildContext context) {
+    if (unreadCount <= 0) {
+      return const Icon(Icons.chat);
+    }
+    final label = unreadCount > 99 ? '99+' : '$unreadCount';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.chat),
+        Positioned(
+          right: -8,
+          top: -4,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                height: 1.2,
+              ),
+            ),
+          ),
         ),
       ],
     );

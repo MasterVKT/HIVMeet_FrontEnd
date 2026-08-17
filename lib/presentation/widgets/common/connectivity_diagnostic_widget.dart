@@ -66,7 +66,7 @@ class _ConnectivityDiagnosticWidgetState
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.slate.withOpacity(0.1),
+                  color: AppColors.slate.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -124,8 +124,8 @@ class _ConnectivityDiagnosticWidgetState
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: diagnostic.overallSuccess
-                ? Colors.green.withOpacity(0.1)
-                : Colors.red.withOpacity(0.1),
+                ? Colors.green.withValues(alpha: 0.1)
+                : Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: diagnostic.overallSuccess ? Colors.green : Colors.red,
@@ -327,7 +327,7 @@ class _ConnectivityStatusWidgetState extends State<ConnectivityStatusWidget> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.1),
+          color: statusColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: statusColor, width: 1),
         ),
@@ -350,4 +350,3 @@ class _ConnectivityStatusWidgetState extends State<ConnectivityStatusWidget> {
     );
   }
 }
- 

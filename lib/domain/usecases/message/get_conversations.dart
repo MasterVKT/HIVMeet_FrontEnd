@@ -11,7 +11,8 @@ import 'package:hivmeet/domain/repositories/message_repository.dart';
 /// Use Case pour récupérer la liste des conversations
 ///
 /// Features:
-/// - Pagination cursor-based avec lastConversationId
+/// - Pagination page-based (le backend est un DRF PageNumberPagination réel,
+///   il n'y a pas de curseur par ID côté serveur pour cette ressource)
 /// - Tri par dernière activité (updatedAt desc)
 /// - Inclut preview du dernier message
 /// - Compteur de messages non lus
@@ -23,16 +24,19 @@ import 'package:hivmeet/domain/repositories/message_repository.dart';
 /// );
 /// ```
 @injectable
-class GetConversations implements UseCase<List<Conversation>, GetConversationsParams> {
+class GetConversations
+    implements UseCase<ConversationListPage, GetConversationsParams> {
   final MessageRepository repository;
 
   GetConversations(this.repository);
 
   @override
-  Future<Either<Failure, List<Conversation>>> call(GetConversationsParams params) async {
+  Future<Either<Failure, ConversationListPage>> call(
+      GetConversationsParams params) async {
     return await repository.getConversations(
       limit: params.limit,
-      lastConversationId: params.lastConversationId,
+      page: params.page,
+      filter: params.filter,
     );
   }
 }
@@ -40,26 +44,32 @@ class GetConversations implements UseCase<List<Conversation>, GetConversationsPa
 /// Paramètres pour GetConversations avec helper pour pagination
 class GetConversationsParams extends Equatable {
   final int limit;
-  final String? lastConversationId;
+  final int page;
+  final ConversationFilter filter;
 
   const GetConversationsParams({
     this.limit = 20,
-    this.lastConversationId,
+    this.page = 1,
+    this.filter = ConversationFilter.all,
   });
 
   /// Crée les paramètres pour le chargement initial
-  factory GetConversationsParams.initial({int limit = 20}) {
-    return GetConversationsParams(limit: limit);
+  factory GetConversationsParams.initial({
+    int limit = 20,
+    ConversationFilter filter = ConversationFilter.all,
+  }) {
+    return GetConversationsParams(limit: limit, page: 1, filter: filter);
   }
 
   /// Crée les paramètres pour la page suivante
-  GetConversationsParams nextPage(String lastConversationId) {
+  GetConversationsParams nextPage(int page) {
     return GetConversationsParams(
       limit: limit,
-      lastConversationId: lastConversationId,
+      page: page,
+      filter: filter,
     );
   }
 
   @override
-  List<Object?> get props => [limit, lastConversationId];
+  List<Object?> get props => [limit, page, filter];
 }

@@ -1,6 +1,7 @@
 // lib/data/repositories/interaction_history_repository_impl.dart
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/network/api_client.dart';
 import 'package:hivmeet/domain/entities/interaction_history.dart';
@@ -32,6 +33,8 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
           'page': page,
           'page_size': pageSize,
           'matched_only': matchedOnly,
+          'include_revoked': false,
+          'order_by': 'recent',
         },
       );
 
@@ -44,8 +47,8 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
             interactions.add(interaction);
           } catch (e) {
             // Log l'erreur mais continue avec les autres profils
-            print('⚠️ Erreur mapping profil, ignoré: $e');
-            print('JSON problématique: $json');
+            debugPrint('⚠️ Erreur mapping profil, ignoré: $e');
+            debugPrint('JSON problématique: $json');
           }
         }
         return Right(interactions);
@@ -72,6 +75,8 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
         queryParameters: {
           'page': page,
           'page_size': pageSize,
+          'include_revoked': false,
+          'order_by': 'recent',
         },
       );
 
@@ -84,7 +89,7 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
             interactions.add(interaction);
           } catch (e) {
             // Log l'erreur mais continue avec les autres profils
-            print('⚠️ Erreur mapping profil passes, ignoré: $e');
+            debugPrint('⚠️ Erreur mapping profil passes, ignoré: $e');
           }
         }
         return Right(interactions);
@@ -146,11 +151,11 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
   InteractionHistory _mapJsonToInteractionHistory(Map<String, dynamic> json) {
     try {
       // Debug: afficher le JSON reçu pour diagnostic
-      print('🔍 Mapping JSON: $json');
+      debugPrint('🔍 Mapping JSON: $json');
 
       // Extraire les données du profil -多种格式 support
       Map<String, dynamic> profileData;
-      
+
       if (json['profile'] is Map) {
         profileData = json['profile'] as Map<String, dynamic>;
       } else if (json['target_user'] is Map) {
@@ -163,14 +168,16 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
           'username': json['username'] ?? '',
           'display_name': json['display_name'] ?? json['username'] ?? '',
           'age': json['age'] ?? 18,
-          'profile_photo': json['profile_photo'] ?? json['main_photo_url'] ?? '',
+          'profile_photo':
+              json['profile_photo'] ?? json['main_photo_url'] ?? '',
           'bio': json['bio'] ?? '',
           'city': json['city'] ?? '',
           'gender': json['gender'] ?? '',
+          'is_online': json['is_online'] ?? false,
         };
       }
 
-      print('🔍 Profile data extracted: $profileData');
+      debugPrint('🔍 Profile data extracted: $profileData');
 
       // Extraire l'ID du profil (plusieurs formats possibles)
       String profileId = '';
@@ -184,9 +191,11 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
 
       // Extraire le display name (plusieurs formats)
       String displayName = 'Utilisateur';
-      if (profileData['display_name'] != null && profileData['display_name'].toString().isNotEmpty) {
+      if (profileData['display_name'] != null &&
+          profileData['display_name'].toString().isNotEmpty) {
         displayName = profileData['display_name'].toString();
-      } else if (profileData['username'] != null && profileData['username'].toString().isNotEmpty) {
+      } else if (profileData['username'] != null &&
+          profileData['username'].toString().isNotEmpty) {
         displayName = profileData['username'].toString();
       }
 
@@ -198,7 +207,8 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
         mainPhotoUrl = profileData['main_photo_url'].toString();
       } else if (profileData['photo_url'] != null) {
         mainPhotoUrl = profileData['photo_url'].toString();
-      } else if (profileData['photos'] != null && profileData['photos'] is List) {
+      } else if (profileData['photos'] != null &&
+          profileData['photos'] is List) {
         // Format array - prendre la première photo
         final photosList = profileData['photos'] as List;
         if (photosList.isNotEmpty) {
@@ -222,7 +232,10 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
         relationshipType: 'long_term',
         isVerified: profileData['is_verified'] == true,
         isPremium: profileData['is_premium'] == true,
-        lastActive: DateTime.now(),
+        lastActive: profileData['is_online'] == true
+            ? DateTime.now()
+            : DateTime.fromMillisecondsSinceEpoch(0),
+        likedAt: null,
         compatibilityScore: 0,
       );
 
@@ -259,7 +272,7 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
             timestamp = DateTime.parse(json[field].toString());
             break;
           } catch (e) {
-            print('⚠️ Error parsing $field: $e');
+            debugPrint('⚠️ Error parsing $field: $e');
           }
         }
       }
@@ -276,7 +289,8 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
         isMatched = true;
       }
 
-      print('✅ Mapped interaction: $interactionId, type: $type, isMatched: $isMatched');
+      debugPrint(
+          '✅ Mapped interaction: $interactionId, type: $type, isMatched: $isMatched');
 
       return InteractionHistory(
         id: interactionId,
@@ -288,9 +302,9 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
         canRevoke: canRevoke,
       );
     } catch (e, stackTrace) {
-      print('❌ ERROR Mapping interaction: $e');
-      print('Stack trace: $stackTrace');
-      print('JSON complet: $json');
+      debugPrint('❌ ERROR Mapping interaction: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('JSON complet: $json');
       rethrow;
     }
   }
@@ -312,9 +326,21 @@ class InteractionHistoryRepositoryImpl implements InteractionHistoryRepository {
       totalMatches: totalMatches,
       likeToMatchRatio: likeToMatchRatio,
       totalInteractionsToday: json['total_interactions_today'] as int? ?? 0,
+      totalInteractionsWeek: _parseOptionalInt(
+        json['total_interactions_week'] ??
+            json['total_interactions_this_week'] ??
+            json['weekly_interactions'],
+      ),
       dailyLimit: json['daily_limit'] as int? ?? 50, // Défaut si non fourni
       remainingToday:
           json['remaining_today'] as int? ?? 50, // Défaut si non fourni
     );
+  }
+
+  int? _parseOptionalInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 }

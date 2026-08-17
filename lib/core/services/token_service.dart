@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -58,7 +59,7 @@ class TokenService {
 
       return false;
     } catch (e) {
-      print('Erreur lors de l\'échange de tokens: $e');
+      debugPrint('Erreur lors de l\'échange de tokens: $e');
       return false;
     }
   }
@@ -110,7 +111,7 @@ class TokenService {
 
       return false;
     } catch (e) {
-      print('Erreur lors du rafraîchissement du token: $e');
+      debugPrint('Erreur lors du rafraîchissement du token: $e');
       return false;
     }
   }

@@ -102,11 +102,11 @@ class FeedPostModel {
       case 'published':
         return PostStatus.published;
       case 'pending_moderation':
-        return PostStatus.pending_moderation;
+        return PostStatus.pendingModeration;
       case 'rejected':
         return PostStatus.rejected;
       default:
-        return PostStatus.pending_moderation;
+        return PostStatus.pendingModeration;
     }
   }
 
@@ -114,7 +114,7 @@ class FeedPostModel {
     switch (status) {
       case PostStatus.published:
         return 'published';
-      case PostStatus.pending_moderation:
+      case PostStatus.pendingModeration:
         return 'pending_moderation';
       case PostStatus.rejected:
         return 'rejected';

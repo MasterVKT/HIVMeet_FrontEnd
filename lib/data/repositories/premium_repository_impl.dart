@@ -42,10 +42,18 @@ class PremiumRepositoryImpl implements PremiumRepository {
   Future<Either<Failure, UserSubscription?>> getCurrentSubscription() async {
     try {
       final response = await _subscriptionsApi.getCurrentSubscription();
-      final payload = response.data!;
-      final sub = payload['subscription'] as Map<String, dynamic>?;
-      if (sub == null) return const Right(null);
-      final subscription = _mapJsonToUserSubscription(sub);
+      final payload = response.data ?? const <String, dynamic>{};
+
+      // Le backend retourne les champs directement à la racine (pas de
+      // wrapper `subscription`). L'état « aucun abonnement actif » est
+      // signalé par `status: "none"` ou `subscription_id: null`.
+      final status = payload['status'] as String?;
+      final subscriptionId = payload['subscription_id'] as String?;
+      if (status == 'none' || subscriptionId == null) {
+        return const Right(null);
+      }
+
+      final subscription = _mapJsonToUserSubscription(payload);
       return Right(subscription);
     } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
@@ -98,7 +106,8 @@ class PremiumRepositoryImpl implements PremiumRepository {
     // Cette méthode ne devrait PAS être utilisée directement.
     // Utiliser createPaymentSession() à la place.
     return Left(ServerFailure(
-      message: 'Utiliser createPaymentSession() puis rediriger vers payment_url. '
+      message:
+          'Utiliser createPaymentSession() puis rediriger vers payment_url. '
           'Le paiement est validé via webhook backend, pas par le frontend.',
     ));
   }
@@ -137,14 +146,13 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, CancellationResult>> cancelSubscription() async {
     try {
-      final response = await _subscriptionsApi.cancelSubscription();
-      final payload = response.data;
-      UserSubscription? sub;
-      if (payload != null && payload['subscription'] is Map<String, dynamic>) {
-        sub = _mapJsonToUserSubscription(
-            payload['subscription'] as Map<String, dynamic>);
-      }
-      return Right(CancellationResult(subscription: sub));
+      await _subscriptionsApi.cancelSubscription();
+      // CancelSubscriptionResponseSerializer retourne `status`,
+      // `cancel_at_period_end`, `current_period_end`, `message` — pas
+      // assez de champs pour reconstruire un `UserSubscription` complet.
+      // Le frontend doit appeler `getCurrentSubscription()` pour obtenir
+      // l'état à jour après l'annulation.
+      return const Right(CancellationResult(subscription: null));
     } on DioException catch (e) {
       return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
     } catch (e) {
@@ -319,6 +327,34 @@ class PremiumRepositoryImpl implements PremiumRepository {
     }
   }
 
+  /// Extrait un message d'erreur lisible depuis une réponse d'erreur Dio.
+  /// Gère deux formats backend :
+  /// 1. Format custom : {"error": "code", "message": "message lisible"}
+  /// 2. Format DRF field-level : {"new_plan_id": ["Ce champ est obligatoire."]}
+  String _extractServerErrorMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      // Format d'erreur standard du backend : {"error": "...", "message": "..."}
+      final message = data['message'] as String?;
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+      final error = data['error'] as String?;
+      if (error != null) {
+        return error;
+      }
+      // Format DRF field-level : {"field": ["error1", "error2"], ...}
+      final fieldErrors = data.entries
+          .where((entry) => entry.value is List)
+          .map((entry) => (entry.value as List).cast<String>().join(", "))
+          .join('; ');
+      if (fieldErrors.isNotEmpty) {
+        return fieldErrors;
+      }
+    }
+    return e.message ?? 'Erreur de serveur';
+  }
+
   @override
   Future<Either<Failure, UserSubscription>> modifySubscription({
     required String newPlanId,
@@ -329,13 +365,31 @@ class PremiumRepositoryImpl implements PremiumRepository {
         newPlanId: newPlanId,
         proration: proration,
       );
-      final data = response.data!;
-      final subscriptionData = data['subscription'] as Map<String, dynamic>;
+      final data = response.data ?? const <String, dynamic>{};
 
-      final result = _mapJsonToUserSubscription(subscriptionData);
+      // Le backend retourne les champs à plat (CurrentSubscriptionSerializer),
+      // identique à GET /current/. Pas de wrapper `subscription`.
+      final result = _mapJsonToUserSubscription(data);
       return Right(result);
     } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
+      final statusCode = e.response?.statusCode;
+      final message = _extractServerErrorMessage(e);
+
+      // 402 → un paiement est requis (proration avec nouveau débit)
+      if (statusCode == 402) {
+        return Left(ServerFailure(
+          message: message,
+          code: 'payment_required',
+        ));
+      }
+
+      // 400 → erreur de validation métier (same_plan, no_active_subscription,
+      // invalid_plan ou erreur DRF field-level)
+      if (statusCode == 400) {
+        return Left(ServerFailure(message: message));
+      }
+
+      return Left(ServerFailure(message: message));
     } catch (e) {
       return Left(ServerFailure(message: 'Erreur lors de la modification: $e'));
     }
@@ -374,39 +428,57 @@ class PremiumRepositoryImpl implements PremiumRepository {
   }
 
   UserSubscription _mapJsonToUserSubscription(Map<String, dynamic> json) {
-    final planData = json['plan'] as Map<String, dynamic>;
-    final featuresUsage = json['features_usage'] as Map<String, dynamic>?;
+    // CurrentSubscriptionSerializer retourne les champs à plat :
+    // subscription_id, plan_id, plan_name, status, current_period_start/end,
+    // auto_renew, cancel_at_period_end, features_summary.
+    // Il n'y a pas de Map imbriquée `plan` ni de `features_usage` (les
+    // compteurs runtime s'obtiennent via getFeaturesUsage()).
+    final featuresSummary = json['features_summary'] as Map<String, dynamic>?;
+
+    final plan = PremiumPlan(
+      id: json['plan_id'] as String? ?? '',
+      planId: json['plan_id'] as String? ?? '',
+      name: json['plan_name'] as String? ?? '',
+      description: '',
+      price: 0,
+      currency: 'EUR',
+      billingInterval: BillingInterval.monthly,
+      trialPeriodDays: 0,
+      features: featuresSummary != null
+          ? PremiumFeatures(
+              unlimitedLikes:
+                  featuresSummary['unlimited_likes'] as bool? ?? false,
+              canSeeWhoLiked:
+                  featuresSummary['can_see_likers'] as bool? ?? false,
+              canRewind: featuresSummary['can_rewind'] as bool? ?? false,
+              monthlyBoosts:
+                  featuresSummary['monthly_boosts_count'] as int? ?? 0,
+              dailySuperLikes:
+                  featuresSummary['daily_super_likes_count'] as int? ?? 0,
+              mediaMessaging:
+                  featuresSummary['media_messaging_enabled'] as bool? ?? false,
+              videoCalls:
+                  featuresSummary['audio_video_calls_enabled'] as bool? ??
+                      false,
+            )
+          : const PremiumFeatures(),
+    );
 
     return UserSubscription(
-      id: json['id'] as String,
-      plan: _mapJsonToPremiumPlan(planData),
-      status: _parseSubscriptionStatus(json['status'] as String),
-      currentPeriodStart:
-          DateTime.parse(json['current_period_start'] as String),
-      currentPeriodEnd: DateTime.parse(json['current_period_end'] as String),
-      trialEnd: json['trial_end'] != null
-          ? DateTime.parse(json['trial_end'] as String)
-          : null,
+      id: json['subscription_id'] as String? ?? '',
+      plan: plan,
+      status: _parseSubscriptionStatus(json['status'] as String? ?? 'active'),
+      currentPeriodStart: json['current_period_start'] != null
+          ? DateTime.parse(json['current_period_start'] as String)
+          : DateTime.now(),
+      currentPeriodEnd: json['current_period_end'] != null
+          ? DateTime.parse(json['current_period_end'] as String)
+          : DateTime.now(),
+      trialEnd: null,
       autoRenew: json['auto_renew'] as bool? ?? true,
       cancelAtPeriodEnd: json['cancel_at_period_end'] as bool? ?? false,
-      nextBillingDate: json['next_billing_date'] != null
-          ? DateTime.parse(json['next_billing_date'] as String)
-          : null,
-      featuresUsage: featuresUsage != null
-          ? FeaturesUsage(
-              boostsRemaining: featuresUsage['boosts_remaining'] as int? ?? 0,
-              superLikesRemaining:
-                  featuresUsage['super_likes_remaining'] as int? ?? 0,
-              lastBoostReset: featuresUsage['last_boosts_reset'] != null
-                  ? DateTime.parse(featuresUsage['last_boosts_reset'] as String)
-                  : null,
-              lastSuperLikesReset:
-                  featuresUsage['last_super_likes_reset'] != null
-                      ? DateTime.parse(
-                          featuresUsage['last_super_likes_reset'] as String)
-                      : null,
-            )
-          : null,
+      nextBillingDate: null,
+      featuresUsage: null,
     );
   }
 
@@ -427,13 +499,20 @@ class PremiumRepositoryImpl implements PremiumRepository {
     switch (status) {
       case 'active':
         return SubscriptionStatus.active;
+      // Le backend utilise "trialing" (un L) — pas "trial"
+      case 'trialing':
       case 'trial':
         return SubscriptionStatus.trial;
       case 'expired':
         return SubscriptionStatus.expired;
+      // Le backend utilise l'orthographe américaine "canceled" (un L)
+      case 'canceled':
       case 'cancelled':
         return SubscriptionStatus.cancelled;
       case 'pending':
+        return SubscriptionStatus.pending;
+      // Le backend peut retourner "past_due" — traiter comme en attente
+      case 'past_due':
         return SubscriptionStatus.pending;
       default:
         return SubscriptionStatus.expired;

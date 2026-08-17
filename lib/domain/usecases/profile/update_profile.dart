@@ -21,10 +21,9 @@ class UpdateProfile implements UseCase<Profile, UpdateProfileParams> {
       bio: params.bio,
       city: params.city,
       country: params.country,
-      latitude: params.latitude,
-      longitude: params.longitude,
       interests: params.interests,
       relationshipType: params.relationshipType,
+      relationshipTypesSought: params.relationshipTypesSought,
       searchPreferences: params.searchPreferences,
       privacySettings: params.privacySettings,
     );
@@ -36,10 +35,9 @@ class UpdateProfileParams extends Equatable {
   final String? bio;
   final String? city;
   final String? country;
-  final double? latitude;
-  final double? longitude;
   final List<String>? interests;
   final String? relationshipType;
+  final List<String>? relationshipTypesSought;
   final SearchPreferences? searchPreferences;
   final PrivacySettings? privacySettings;
 
@@ -48,10 +46,9 @@ class UpdateProfileParams extends Equatable {
     this.bio,
     this.city,
     this.country,
-    this.latitude,
-    this.longitude,
     this.interests,
     this.relationshipType,
+    this.relationshipTypesSought,
     this.searchPreferences,
     this.privacySettings,
   });
@@ -62,10 +59,9 @@ class UpdateProfileParams extends Equatable {
         bio,
         city,
         country,
-        latitude,
-        longitude,
         interests,
         relationshipType,
+        relationshipTypesSought,
         searchPreferences,
         privacySettings,
       ];

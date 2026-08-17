@@ -13,9 +13,12 @@ import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
+import 'package:hivmeet/presentation/blocs/profile/profile_state.dart';
+import 'package:hivmeet/presentation/blocs/profile/profile_event.dart';
 import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 import 'package:hivmeet/presentation/widgets/common/app_text_field.dart';
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CreateProfilePage extends StatefulWidget {
@@ -28,12 +31,12 @@ class CreateProfilePage extends StatefulWidget {
 class _CreateProfilePageState extends State<CreateProfilePage> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
-  
+
   // Controllers
   final _bioController = TextEditingController();
   final _cityController = TextEditingController();
   final _countryController = TextEditingController();
-  
+
   // State
   File? _mainPhoto;
   final List<String> _selectedInterests = [];
@@ -41,10 +44,12 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   final List<String> _selectedGenders = [];
   RangeValues _ageRange = const RangeValues(18, 50);
   double _maxDistance = 50;
-  
+
   // Location
   Position? _currentPosition;
   bool _isLoadingLocation = false;
+
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -77,12 +82,13 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      
+
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
-      
+
+      if (!mounted) return;
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
         setState(() {
@@ -92,20 +98,23 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       HIVToast.showError(
         context: context,
-        message: 'Impossible de récupérer votre localisation',
+        message: _tr('create_profile.location_error'),
       );
     } finally {
-      setState(() {
-        _isLoadingLocation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingLocation = false;
+        });
+      }
     }
   }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    
+
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (context) => Container(
@@ -115,19 +124,19 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Prendre une photo'),
+              title: Text(_tr('create_profile.take_photo')),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Choisir de la galerie'),
+              title: Text(_tr('create_profile.choose_gallery')),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
         ),
       ),
     );
-    
+
     if (source != null) {
       final XFile? image = await picker.pickImage(source: source);
       if (image != null) {
@@ -136,17 +145,17 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
           uiSettings: [
             AndroidUiSettings(
-              toolbarTitle: 'Recadrer la photo',
+              toolbarTitle: _tr('create_profile.crop_photo'),
               toolbarColor: AppColors.primaryPurple,
               toolbarWidgetColor: Colors.white,
               activeControlsWidgetColor: AppColors.primaryPurple,
             ),
             IOSUiSettings(
-              title: 'Recadrer la photo',
+              title: _tr('create_profile.crop_photo'),
             ),
           ],
         );
-        
+
         if (croppedFile != null) {
           setState(() {
             _mainPhoto = File(croppedFile.path);
@@ -184,7 +193,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         if (_mainPhoto == null) {
           HIVToast.showError(
             context: context,
-            message: 'Veuillez ajouter une photo',
+            message: _tr('create_profile.error_photo_required'),
           );
           return false;
         }
@@ -193,14 +202,14 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         if (_bioController.text.isEmpty) {
           HIVToast.showError(
             context: context,
-            message: 'Veuillez écrire une bio',
+            message: _tr('create_profile.error_bio_required'),
           );
           return false;
         }
         if (_selectedInterests.isEmpty) {
           HIVToast.showError(
             context: context,
-            message: 'Veuillez sélectionner au moins un centre d\'intérêt',
+            message: _tr('create_profile.error_interests_required'),
           );
           return false;
         }
@@ -209,7 +218,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         if (_cityController.text.isEmpty || _countryController.text.isEmpty) {
           HIVToast.showError(
             context: context,
-            message: 'Veuillez indiquer votre localisation',
+            message: _tr('create_profile.error_location_required'),
           );
           return false;
         }
@@ -218,7 +227,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         if (_selectedGenders.isEmpty) {
           HIVToast.showError(
             context: context,
-            message: 'Veuillez sélectionner au moins un genre',
+            message: _tr('create_profile.error_gender_required'),
           );
           return false;
         }
@@ -229,88 +238,154 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   }
 
   void _createProfile() {
-    // TODO: Implémenter la création du profil avec les données collectées
-    HIVToast.showSuccess(
-      context: context,
-      message: 'Profil créé avec succès !',
-    );
-    context.go('/home');
+    if (_mainPhoto == null || _currentPosition == null) {
+      HIVToast.showError(
+        context: context,
+        message: _tr('create_profile.error_photo_location_required'),
+      );
+      return;
+    }
+
+    final bloc = context.read<ProfileBloc>();
+    bloc.add(CreateProfile(
+      mainPhoto: _mainPhoto!,
+      bio: _bioController.text,
+      interests: List<String>.from(_selectedInterests),
+      relationshipType: _selectedRelationshipType,
+      relationshipTypesSought: [_selectedRelationshipType],
+      city: _cityController.text,
+      country: _countryController.text,
+      latitude: _currentPosition!.latitude,
+      longitude: _currentPosition!.longitude,
+      minAge: _ageRange.start.round(),
+      maxAge: _ageRange.end.round(),
+      maxDistance: _maxDistance,
+      interestedIn: List<String>.from(_selectedGenders),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => getIt<ProfileBloc>(),
-      child: Scaffold(
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Progress indicator
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        if (_currentStep > 0)
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back),
-                            onPressed: _previousStep,
-                          )
-                        else
-                          const SizedBox(width: 48),
-                        Expanded(
-                          child: LinearProgressIndicator(
-                            value: (_currentStep + 1) / 4,
-                            backgroundColor: AppColors.platinum,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.primaryPurple,
+      child: BlocListener<ProfileBloc, ProfileState>(
+        listenWhen: (previous, current) {
+          // Éviter les écoutes multiples sur le même état final
+          if (previous == current) return false;
+          return current is ProfileActionSuccess ||
+              current is ProfileError ||
+              current is ProfileLoading ||
+              current is PhotoUploading ||
+              current is ProfileUpdating;
+        },
+        listener: (context, state) {
+          if (state is ProfileActionSuccess) {
+            HIVToast.showSuccess(
+              context: context,
+              message: _tr('create_profile.success_created'),
+            );
+            context.go('/discovery');
+            return;
+          }
+
+          if (state is ProfileError) {
+            HIVToast.showError(
+              context: context,
+              message: state.message,
+            );
+            setState(() {
+              _isSubmitting = false;
+            });
+            return;
+          }
+
+          setState(() {
+            _isSubmitting = state is ProfileLoading ||
+                state is PhotoUploading ||
+                state is ProfileUpdating;
+          });
+        },
+        child: Scaffold(
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Progress indicator
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          if (_currentStep > 0)
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: _isSubmitting ? null : _previousStep,
+                            )
+                          else
+                            const SizedBox(width: 48),
+                          Expanded(
+                            child: LinearProgressIndicator(
+                              value: (_currentStep + 1) / 4,
+                              backgroundColor: AppColors.platinum,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primaryPurple,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Étape ${_currentStep + 1} sur 4',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.slate,
+                          const SizedBox(width: 48),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        _tr(
+                          'create_profile.step_counter',
+                          params: {
+                            'current': '${_currentStep + 1}',
+                            'total': '4',
+                          },
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.slate,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              
-              // Content
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentStep = index;
-                    });
-                  },
-                  children: [
-                    _buildPhotoStep(),
-                    _buildBioStep(),
-                    _buildLocationStep(),
-                    _buildPreferencesStep(),
-                  ],
+
+                // Content
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentStep = index;
+                      });
+                    },
+                    children: [
+                      _buildPhotoStep(),
+                      _buildBioStep(),
+                      _buildLocationStep(),
+                      _buildPreferencesStep(),
+                    ],
+                  ),
                 ),
-              ),
-              
-              // Next button
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: AppButton(
-                  onPressed: _nextStep,
-                  text: _currentStep < 3 ? 'Suivant' : 'Créer mon profil',
-                  type: ButtonType.primary,
+
+                // Next button
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: AppButton(
+                    onPressed: _isSubmitting ? null : _nextStep,
+                    text: _currentStep < 3
+                        ? _tr('create_profile.next')
+                        : (_isSubmitting
+                            ? _tr('create_profile.creating')
+                            : _tr('create_profile.create')),
+                    type: ButtonType.primary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -324,20 +399,20 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Ajoutez votre photo',
+            _tr('create_profile.photo_title'),
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Choisissez une photo qui vous représente bien',
+            _tr('create_profile.photo_subtitle'),
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.slate,
-            ),
+                  color: AppColors.slate,
+                ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Photo picker
           Center(
             child: GestureDetector(
@@ -366,10 +441,13 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Ajouter une photo',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.slate,
-                            ),
+                            _tr('create_profile.add_photo'),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.slate,
+                                ),
                           ),
                         ],
                       )
@@ -389,58 +467,58 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Parlez-nous de vous',
+            _tr('create_profile.bio_title'),
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Qu\'est-ce qui vous rend unique ?',
+            _tr('create_profile.bio_subtitle'),
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.slate,
-            ),
+                  color: AppColors.slate,
+                ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Bio
           AppTextField(
             controller: _bioController,
-            label: 'Bio',
-            hintText: 'Écrivez quelque chose sur vous...',
+            label: _tr('profile.bio'),
+            hintText: _tr('create_profile.bio_hint'),
             maxLines: 5,
             maxLength: 500,
           ),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Interests
           Text(
-            'Centres d\'intérêt',
+            _tr('create_profile.interests_title'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Sélectionnez jusqu\'à 3 centres d\'intérêt',
+            _tr('create_profile.interests_subtitle'),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.slate,
-            ),
+                  color: AppColors.slate,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          
+
           _buildInterestsGrid(),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Relationship type
           Text(
-            'Que recherchez-vous ?',
+            _tr('create_profile.relationship_title'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          
+
           _buildRelationshipTypeSelector(),
         ],
       ),
@@ -454,49 +532,49 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Où êtes-vous ?',
+            _tr('create_profile.location_title'),
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Votre localisation aide à trouver des personnes près de vous',
+            _tr('create_profile.location_subtitle'),
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.slate,
-            ),
+                  color: AppColors.slate,
+                ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Location button
           if (_currentPosition == null && !_isLoadingLocation)
             AppButton(
               onPressed: _getCurrentLocation,
-              text: 'Utiliser ma localisation actuelle',
+              text: _tr('create_profile.use_current_location'),
               icon: Icons.location_on,
               type: ButtonType.secondary,
             ),
-          
+
           if (_isLoadingLocation)
             const Center(
               child: CircularProgressIndicator(),
             ),
-          
+
           const SizedBox(height: AppSpacing.lg),
-          
+
           // Manual input
           AppTextField(
             controller: _cityController,
-            label: 'Ville',
-            hintText: 'Ex: Paris',
+            label: _tr('profile.city'),
+            hintText: _tr('create_profile.city_hint'),
             prefixIcon: Icons.location_city,
           ),
           const SizedBox(height: AppSpacing.lg),
-          
+
           AppTextField(
             controller: _countryController,
-            label: 'Pays',
-            hintText: 'Ex: France',
+            label: _tr('profile.country'),
+            hintText: _tr('create_profile.country_hint'),
             prefixIcon: Icons.flag,
           ),
         ],
@@ -511,42 +589,48 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Vos préférences',
+            _tr('create_profile.preferences_title'),
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Qui souhaitez-vous rencontrer ?',
+            _tr('create_profile.preferences_subtitle'),
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.slate,
-            ),
+                  color: AppColors.slate,
+                ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Gender preferences
           Text(
-            'Je recherche',
+            _tr('create_profile.gender_title'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
-          
+
           _buildGenderSelector(),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Age range
           Text(
-            'Tranche d\'âge',
+            _tr('create_profile.age_range_title'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '${_ageRange.start.round()} - ${_ageRange.end.round()} ans',
+            _tr(
+              'create_profile.age_range_value',
+              params: {
+                'min': '${_ageRange.start.round()}',
+                'max': '${_ageRange.end.round()}',
+              },
+            ),
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           RangeSlider(
@@ -563,17 +647,20 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
             },
           ),
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Distance
           Text(
-            'Distance maximale',
+            _tr('create_profile.distance_title'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '${_maxDistance.round()} km',
+            _tr(
+              'create_profile.distance_value',
+              params: {'distance': '${_maxDistance.round()}'},
+            ),
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           Slider(
@@ -596,11 +683,23 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
   Widget _buildInterestsGrid() {
     final interests = [
-      'Sport', 'Musique', 'Cinéma', 'Voyage', 'Cuisine',
-      'Art', 'Nature', 'Technologie', 'Lecture', 'Photographie',
-      'Yoga', 'Méditation', 'Danse', 'Gaming', 'Mode',
+      _tr('interest.sport'),
+      _tr('interest.music'),
+      _tr('interest.cinema'),
+      _tr('interest.travel'),
+      _tr('interest.cooking'),
+      _tr('interest.art'),
+      _tr('interest.nature'),
+      _tr('interest.technology'),
+      _tr('interest.reading'),
+      _tr('interest.photography'),
+      _tr('interest.yoga'),
+      _tr('interest.meditation'),
+      _tr('interest.dance'),
+      _tr('interest.gaming'),
+      _tr('interest.fashion'),
     ];
-    
+
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
@@ -630,13 +729,12 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
   Widget _buildRelationshipTypeSelector() {
     final types = [
-      (RelationshipType.friendship, 'Amitié'),
-      (RelationshipType.longTerm, 'Relation sérieuse'),
-      (RelationshipType.shortTerm, 'Relation courte'),
-      (RelationshipType.casualDating, 'Rencontres casual'),
-      (RelationshipType.networking, 'Networking'),
+      (RelationshipType.friendship, _tr('profile.relationship_friendship')),
+      (RelationshipType.longTerm, _tr('profile.relationship_long_term')),
+      (RelationshipType.shortTerm, _tr('profile.relationship_short_term')),
+      (RelationshipType.casualDating, _tr('profile.relationship_casual')),
     ];
-    
+
     return Column(
       children: types.map((type) {
         return RadioListTile<String>(
@@ -655,33 +753,45 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   }
 
   Widget _buildGenderSelector() {
+    // 3 options simplifiées : Tout le monde, Hommes, Femmes
     final genders = [
-      (Gender.male, 'Homme'),
-      (Gender.female, 'Femme'),
-      (Gender.nonBinary, 'Non-binaire'),
-      (Gender.transMale, 'Homme trans'),
-      (Gender.transFemale, 'Femme trans'),
-      (Gender.other, 'Autre'),
+      ('all', _tr('gender.all'), Icons.people),
+      (Gender.male, Gender.getLabel(Gender.male), Icons.male),
+      (Gender.female, Gender.getLabel(Gender.female), Icons.female),
     ];
-    
+
     return Column(
       children: genders.map((gender) {
         final isSelected = _selectedGenders.contains(gender.$1);
-        return CheckboxListTile(
-          title: Text(gender.$2),
-          value: isSelected,
-          onChanged: (value) {
-            setState(() {
-              if (value == true) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: ListTile(
+            leading: Icon(
+              gender.$3,
+              color: isSelected ? AppColors.primaryPurple : AppColors.slate,
+            ),
+            title: Text(
+              gender.$2,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppColors.primaryPurple : null,
+              ),
+            ),
+            trailing: isSelected
+                ? const Icon(Icons.check_circle, color: AppColors.primaryPurple)
+                : const Icon(Icons.circle_outlined, color: AppColors.slate),
+            onTap: () {
+              setState(() {
+                _selectedGenders.clear();
                 _selectedGenders.add(gender.$1);
-              } else {
-                _selectedGenders.remove(gender.$1);
-              }
-            });
-          },
-          activeColor: AppColors.primaryPurple,
+              });
+            },
+          ),
         );
       }).toList(),
     );
   }
+
+  String _tr(String key, {Map<String, dynamic>? params}) =>
+      LocalizationService.translate(key, params: params);
 }

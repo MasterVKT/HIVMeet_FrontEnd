@@ -103,8 +103,8 @@ class NetworkConnectivityService {
       developer.log('🖥️ Test accès serveur Django: $baseUrl',
           name: 'NetworkConnectivity');
 
-      // Tentative d'accès à l'admin Django (endpoint simple)
-      final response = await _dio.get('/fr/admin/login/').timeout(
+      // Tentative d'accès au health check Django
+      final response = await _dio.get('/health/simple/').timeout(
             const Duration(seconds: 10),
           );
 

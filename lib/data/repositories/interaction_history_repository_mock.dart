@@ -224,6 +224,7 @@ class InteractionHistoryRepositoryMock implements InteractionHistoryRepository {
       isVerified: age % 3 == 0,
       isPremium: age % 5 == 0,
       lastActive: DateTime.now().subtract(Duration(hours: age % 48)),
+      likedAt: null,
       compatibilityScore: 70.0 + (age % 20),
     );
   }

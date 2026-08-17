@@ -59,6 +59,7 @@ class TokenManager {
   String? _cachedRefreshToken;
   domain.User? _cachedUserData;
   DateTime? _tokenCacheTime;
+  Future<TokenRefreshResult>? _refreshInFlight;
 
   // Durée de validité du cache en mémoire (5 minutes)
   static const _cacheValidityDuration = Duration(minutes: 5);
@@ -273,7 +274,19 @@ class TokenManager {
   }
 
   /// Refresh l'access token en utilisant le refresh token
-  Future<TokenRefreshResult> refreshAccessToken() async {
+  Future<TokenRefreshResult> refreshAccessToken() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+
+    late final Future<TokenRefreshResult> refresh;
+    refresh = _refreshAccessToken().whenComplete(() {
+      if (identical(_refreshInFlight, refresh)) _refreshInFlight = null;
+    });
+    _refreshInFlight = refresh;
+    return refresh;
+  }
+
+  Future<TokenRefreshResult> _refreshAccessToken() async {
     try {
       developer.log('🔄 Tentative de refresh du token', name: 'TokenManager');
 
