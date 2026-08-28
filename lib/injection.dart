@@ -15,8 +15,10 @@ import 'package:hivmeet/core/network/api_client.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/services/network_connectivity_service.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
+import 'package:hivmeet/presentation/blocs/register/register_bloc.dart';
 import 'package:hivmeet/data/datasources/remote/settings_api.dart';
 import 'package:hivmeet/data/datasources/remote/auth_api.dart';
+import 'package:hivmeet/data/datasources/remote/notification_api.dart';
 import 'package:hivmeet/data/datasources/remote/messaging_api.dart';
 import 'package:hivmeet/data/datasources/remote/subscriptions_api.dart';
 import 'package:hivmeet/data/services/payment_service.dart';
@@ -179,6 +181,11 @@ Future<void> configureDependencies() async {
     () => AuthBlocSimple(getIt<AuthenticationService>()),
   );
 
+  // 7.1 RegisterBloc utilisant AuthenticationService directement
+  getIt.registerFactory<RegisterBloc>(
+    () => RegisterBloc(authService: getIt<AuthenticationService>()),
+  );
+
   // 8. APIs
   getIt.registerSingleton<SettingsApi>(
     SettingsApi(getIt<ApiClient>()),
@@ -206,6 +213,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<SubscriptionsApi>(
     SubscriptionsApi(getIt<ApiClient>()),
+  );
+
+  getIt.registerSingleton<NotificationApi>(
+    NotificationApi(getIt<ApiClient>()),
   );
 
   // 8.1 Service de paiement externe (MyCoolPay)
@@ -533,6 +544,7 @@ Future<void> configureDependencies() async {
       matchRepository: getIt<MatchRepository>(),
       messageRepository: getIt<MessageRepository>(),
       realtimeBus: getIt<RealtimeEventBus>(),
+      notificationApi: getIt<NotificationApi>(),
     ),
   );
 

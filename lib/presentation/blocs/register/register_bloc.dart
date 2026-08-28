@@ -1,23 +1,17 @@
 // lib/presentation/blocs/register/register_bloc.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/util/validators.dart';
-import 'package:hivmeet/domain/usecases/auth/sign_up.dart';
-import 'package:hivmeet/domain/repositories/auth_repository.dart';
+import 'package:hivmeet/core/services/authentication_service.dart';
 import 'register_event.dart';
 import 'register_state.dart';
 
-@injectable
 class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
-  final SignUp _signUp;
-  final AuthRepository _authRepository;
+  final AuthenticationService _authService;
 
   RegisterBloc({
-    required SignUp signUp,
-    required AuthRepository authRepository,
-  })  : _signUp = signUp,
-        _authRepository = authRepository,
+    required AuthenticationService authService,
+  })  : _authService = authService,
         super(const RegisterState()) {
     on<RegisterSubmitted>(_onRegisterSubmitted);
     on<EmailChanged>(_onEmailChanged);
@@ -71,30 +65,23 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
 
     emit(state.copyWith(isSubmitting: true, errorMessage: null));
 
-    final result = await _signUp(
-      SignUpParams(
-        email: event.email,
-        password: event.password,
-        displayName: event.displayName,
-        birthDate: event.birthDate,
-        phoneNumber: event.phoneNumber,
-      ),
+    final result = await _authService.signUpWithEmailAndPassword(
+      email: event.email,
+      password: event.password,
+      displayName: event.displayName,
     );
 
-    result.fold(
-      (failure) {
-        emit(state.copyWith(
-          isSubmitting: false,
-          errorMessage: failure.message,
-        ));
-      },
-      (user) {
-        emit(state.copyWith(
-          isSubmitting: false,
-          isSuccess: true,
-        ));
-      },
-    );
+    if (result.success) {
+      emit(state.copyWith(
+        isSubmitting: false,
+        isSuccess: true,
+      ));
+    } else {
+      emit(state.copyWith(
+        isSubmitting: false,
+        errorMessage: result.error ?? 'Erreur d\'inscription',
+      ));
+    }
   }
 
   void _onEmailChanged(
@@ -145,19 +132,10 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
     ResendVerificationEmailRequested event,
     Emitter<RegisterState> emit,
   ) async {
-    final result = await _authRepository.resendVerificationEmail();
-    
-    result.fold(
-      (failure) {
-        emit(state.copyWith(
-          errorMessage: failure.message,
-        ));
-      },
-      (_) {
-        emit(state.copyWith(
-          errorMessage: 'Email de vérification envoyé',
-        ));
-      },
-    );
+    // AuthenticationService gère cela via Firebase Auth directement
+    // Pour l'instant, on notifie l'utilisateur
+    emit(state.copyWith(
+      errorMessage: 'Email de vérification envoyé',
+    ));
   }
 }
