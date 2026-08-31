@@ -10,7 +10,8 @@ class SubscriptionsApi {
 
   /// Récupérer les plans d'abonnement disponibles
   /// GET /api/v1/subscriptions/plans/
-  Future<Response<Map<String, dynamic>>> getSubscriptionPlans() async {
+  /// Returns a List of plan objects (ListAPIView returns an array)
+  Future<Response<dynamic>> getSubscriptionPlans() async {
     return await _apiClient.get('/subscriptions/plans/');
   }
 

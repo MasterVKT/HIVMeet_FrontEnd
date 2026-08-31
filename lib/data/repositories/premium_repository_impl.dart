@@ -21,11 +21,22 @@ class PremiumRepositoryImpl implements PremiumRepository {
   Future<Either<Failure, List<PremiumPlan>>> getAvailablePlans() async {
     try {
       final response = await _subscriptionsApi.getSubscriptionPlans();
-      final payload = response.data!;
-      final list = (payload['results'] ??
-          payload['plans'] ??
-          payload['data'] ??
-          []) as List;
+      final data = response.data;
+
+      // L'endpoint ListAPIView retourne directement une liste JSON (array),
+      // mais DRF pagination peut aussi retourner {results: [...]}.
+      List<dynamic> list;
+      if (data is List) {
+        list = data;
+      } else if (data is Map<String, dynamic>) {
+        list = (data['results'] ??
+            data['plans'] ??
+            data['data'] ??
+            []) as List;
+      } else {
+        list = [];
+      }
+
       final plans = list
           .map((json) => _mapJsonToPremiumPlan(json as Map<String, dynamic>))
           .toList();
