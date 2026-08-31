@@ -199,7 +199,7 @@ void _confirmSignOut(BuildContext context) {
           onPressed: () {
             Navigator.pop(dialogContext);
             context.read<AuthBlocSimple>().add(LoggedOut());
-            context.go('/');
+            context.go('/login');
           },
           child: Text(_tr('profile.sign_out')),
         ),
