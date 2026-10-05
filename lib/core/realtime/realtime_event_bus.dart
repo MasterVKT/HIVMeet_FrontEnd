@@ -22,6 +22,7 @@ class RealtimeEventBus {
   final _controller = StreamController<RealtimeEvent>.broadcast();
   final Map<String, DateTime> _recentKeys = {};
   String? _activeConversationId;
+  String? _activeRoute;
 
   /// Flux broadcast des événements temps réel publiés.
   Stream<RealtimeEvent> get events => _controller.stream;
@@ -35,6 +36,15 @@ class RealtimeEventBus {
 
   void setActiveConversation(String? conversationId) {
     _activeConversationId = conversationId;
+  }
+
+  /// Route actuellement affichée à l'écran (ex. `/matches`, `/notifications`),
+  /// ou `null`. Permet à [NotificationService] de supprimer le popup local
+  /// quand l'utilisateur est déjà sur la page concernée par l'événement.
+  String? get activeRoute => _activeRoute;
+
+  void setActiveRoute(String? route) {
+    _activeRoute = route;
   }
 
   /// Publie un événement, en supprimant les doublons proches dans le temps.
@@ -78,10 +88,20 @@ class RealtimeEventBus {
         final conversationId = event.conversationId;
         if (conversationId == null || conversationId.isEmpty) return null;
         return '${event.type.name}:$conversationId';
+      case RealtimeEventType.messageReadAlert:
+        final notificationId = event.notificationId;
+        return notificationId == null || notificationId.isEmpty
+            ? null
+            : '${event.type.name}:$notificationId';
       case RealtimeEventType.messageDelivered:
         // Un seul canal d'arrivée (/ws/notifications/) — pas de dédup.
         return null;
       case RealtimeEventType.newMatch:
+        final matchId = event.matchId;
+        return matchId == null || matchId.isEmpty
+            ? null
+            : '${event.type.name}:$matchId';
+      case RealtimeEventType.matchRemoved:
         final matchId = event.matchId;
         return matchId == null || matchId.isEmpty
             ? null
@@ -92,8 +112,21 @@ class RealtimeEventBus {
         return fromUserId == null || fromUserId.isEmpty
             ? null
             : '${event.type.name}:$fromUserId';
+      case RealtimeEventType.subscriptionExpiring:
+        final notificationId = event.notificationId;
+        return notificationId == null || notificationId.isEmpty
+            ? null
+            : '${event.type.name}:$notificationId';
+      case RealtimeEventType.reportResolved:
+        final notificationId = event.notificationId;
+        return notificationId == null || notificationId.isEmpty
+            ? null
+            : '${event.type.name}:$notificationId';
       case RealtimeEventType.conversationRead:
+      case RealtimeEventType.conversationHidden:
+      case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
+      case RealtimeEventType.subscriptionChanged:
         return null;
     }
   }

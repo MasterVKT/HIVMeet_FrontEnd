@@ -10,19 +10,19 @@ import 'package:hivmeet/domain/repositories/interaction_history_repository.dart'
 
 /// Use case pour récupérer la liste des profils likés
 @injectable
-class GetMyLikes
-    implements UseCase<List<InteractionHistory>, GetMyLikesParams> {
+class GetMyLikes implements UseCase<InteractionHistoryPage, GetMyLikesParams> {
   final InteractionHistoryRepository repository;
 
   GetMyLikes(this.repository);
 
   @override
-  Future<Either<Failure, List<InteractionHistory>>> call(
+  Future<Either<Failure, InteractionHistoryPage>> call(
       GetMyLikesParams params) async {
     return await repository.getMyLikes(
       page: params.page,
       pageSize: params.pageSize,
-      includeMatched: params.includeMatched,
+      query: params.query,
+      matchFilter: params.matchFilter,
     );
   }
 }
@@ -30,12 +30,14 @@ class GetMyLikes
 class GetMyLikesParams extends Equatable {
   final int page;
   final int pageSize;
-  final bool includeMatched;
+  final String query;
+  final InteractionMatchFilter matchFilter;
 
   const GetMyLikesParams({
     this.page = 1,
     this.pageSize = 20,
-    this.includeMatched = false,
+    this.query = '',
+    this.matchFilter = InteractionMatchFilter.all,
   });
 
   factory GetMyLikesParams.initial() => const GetMyLikesParams();
@@ -43,15 +45,17 @@ class GetMyLikesParams extends Equatable {
   GetMyLikesParams copyWith({
     int? page,
     int? pageSize,
-    bool? includeMatched,
+    String? query,
+    InteractionMatchFilter? matchFilter,
   }) {
     return GetMyLikesParams(
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
-      includeMatched: includeMatched ?? this.includeMatched,
+      query: query ?? this.query,
+      matchFilter: matchFilter ?? this.matchFilter,
     );
   }
 
   @override
-  List<Object?> get props => [page, pageSize, includeMatched];
+  List<Object?> get props => [page, pageSize, query, matchFilter];
 }

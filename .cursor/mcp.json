@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "type": "stdio",
+      "command": "D:\\Projets\\HIVMeet\\hivmeet\\.venv\\Scripts\\code-review-graph.exe",
+      "args": [
+        "serve",
+        "--repo",
+        "D:\\Projets\\HIVMeet\\hivmeet"
+      ],
+      "cwd": "D:\\Projets\\HIVMeet\\hivmeet",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CRG_REPO_ROOT": "D:\\Projets\\HIVMeet\\hivmeet",
+        "CRG_DATA_DIR": "D:\\Projets\\HIVMeet\\hivmeet\\.code-review-graph"
+      }
+    }
+  }
+}

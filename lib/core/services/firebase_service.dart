@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:injectable/injectable.dart';
-import 'package:flutter/foundation.dart';
 import '../../firebase_options.dart';
 
 @singleton
@@ -53,11 +52,9 @@ class FirebaseService {
       sound: true,
     );
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      final token = await messaging.getToken();
-      // Store token for later use
-      if (kDebugMode) {
-        print('FCM Token: $token');
-      }
+      // Le token est une donnée d'authentification : ne jamais l'écrire dans
+      // les logs. Son enregistrement est géré par le flux dédié.
+      await messaging.getToken();
     }
   }
 }

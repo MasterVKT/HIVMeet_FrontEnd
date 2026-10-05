@@ -111,10 +111,20 @@ class MatchingApi {
     });
   }
 
-  /// Annuler le dernier swipe
-  /// POST /api/v1/discovery/interactions/rewind
-  Future<Response<Map<String, dynamic>>> rewindLastSwipe() async {
-    return await _apiClient.post('/discovery/interactions/rewind');
+  /// RÃ©cupÃ©rer le quota de dÃ©couverte courant.
+  /// GET /api/v1/discovery/interactions/status
+  Future<Response<Map<String, dynamic>>> getInteractionStatus() async {
+    return await _apiClient.get('/discovery/interactions/status');
+  }
+
+  /// Annuler une interaction précise.
+  /// POST /api/v1/discovery/interactions/{interaction_id}/rewind/
+  Future<Response<Map<String, dynamic>>> rewindInteraction(
+    String interactionId,
+  ) async {
+    return _apiClient.post(
+      '/discovery/interactions/$interactionId/rewind/',
+    );
   }
 
   /// Récupérer les profils qui m'ont liké
@@ -140,6 +150,35 @@ class MatchingApi {
       'page': page,
       'page_size': pageSize,
     });
+  }
+
+  /// GET /api/v1/matches/unseen-count/
+  Future<Response<Map<String, dynamic>>> getUnseenMatchCount() {
+    return _apiClient.get('/matches/unseen-count/');
+  }
+
+  /// PUT /api/v1/matches/seen/
+  /// An empty list is valid and means that no row needs marking. The backend
+  /// also supports an omitted list for non-mobile clients marking every match.
+  Future<Response<Map<String, dynamic>>> markMatchesSeen(
+    List<String> matchIds,
+  ) {
+    return _apiClient.put('/matches/seen/', data: {'match_ids': matchIds});
+  }
+
+  /// DELETE /api/v1/matches/{matchId}
+  Future<Response<void>> deleteMatch(String matchId) {
+    return _apiClient.delete('/matches/$matchId');
+  }
+
+  /// POST /api/v1/matches/{matchId}/unlock-free/
+  Future<Response<Map<String, dynamic>>> unlockFreeMatch(String matchId) {
+    return _apiClient.post('/matches/$matchId/unlock-free/');
+  }
+
+  /// Explicit action: consumes the single Free monthly reveal allowance.
+  Future<Response<Map<String, dynamic>>> revealReceivedLike() {
+    return _apiClient.post('/matches/likes-received/reveal/');
   }
 
   /// Récupérer les likes reçus

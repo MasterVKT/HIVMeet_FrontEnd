@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer' as developer;
+import 'package:hivmeet/core/utils/log_service.dart' as developer;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dio/dio.dart';
 import 'package:hivmeet/core/services/token_manager.dart';
@@ -75,6 +75,7 @@ class AuthenticationService {
 
   // Listeners Firebase
   StreamSubscription<User?>? _firebaseAuthSubscription;
+  bool _registrationSignInInProgress = false;
 
   AuthenticationService(
     this._firebaseAuth,
@@ -98,6 +99,35 @@ class AuthenticationService {
 
   /// Retourne le JWT access token courant (pour WebSocket auth, etc.).
   Future<String?> getAccessToken() => _tokenManager.getAccessToken();
+
+  /// Recharge l'utilisateur faisant autorité côté Django et publie le
+  /// nouveau snapshot dans la session courante, sans reconnexion.
+  Future<domain.User> refreshCurrentUser() async {
+    final existing = _currentUser;
+    if (_status != AuthenticationStatus.fullyAuthenticated ||
+        existing == null) {
+      throw StateError('No authenticated user to refresh');
+    }
+
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      '/user-profiles/me/',
+    );
+    final payload = response.data;
+    final rawUser = payload?['user'];
+    if (rawUser is! Map) {
+      throw const FormatException('Missing user in profile response');
+    }
+
+    final merged = <String, dynamic>{
+      ...existing.toJson(),
+      ...rawUser.map((key, value) => MapEntry(key.toString(), value)),
+    };
+    final refreshed = domain.User.fromJson(merged);
+    await _tokenManager.updateStoredUserData(refreshed);
+    _currentUser = refreshed;
+    _userController.add(refreshed);
+    return refreshed;
+  }
 
   /// Met à jour le statut d'authentification
   void _updateStatus(AuthenticationStatus status) {
@@ -170,6 +200,10 @@ class AuthenticationService {
       developer.log('🚪 [HANDLER] Gestion déconnexion Firebase...',
           name: 'AuthService');
       await _handleFirebaseSignOut();
+    } else if (_registrationSignInInProgress) {
+      // Registration invokes the exchange itself after the backend has created
+      // the canonical account. Avoid a competing listener exchange.
+      return;
     } else {
       // Utilisateur connecté à Firebase
       developer.log(
@@ -345,7 +379,6 @@ class AuthenticationService {
 
       if (responseStatus == 200) {
         final data = responseData;
-
         if (data == null) {
           throw Exception('Réponse vide du serveur');
         }
@@ -528,50 +561,177 @@ class AuthenticationService {
     }
   }
 
-  /// Inscription avec email et mot de passe
+  /// Connexion directe au backend Django (bypass Firebase) — mode debug
+  /// uniquement. Utilisé pour les tests sur émulateur/appareil physique
+  /// quand Firebase Auth n'est pas configuré ou inaccessible.
+  ///
+  /// Appelle POST /api/v1/auth/login/ avec email + password, stocke les
+  /// tokens JWT et construit l'entité User depuis la réponse.
+  Future<AuthenticationResult> loginWithBackend({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      developer.log('🔐 [DEBUG] Login backend direct: $email',
+          name: 'AuthService');
+      _updateStatus(AuthenticationStatus.authenticating);
+
+      final response = await _apiClient.post<Map<String, dynamic>>(
+        'auth/login/',
+        data: {
+          'email': email,
+          'password': password,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data!;
+        final accessToken = data['access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
+        final userJson = data['user'] as Map<String, dynamic>?;
+
+        if (accessToken == null || refreshToken == null) {
+          throw Exception('Tokens manquants dans la réponse de login');
+        }
+
+        // Conserver le même contrat de mapping que le login Firebase et le
+        // rafraîchissement post-paiement, notamment premium_until.
+        final now = DateTime.now().toIso8601String();
+        final user = domain.User.fromJson({
+          'id': '',
+          'email': email,
+          'displayName': 'Utilisateur',
+          'isVerified': false,
+          'isPremium': false,
+          'lastActive': now,
+          'isEmailVerified': true,
+          'notificationSettings': const <String, dynamic>{},
+          'blockedUserIds': const <String>[],
+          'createdAt': now,
+          'updatedAt': now,
+          ...?userJson,
+        });
+
+        await _tokenManager.storeTokens(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          userData: user,
+        );
+
+        _currentUser = user;
+        _updateStatus(AuthenticationStatus.fullyAuthenticated);
+        _userController.add(_currentUser);
+
+        developer.log('✅ [DEBUG] Login backend réussi pour ${user.email}',
+            name: 'AuthService');
+        return AuthenticationResult.success(user);
+      }
+
+      throw Exception('Login échoué (HTTP ${response.statusCode})');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode ?? 0;
+      String errorMessage;
+      if (status == 401) {
+        errorMessage = 'Email ou mot de passe incorrect';
+      } else if (status == 0 || status >= 500) {
+        errorMessage = 'Serveur inaccessible. Vérifiez la connexion réseau.';
+      } else {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          errorMessage = data['message'] as String? ??
+              'Erreur de connexion (HTTP $status)';
+        } else {
+          errorMessage = 'Erreur de connexion (HTTP $status)';
+        }
+      }
+      developer.log('❌ [DEBUG] Login backend DioException: $errorMessage',
+          name: 'AuthService');
+      _updateError(errorMessage);
+      _updateStatus(AuthenticationStatus.error);
+      return AuthenticationResult.failure(errorMessage);
+    } catch (e) {
+      developer.log('❌ [DEBUG] Login backend erreur: $e', name: 'AuthService');
+      _updateError('Erreur de connexion: $e');
+      _updateStatus(AuthenticationStatus.error);
+      return AuthenticationResult.failure('Erreur de connexion: $e');
+    }
+  }
+
+  /// Creates the canonical backend account before signing into Firebase.
   Future<AuthenticationResult> signUpWithEmailAndPassword({
     required String email,
     required String password,
     String? displayName,
+    DateTime? birthDate,
+    String? phoneNumber,
+    String? gender,
   }) async {
+    if (displayName == null || birthDate == null || gender == null) {
+      return AuthenticationResult.failure(
+        'Compl\u00e9tez le nom, la date de naissance et le genre pour cr\u00e9er le compte.',
+        'registration_data_required',
+      );
+    }
+    _updateStatus(AuthenticationStatus.authenticating);
     try {
-      developer.log('📝 Tentative d\'inscription: $email', name: 'AuthService');
-      _updateStatus(AuthenticationStatus.authenticating);
-
-      // Créer le compte Firebase
-      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+      await _apiClient.post<Map<String, dynamic>>(
+        'auth/register/',
+        data: {
+          'email': email,
+          'password': password,
+          'password_confirm': password,
+          'display_name': displayName,
+          'birth_date': birthDate.toIso8601String().substring(0, 10),
+          if (phoneNumber != null && phoneNumber.isNotEmpty)
+            'phone_number': phoneNumber,
+          'gender': gender,
+        },
+      );
+      _registrationSignInInProgress = true;
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // Mettre à jour le profil si nom fourni
-      if (displayName != null && credential.user != null) {
-        await credential.user!.updateDisplayName(displayName);
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw const FormatException(
+            'Firebase did not return the registered account.');
       }
-
-      if (credential.user != null) {
-        // Le reste sera géré par le listener authStateChanges
-        return AuthenticationResult.success(_currentUser!);
-      } else {
-        throw Exception('Inscription échouée');
+      await _handleFirebaseSignIn(firebaseUser);
+      final user = _currentUser;
+      if (user == null) {
+        throw const FormatException(
+            'Registered account could not be authenticated.');
       }
-    } on FirebaseAuthException catch (e) {
-      developer.log('❌ Erreur inscription Firebase: ${e.code}',
-          name: 'AuthService');
-
-      String errorMessage = _getFirebaseErrorMessage(e.code);
-      _updateError(errorMessage);
+      return AuthenticationResult.success(user);
+    } on DioException catch (error) {
+      final data = error.response?.data;
+      final code = data is Map ? data['code'] as String? : null;
+      final message = data is Map ? data['message'] as String? : null;
+      final readable = message ??
+          (error.response?.statusCode == 400
+              ? 'V\u00e9rifiez les informations saisies.'
+              : 'Impossible de cr\u00e9er le compte pour le moment.');
+      _updateError(readable);
       _updateStatus(AuthenticationStatus.error);
-
-      return AuthenticationResult.failure(errorMessage, e.code);
-    } catch (e) {
-      developer.log('❌ Erreur inscription: $e', name: 'AuthService');
-
-      String errorMessage = 'Erreur d\'inscription: $e';
-      _updateError(errorMessage);
+      return AuthenticationResult.failure(readable, code);
+    } on FirebaseAuthException catch (error) {
+      final readable = _getFirebaseErrorMessage(error.code);
+      _updateError(readable);
       _updateStatus(AuthenticationStatus.error);
-
-      return AuthenticationResult.failure(errorMessage);
+      return AuthenticationResult.failure(readable, error.code);
+    } on FormatException catch (_) {
+      const readable = "Impossible de terminer l'inscription pour le moment.";
+      _updateError(readable);
+      _updateStatus(AuthenticationStatus.error);
+      return AuthenticationResult.failure(readable);
+    } catch (_) {
+      const readable = "Impossible de terminer l'inscription pour le moment.";
+      _updateError(readable);
+      _updateStatus(AuthenticationStatus.error);
+      return AuthenticationResult.failure(readable);
+    } finally {
+      _registrationSignInInProgress = false;
     }
   }
 

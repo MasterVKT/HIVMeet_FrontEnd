@@ -1,7 +1,6 @@
 // lib/presentation/widgets/common/loading_widget.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 
 class LoadingWidget extends StatelessWidget {
@@ -32,7 +31,8 @@ class LoadingWidget extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 16,
               color: AppColors.slate,
             ),

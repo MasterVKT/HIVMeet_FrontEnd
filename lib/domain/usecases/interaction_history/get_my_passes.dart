@@ -11,17 +11,19 @@ import 'package:hivmeet/domain/repositories/interaction_history_repository.dart'
 /// Use case pour récupérer la liste des profils passés
 @injectable
 class GetMyPasses
-    implements UseCase<List<InteractionHistory>, GetMyPassesParams> {
+    implements UseCase<InteractionHistoryPage, GetMyPassesParams> {
   final InteractionHistoryRepository repository;
 
   GetMyPasses(this.repository);
 
   @override
-  Future<Either<Failure, List<InteractionHistory>>> call(
+  Future<Either<Failure, InteractionHistoryPage>> call(
       GetMyPassesParams params) async {
     return await repository.getMyPasses(
       page: params.page,
       pageSize: params.pageSize,
+      query: params.query,
+      matchFilter: params.matchFilter,
     );
   }
 }
@@ -29,10 +31,14 @@ class GetMyPasses
 class GetMyPassesParams extends Equatable {
   final int page;
   final int pageSize;
+  final String query;
+  final InteractionMatchFilter matchFilter;
 
   const GetMyPassesParams({
     this.page = 1,
     this.pageSize = 20,
+    this.query = '',
+    this.matchFilter = InteractionMatchFilter.all,
   });
 
   factory GetMyPassesParams.initial() => const GetMyPassesParams();
@@ -40,13 +46,17 @@ class GetMyPassesParams extends Equatable {
   GetMyPassesParams copyWith({
     int? page,
     int? pageSize,
+    String? query,
+    InteractionMatchFilter? matchFilter,
   }) {
     return GetMyPassesParams(
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
+      query: query ?? this.query,
+      matchFilter: matchFilter ?? this.matchFilter,
     );
   }
 
   @override
-  List<Object?> get props => [page, pageSize];
+  List<Object?> get props => [page, pageSize, query, matchFilter];
 }

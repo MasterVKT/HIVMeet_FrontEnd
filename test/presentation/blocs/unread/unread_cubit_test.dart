@@ -93,6 +93,44 @@ void main() {
       expect(cubit.state, 0);
     });
 
+    test('restoring a conversation reconciles the badge from the server',
+        () async {
+      when(() => mockGetUnreadCount(any()))
+          .thenAnswer((_) async => const Right(4));
+      cubit = UnreadCubit(getUnreadCount: mockGetUnreadCount, realtimeBus: bus);
+
+      bus.publish(const RealtimeEvent(
+        type: RealtimeEventType.conversationRestored,
+        source: RealtimeSource.local,
+        conversationId: 'a',
+      ));
+
+      await Future<void>.delayed(const Duration(milliseconds: 2000));
+      expect(cubit.state, 4);
+      verify(() => mockGetUnreadCount(any())).called(1);
+    });
+    test('hiding a conversation updates the badge before server reconciliation',
+        () async {
+      when(() => mockGetUnreadCount(any()))
+          .thenAnswer((_) async => const Right(2));
+      cubit = UnreadCubit(getUnreadCount: mockGetUnreadCount, realtimeBus: bus);
+      await cubit.refresh();
+      expect(cubit.state, 2);
+
+      bus.publish(const RealtimeEvent(
+        type: RealtimeEventType.conversationHidden,
+        source: RealtimeSource.local,
+        conversationId: 'a',
+        unreadCountDelta: -2,
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state, 0);
+      await Future<void>.delayed(const Duration(milliseconds: 1000));
+      expect(cubit.state, 2);
+      verify(() => mockGetUnreadCount(any())).called(2);
+    });
+
     test('appResumed triggers a refresh', () async {
       when(() => mockGetUnreadCount(any()))
           .thenAnswer((_) async => const Right(7));

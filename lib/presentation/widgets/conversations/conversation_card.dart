@@ -101,34 +101,34 @@ class ConversationCard extends StatelessWidget {
             ),
           ),
           child: ClipOval(
-            child: participantPhotoUrl != null &&
-                    participantPhotoUrl!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: participantPhotoUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[300],
-                      child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
+            child:
+                participantPhotoUrl != null && participantPhotoUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: participantPhotoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[300],
+                          child: Icon(
+                            Icons.person,
+                            size: 32,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.grey[300],
+                        child: Icon(
+                          Icons.person,
+                          size: 32,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.person,
-                        size: 32,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: Colors.grey[300],
-                    child: Icon(
-                      Icons.person,
-                      size: 32,
-                      color: Colors.grey[600],
-                    ),
-                  ),
           ),
         ),
         // F42: badge "en ligne" — l'information isOnline était disponible

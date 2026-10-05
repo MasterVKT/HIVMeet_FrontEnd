@@ -19,7 +19,7 @@ Le module Matching gère le système de découverte de profils, les likes/dislik
 2. **Like envoyé** : En attente de réciprocité
 3. **Dislike/Pass** : Profil écarté temporairement
 4. **Match** : Like mutuel, conversation possible
-5. **Super Like** : Like premium avec notification
+5. **Super Like** : réservé aux comptes Premium, 5 par jour
 
 ## 🔍 Endpoints de Découverte
 
@@ -235,7 +235,7 @@ filter: "all|new|active"
 
 ### 6. Super Like
 
-**Endpoint :** `POST /matches/super-like`
+**Endpoint :** `POST /api/v1/discovery/interactions/superlike`
 
 **Données Requises :**
 ```json
@@ -294,34 +294,22 @@ filter: "all|new|active"
 - Interface de gestion des boosts
 - Notifications push des résultats
 
-### 8. Rewind (Annuler le Dernier Swipe)
+### 8. Rewind (annuler une interaction précise)
 
-**Endpoint :** `POST /matches/rewind`
+**Endpoint :** `POST /api/v1/discovery/interactions/{interaction_id}/rewind/`
 
-**Principe d'Implémentation :**
-- Annuler la dernière interaction (like ou dislike)
-- Remettre le profil dans la pile de découverte
-- Décrémenter le compteur de rewinds quotidiens
-- Fonctionnalité limitée aux utilisateurs premium
+Chaque réponse de like, dislike ou super-like contient `interaction_id`,
+`can_rewind` et `rewind_expires_at`. Le client conserve seulement cet
+identifiant précis, désactive le bouton pendant l’appel et le masque lorsque
+la fenêtre expire.
 
-**Réponse Succès (200) :**
-```json
-{
-  "result": "rewind_successful",
-  "rewinds_remaining": 2,
-  "restored_profile": {
-    "id": "uuid",
-    "display_name": "Alex"
-  }
-}
-```
-
-**Logique d'Implémentation Frontend :**
-- Bouton de rewind visible après chaque swipe
-- Animation de retour en arrière
-- Limitation visible du nombre de rewinds
-- Confirmation avant utilisation
-
+- Premium requis ; fenêtre de cinq minutes et cinq rewinds par jour.
+- La réponse `200` contient `previous_profile` et `already_rewound` : une
+  répétition ne réinsère jamais deux fois le profil et ne consomme pas de quota.
+- `403`, `404`, `409`, `410` et `429` sont des réponses métier. Le client garde
+  sa pile à l’écran ; `409 match_exists_use_unmatch` dirige vers le match.
+- L’ancien endpoint global reste une compatibilité serveur pour les anciens
+  clients mais ne doit plus être appelé par l’application actuelle.
 ### 9. Voir Qui M'a Liké
 
 **Endpoint :** `GET /matches/who-liked-me`
@@ -379,8 +367,8 @@ filter: "all|new|active"
 ## 🎯 Limites et Restrictions
 
 ### Utilisateurs Gratuits
-- **Likes quotidiens** : 50 par jour
-- **Super likes** : 1 par jour
+- **Likes quotidiens** : 10 swipes par jour
+- **Super likes** : non disponibles
 - **Rewinds** : 0 par jour
 - **Boosts** : 0 par mois
 - **Voir qui a liké** : Non disponible
@@ -447,4 +435,4 @@ filter: "all|new|active"
 - Transitions seamless entre les profils
 - Loading states pendant les appels API
 
-Cette documentation couvre tous les aspects du système de matching nécessaires pour une intégration frontend complète avec le backend HIVMeet. 
+Cette documentation couvre tous les aspects du système de matching nécessaires pour une intégration frontend complète avec le backend HIVMeet.

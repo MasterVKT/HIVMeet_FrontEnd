@@ -107,8 +107,9 @@ before_message_id: uuid (optionnel, pour pagination inverse)
       "content": "",
       "message_type": "image",
       "sender_id": "uuid",
-      "media_url": "https://storage.googleapis.com/...",
-      "media_thumbnail_url": "https://storage.googleapis.com/...",
+      "media_url": "/api/v1/conversations/{conversation_id}/messages/{message_id}/media/",
+      "media_download_url": "/api/v1/conversations/{conversation_id}/messages/{message_id}/media/",
+      "media_thumbnail_url": null,
       "sent_at": "2024-01-20T16:00:00Z",
       "status": "delivered"
     }
@@ -122,11 +123,12 @@ before_message_id: uuid (optionnel, pour pagination inverse)
 - Groupement des messages par date
 - Affichage des statuts (envoyé, livré, lu)
 - Chargement automatique des anciens messages au scroll
-- Gestion des médias avec lazy loading
+- Gestion des médias uniquement via le transport HTTP authentifié ; ne jamais
+  consommer une URL de bucket, une URL signée ou un chemin `/media/...`.
 
 ### 3. Envoi de Message Texte
 
-**Endpoint :** `POST /conversations/{conversation_id}/messages`
+**Endpoint :** `POST /conversations/{conversation_id}/messages/media/`
 
 **Données Requises :**
 ```json
@@ -170,6 +172,12 @@ before_message_id: uuid (optionnel, pour pagination inverse)
 
 **Format :** `multipart/form-data`
 
+**Sécurité de lecture :** `media_url` et `media_download_url` désignent la
+même route API authentifiée. Un compte sans KYC actif reçoit `403
+kyc_required`; un non-participant, un message supprimé ou un fichier absent
+reste un `404` sans détail. Le client ne doit jamais utiliser de bucket, URL
+signée ou chemin `/media/...`.
+
 **Données Requises :**
 ```
 media_file: File (image/video/audio)
@@ -190,8 +198,9 @@ client_message_id: "unique_client_id"
   "message": {
     "id": "uuid",
     "message_type": "image",
-    "media_url": "https://storage.googleapis.com/...",
-    "media_thumbnail_url": "https://storage.googleapis.com/...",
+    "media_url": "/api/v1/conversations/{conversation_id}/messages/{message_id}/media/",
+    "media_download_url": "/api/v1/conversations/{conversation_id}/messages/{message_id}/media/",
+    "media_thumbnail_url": null,
     "status": "sent"
   }
 }
@@ -202,7 +211,8 @@ client_message_id: "unique_client_id"
 - Prévisualisation avant envoi
 - Compression automatique selon la qualité de connexion
 - Retry en cas d'échec d'upload
-- Cache local des médias envoyés
+- Stockage temporaire local privé uniquement, à purger lors de perte de KYC,
+  déconnexion ou suppression du message ; aucun cache HTTP partagé.
 
 ### 5. Marquer comme Lu
 
@@ -328,26 +338,18 @@ client_message_id: "unique_client_id"
 - Affichage "... est en train d'écrire"
 - Masquage automatique après timeout
 
-### 10. Statut de Présence
+### 10. Statut de présence
 
-**Endpoint :** `GET /conversations/{conversation_id}/presence`
+**Endpoint :** `GET /api/v1/conversations/{conversation_id}/presence/`
 
-**Réponse :**
-```json
-{
-  "participant": {
-    "is_online": true,
-    "last_active": "2024-01-20T16:30:00Z"
-  }
-}
-```
+La réponse REST et l’événement `presence.update` utilisent les champs
+`visibility`, `is_online`, `last_active` et `server_timestamp`. Chaque client
+au premier plan envoie `presence.heartbeat` toutes les 30 secondes ; le serveur
+expire une session silencieuse après 90 secondes.
 
-**Logique d'Implémentation Frontend :**
-- Mise à jour périodique du statut
-- Indicateur visuel (point vert/gris)
-- Respect des paramètres de confidentialité
-- Cache local avec TTL
-
+Si `visibility` vaut `false`, l’interface efface le sous-titre de
+l’interlocuteur. Elle ne réutilise jamais une ancienne heure, un statut de
+lecture ou une présence calculée localement.
 ## 🔔 Notifications et Temps Réel
 
 ### WebSocket ou Polling
@@ -425,4 +427,4 @@ client_message_id: "unique_client_id"
 - Haptic feedback sur les interactions
 - Picture-in-picture pour les appels vidéo
 
-Cette documentation couvre tous les aspects de la messagerie nécessaires pour une intégration frontend complète avec le backend HIVMeet. 
+Cette documentation couvre tous les aspects de la messagerie nécessaires pour une intégration frontend complète avec le backend HIVMeet.

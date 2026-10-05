@@ -3,14 +3,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/core/config/constants.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/services/foreground_location_service.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/domain/entities/discovery_preference_catalog.dart';
+import 'package:hivmeet/domain/entities/location_catalog.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_event.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_state.dart';
 import 'package:hivmeet/presentation/widgets/common/hiv_toast.dart';
 import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
+import 'package:hivmeet/presentation/widgets/profile/location_catalog_picker.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -22,23 +27,70 @@ class ProfileEditPage extends StatefulWidget {
 class _ProfileEditPageState extends State<ProfileEditPage> {
   final _formKey = GlobalKey<FormState>();
   final _bioController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController();
   final _interestsController = TextEditingController();
+  final ProfileRepository _repository = getIt<ProfileRepository>();
+  final ForegroundLocationService _locationService =
+      const ForegroundLocationService();
+
   int _minAge = 18;
   int _maxAge = 50;
   int _distance = 50;
-  List<String> _gendersSought = const [];
-  List<String> _relationships = const [RelationshipType.friendship];
+  String _genderSought = DiscoveryPreferenceCatalog.everyone;
+  String _relationship = DiscoveryPreferenceCatalog.everyone;
+  String _gender = '';
+  bool _requiresGenderConfirmation = false;
+  bool _locationEnabled = true;
   bool _initialized = false;
+  String? _countryCode;
+  LocationCity? _city;
+  ProfileLocationUpdate? _locationUpdate;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
     _bioController.dispose();
-    _cityController.dispose();
-    _countryController.dispose();
     _interestsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _changeLocationEnabled(bool enabled) async {
+    if (!enabled) {
+      setState(() {
+        _locationEnabled = false;
+        _locationUpdate = _city == null
+            ? const ProfileLocationUpdate.disabled()
+            : ProfileLocationUpdate.manual(cityId: _city!.id);
+      });
+      return;
+    }
+    final result = await _locationService.requestCurrentPosition();
+    if (!mounted) return;
+    switch (result) {
+      case ForegroundLocationReady():
+        setState(() {
+          _locationEnabled = true;
+          _locationUpdate = ProfileLocationUpdate.automatic(
+            latitude: result.latitude,
+            longitude: result.longitude,
+            accuracyMeters: result.accuracyMeters,
+          );
+        });
+      case ForegroundLocationUnavailable():
+        setState(() => _locationEnabled = false);
+        final key = switch (result.reason) {
+          ForegroundLocationFailure.serviceDisabled =>
+            'profile.location_service_disabled',
+          ForegroundLocationFailure.denied =>
+            'profile.location_permission_denied',
+          ForegroundLocationFailure.deniedForever =>
+            'profile.location_permission_denied_forever',
+        };
+        HIVToast.showWarning(context: context, message: _tr(key));
+    }
   }
 
   @override
@@ -52,7 +104,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           }
           if (state is ProfileActionSuccess) {
             HIVToast.showSuccess(context: context, message: _tr(state.message));
-            context.go('/profile');
+            if (context.canPop()) {
+              context.pop<Profile>(state.profile);
+            } else {
+              // A direct link has no profile page in the stack. Returning to
+              // the route reloads the confirmed server profile as fallback.
+              context.go('/profile');
+            }
           }
         },
         builder: (context, state) {
@@ -88,16 +146,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                             ? _tr('profile.error_bio')
                             : null,
                   ),
-                  _field(
-                    controller: _cityController,
-                    label: _tr('profile.city'),
-                    maxLength: 100,
-                  ),
-                  _field(
-                    controller: _countryController,
-                    label: _tr('profile.country'),
-                    maxLength: 100,
-                  ),
+                  _identityGenderControl(),
+                  _locationSection(),
                   _field(
                     controller: _interestsController,
                     label: _tr('profile.interests'),
@@ -122,19 +172,37 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   ),
                   _chips(
                     label: _tr('profile.genders_sought'),
-                    values: Gender.allOptions,
-                    selected: _gendersSought,
-                    labelFor: (value) => Gender.getLabel(value),
-                    onChanged: (values) =>
-                        setState(() => _gendersSought = values),
+                    values: const <String>[
+                      DiscoveryPreferenceCatalog.everyone,
+                      ...DiscoveryPreferenceCatalog.genderValues,
+                    ],
+                    selected: <String>[_genderSought],
+                    labelFor: (value) => _tr(
+                      DiscoveryPreferenceCatalog.genderLabelKey(value),
+                    ),
+                    onChanged: (values) => setState(() {
+                      _genderSought = values.isEmpty
+                          ? DiscoveryPreferenceCatalog.everyone
+                          : values.single;
+                    }),
+                    singleChoice: true,
                   ),
                   _chips(
                     label: _tr('profile.relationships'),
-                    values: RelationshipType.all,
-                    selected: _relationships,
-                    labelFor: _relationshipLabel,
-                    onChanged: (values) =>
-                        setState(() => _relationships = values),
+                    values: const <String>[
+                      DiscoveryPreferenceCatalog.everyone,
+                      ...DiscoveryPreferenceCatalog.relationshipValues,
+                    ],
+                    selected: <String>[_relationship],
+                    labelFor: (value) => _tr(
+                      DiscoveryPreferenceCatalog.relationshipLabelKey(value),
+                    ),
+                    onChanged: (values) => setState(() {
+                      _relationship = values.isEmpty
+                          ? DiscoveryPreferenceCatalog.everyone
+                          : values.single;
+                    }),
+                    singleChoice: true,
                   ),
                 ],
               ),
@@ -145,19 +213,68 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
+  Widget _locationSection() => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_tr('profile.location'),
+                style: Theme.of(context).textTheme.titleMedium),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_tr('profile.use_device_location')),
+              subtitle: Text(_tr('profile.use_device_location_subtitle')),
+              value: _locationEnabled,
+              onChanged: _changeLocationEnabled,
+            ),
+            if (!_locationEnabled) ...[
+              Text(_tr('profile.manual_location')),
+              const SizedBox(height: 8),
+              LocationCatalogPicker(
+                repository: _repository,
+                initialCountryCode: _countryCode,
+                initialCountryLabel: _city?.countryName,
+                initialCity: _city,
+                onCityChanged: (city) => setState(() {
+                  _city = city;
+                  _countryCode = city?.countryCode;
+                  _locationUpdate = city == null
+                      ? const ProfileLocationUpdate.disabled()
+                      : ProfileLocationUpdate.manual(cityId: city.id);
+                }),
+              ),
+            ],
+          ],
+        ),
+      );
+
   void _initFromProfile(Profile profile) {
     if (_initialized) return;
     _bioController.text = profile.bio;
-    _cityController.text = profile.city;
-    _countryController.text = profile.country;
     _interestsController.text = profile.interests.join(', ');
     _minAge = profile.searchPreferences.minAge;
     _maxAge = profile.searchPreferences.maxAge;
     _distance = profile.searchPreferences.maxDistance.round();
-    _gendersSought = profile.searchPreferences.interestedIn;
-    _relationships = profile.relationshipTypesSought.isNotEmpty
-        ? profile.relationshipTypesSought
-        : profile.searchPreferences.relationshipTypes;
+    _genderSought = DiscoveryPreferenceCatalog.genderSelection(
+      profile.searchPreferences.interestedIn,
+    );
+    _relationship = DiscoveryPreferenceCatalog.relationshipSelection(
+      profile.relationshipTypesSought.isNotEmpty
+          ? profile.relationshipTypesSought
+          : profile.searchPreferences.relationshipTypes,
+    );
+    _gender = profile.gender;
+    _requiresGenderConfirmation = profile.genderConfirmationRequired;
+    _locationEnabled = profile.locationEnabled;
+    _countryCode = profile.countryCode;
+    if (profile.geoCityId != null) {
+      _city = LocationCity(
+        id: profile.geoCityId!,
+        name: profile.city,
+        countryCode: profile.countryCode ?? '',
+        countryName: profile.country,
+      );
+    }
     _initialized = true;
   }
 
@@ -167,21 +284,67 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       HIVToast.showError(context: context, message: _tr('profile.error_age'));
       return;
     }
-    final interests = _parseInterests();
+    if (_requiresGenderConfirmation &&
+        !DiscoveryPreferenceCatalog.genderValues.contains(_gender)) {
+      HIVToast.showError(
+        context: context,
+        message: _tr('profile.gender_confirmation_required'),
+      );
+      return;
+    }
+    if (!_locationEnabled && _city == null) {
+      HIVToast.showError(
+          context: context, message: _tr('profile.location_city_required'));
+      return;
+    }
+    final locationUpdate = _locationEnabled
+        ? _locationUpdate
+        : ProfileLocationUpdate.manual(cityId: _city!.id);
     context.read<ProfileBloc>().add(UpdateProfileEvent(
           bio: _bioController.text.trim(),
-          city: _cityController.text.trim(),
-          country: _countryController.text.trim(),
-          interests: interests,
-          relationshipTypesSought: _relationships,
+          gender: _requiresGenderConfirmation ? _gender : null,
+          interests: _parseInterests(),
+          relationshipTypesSought:
+              DiscoveryPreferenceCatalog.relationshipPayload(_relationship),
+          locationUpdate: locationUpdate,
           searchPreferences: SearchPreferences(
             minAge: _minAge,
             maxAge: _maxAge,
             maxDistance: _distance.toDouble(),
-            interestedIn: _gendersSought,
-            relationshipTypes: _relationships,
+            interestedIn:
+                DiscoveryPreferenceCatalog.genderPayload(_genderSought),
+            relationshipTypes:
+                DiscoveryPreferenceCatalog.relationshipPayload(_relationship),
           ),
         ));
+  }
+
+  Widget _identityGenderControl() {
+    if (_requiresGenderConfirmation) {
+      return _chips(
+        label: _tr('profile.gender_confirmation_title'),
+        values: DiscoveryPreferenceCatalog.genderValues,
+        selected: _gender.isEmpty ? const <String>[] : <String>[_gender],
+        labelFor: (value) =>
+            _tr(DiscoveryPreferenceCatalog.genderLabelKey(value)),
+        onChanged: (values) => setState(
+          () => _gender = values.isEmpty ? '' : values.single,
+        ),
+        singleChoice: true,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.lock_outline),
+        title: Text(_tr('profile.gender')),
+        subtitle: Text(_tr('profile.gender_locked_subtitle')),
+        trailing: Text(
+          _tr(DiscoveryPreferenceCatalog.genderLabelKey(_gender)),
+        ),
+      ),
+    );
   }
 
   String? _validateInterests(String? value) {
@@ -195,13 +358,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     return null;
   }
 
-  List<String> _parseInterests() {
-    return _interestsController.text
-        .split(',')
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toList();
-  }
+  List<String> _parseInterests() => _interestsController.text
+      .split(',')
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toList();
 }
 
 Widget _field({
@@ -210,21 +371,18 @@ Widget _field({
   String? helper,
   int? maxLength,
   int maxLines = 1,
-  TextInputType keyboardType = TextInputType.text,
   String? Function(String?)? validator,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: TextFormField(
-      controller: controller,
-      maxLength: maxLength,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(labelText: label, helperText: helper),
-    ),
-  );
-}
+}) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        maxLength: maxLength,
+        maxLines: maxLines,
+        validator: validator,
+        decoration: InputDecoration(labelText: label, helperText: helper),
+      ),
+    );
 
 Widget _numberRow({
   required String label,
@@ -234,42 +392,30 @@ Widget _numberRow({
   required int second,
   required ValueChanged<int> onFirst,
   required ValueChanged<int> onSecond,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+}) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label),
-        Row(
-          children: [
-            Expanded(
+        Row(children: [
+          Expanded(
               child: Slider(
-                value: first.toDouble(),
-                min: min.toDouble(),
-                max: max.toDouble(),
-                divisions: max - min,
-                label: '$first',
-                onChanged: (value) => onFirst(value.round()),
-              ),
-            ),
-            Text('$first - $second'),
-            Expanded(
+                  value: first.toDouble(),
+                  min: min.toDouble(),
+                  max: max.toDouble(),
+                  divisions: max - min,
+                  onChanged: (value) => onFirst(value.round()))),
+          Text('$first - $second'),
+          Expanded(
               child: Slider(
-                value: second.toDouble(),
-                min: min.toDouble(),
-                max: max.toDouble(),
-                divisions: max - min,
-                label: '$second',
-                onChanged: (value) => onSecond(value.round()),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
+                  value: second.toDouble(),
+                  min: min.toDouble(),
+                  max: max.toDouble(),
+                  divisions: max - min,
+                  onChanged: (value) => onSecond(value.round()))),
+        ]),
+      ]),
+    );
 
 Widget _slider({
   required String label,
@@ -277,26 +423,19 @@ Widget _slider({
   required int min,
   required int max,
   required ValueChanged<int> onChanged,
-}) {
-  final unit = _tr('profile.distance_unit');
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$label: $value $unit'),
+}) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$label: $value ${_tr('profile.distance_unit')}'),
         Slider(
-          value: value.toDouble(),
-          min: min.toDouble(),
-          max: max.toDouble(),
-          divisions: max - min,
-          label: '$value $unit',
-          onChanged: (v) => onChanged(v.round()),
-        ),
-      ],
-    ),
-  );
-}
+            value: value.toDouble(),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            divisions: max - min,
+            onChanged: (v) => onChanged(v.round())),
+      ]),
+    );
 
 Widget _chips({
   required String label,
@@ -304,46 +443,30 @@ Widget _chips({
   required List<String> selected,
   required String Function(String) labelFor,
   required ValueChanged<List<String>> onChanged,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+  bool singleChoice = false,
+}) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label),
         const SizedBox(height: 8),
         Wrap(
-          spacing: 8,
-          children: values.map((value) {
-            final active = selected.contains(value);
-            return FilterChip(
-              label: Text(labelFor(value)),
-              selected: active,
-              onSelected: (isSelected) {
-                final next = [...selected];
-                isSelected ? next.add(value) : next.remove(value);
-                onChanged(next);
-              },
-            );
-          }).toList(),
-        ),
-      ],
-    ),
-  );
-}
-
-String _relationshipLabel(String value) {
-  switch (value) {
-    case RelationshipType.longTerm:
-      return _tr('profile.relationship_long_term');
-    case RelationshipType.shortTerm:
-      return _tr('profile.relationship_short_term');
-    case RelationshipType.casualDating:
-      return _tr('profile.relationship_casual');
-    default:
-      return _tr('profile.relationship_friendship');
-  }
-}
+            spacing: 8,
+            runSpacing: 4,
+            children: values.map((value) {
+              final active = selected.contains(value);
+              return FilterChip(
+                label: Text(labelFor(value)),
+                selected: active,
+                onSelected: (isSelected) {
+                  final next = singleChoice ? <String>[] : [...selected];
+                  if (isSelected) next.add(value);
+                  onChanged(next);
+                },
+              );
+            }).toList()),
+      ]),
+    );
 
 ProfileLoaded? _loadedFrom(ProfileState state) {
   if (state is ProfileLoaded) return state;

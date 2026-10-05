@@ -29,23 +29,61 @@ class PremiumRepositoryImpl implements PremiumRepository {
       if (data is List) {
         list = data;
       } else if (data is Map<String, dynamic>) {
-        list = (data['results'] ??
-            data['plans'] ??
-            data['data'] ??
-            []) as List;
+        list = (data['results'] ?? data['plans'] ?? data['data'] ?? []) as List;
       } else {
         list = [];
       }
 
       final plans = list
           .map((json) => _mapJsonToPremiumPlan(json as Map<String, dynamic>))
-          .toList();
+          .where((plan) => const {
+                'hivmeet_monthly',
+                'hivmeet_annual',
+              }.contains(plan.planId))
+          .toList()
+        ..sort((a, b) => _planOrder(a).compareTo(_planOrder(b)));
       return Right(plans);
     } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
+      return Left(ServerFailure(message: _extractServerErrorMessage(e)));
     } catch (e) {
       return Left(
           ServerFailure(message: 'Erreur lors du chargement des plans: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, PaymentCapabilities>> getPaymentCapabilities() async {
+    try {
+      final response = await _subscriptionsApi.getPaymentCapabilities();
+      final data = response.data ?? const <String, dynamic>{};
+      return Right(PaymentCapabilities(
+        provider: data['provider']?.toString() ?? 'mycoolpay',
+        available: data['available'] as bool? ?? false,
+        callbackVerificationAvailable:
+            data['callback_verification_available'] as bool? ?? false,
+        automaticReturnAvailable:
+            data['automatic_return_available'] as bool? ?? false,
+        confirmationMode:
+            data['confirmation_mode']?.toString() ?? 'polling_only',
+        enabledCurrencies:
+            (data['enabled_currencies'] as List<dynamic>? ?? const <dynamic>[])
+                .map((value) => value.toString())
+                .toList(growable: false),
+        defaultCurrency: data['default_currency']?.toString() ?? 'EUR',
+        effectiveCurrency: data['effective_currency']?.toString() ?? 'EUR',
+      ));
+    } on DioException catch (e) {
+      return Left(ServerFailure(
+        message: _extractServerErrorMessage(e),
+        code: e.response?.data is Map
+            ? (e.response?.data as Map)['error']?.toString()
+            : null,
+      ));
+    } catch (e) {
+      return const Left(ServerFailure(
+        message: 'Payment capabilities are temporarily unavailable',
+        code: 'payment_capabilities_unavailable',
+      ));
     }
   }
 
@@ -67,7 +105,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
       final subscription = _mapJsonToUserSubscription(payload);
       return Right(subscription);
     } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
+      return Left(ServerFailure(message: _extractServerErrorMessage(e)));
     } catch (e) {
       return Left(ServerFailure(
           message: 'Erreur lors du chargement de l\'abonnement: $e'));
@@ -75,19 +113,35 @@ class PremiumRepositoryImpl implements PremiumRepository {
   }
 
   @override
-  Future<Either<Failure, PaymentSession>> createPaymentSession(
-      String planId) async {
+  Future<Either<Failure, PaymentSession>> createPaymentSession({
+    required String planId,
+    required String phoneNumber,
+    required String language,
+    String? returnTo,
+  }) async {
     try {
       final session = await _paymentService.createPaymentSession(
         planId: planId,
-        userId: 'current_user_id', // TODO: Récupérer le vrai ID utilisateur
+        phoneNumber: phoneNumber,
+        language: language,
+        returnTo: returnTo,
       );
       return Right(session);
+    } on payment_service.PaymentException catch (e) {
+      return Left(PaymentFailure(
+        message: 'The payment could not be started',
+        code: e.code ?? 'payment_start_failed',
+      ));
     } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
-    } catch (e) {
-      return Left(ServerFailure(
-          message: 'Erreur lors de la création de la session de paiement: $e'));
+      return Left(PaymentFailure(
+        message: 'The payment could not be started',
+        code: _paymentErrorCode(e, fallback: 'payment_start_failed'),
+      ));
+    } catch (_) {
+      return const Left(PaymentFailure(
+        message: 'The payment could not be started',
+        code: 'payment_start_failed',
+      ));
     }
   }
 
@@ -97,30 +151,41 @@ class PremiumRepositoryImpl implements PremiumRepository {
       final result = await _paymentService.verifyPayment(sessionId);
       return Right(result);
     } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
-    } catch (e) {
-      return Left(ServerFailure(
-          message: 'Erreur lors de la validation du paiement: $e'));
+      return Left(PaymentFailure(
+        message: 'The payment status could not be checked',
+        code: _paymentErrorCode(e, fallback: 'payment_verification_failed'),
+      ));
+    } catch (_) {
+      return const Left(PaymentFailure(
+        message: 'The payment status could not be checked',
+        code: 'payment_verification_failed',
+      ));
     }
   }
 
   @override
-  Future<Either<Failure, PaymentResult>> purchasePlan(String planId) async {
-    // IMPORTANT: Cette méthode NE DOIT PAS simuler de paiement!
-    // Le vrai flux est:
-    // 1. Frontend appelle createPaymentSession() pour obtenir l'URL
-    // 2. Frontend redirige l'utilisateur vers l'URL de paiement
-    // 3. Utilisateur paie sur la plateforme de paiement
-    // 4. Webhook backend valide le paiement et active l'abonnement
-    // 5. Frontend poll getCurrentSubscription() pour vérifier l'activation
-    //
-    // Cette méthode ne devrait PAS être utilisée directement.
-    // Utiliser createPaymentSession() à la place.
-    return Left(ServerFailure(
-      message:
-          'Utiliser createPaymentSession() puis rediriger vers payment_url. '
-          'Le paiement est validé via webhook backend, pas par le frontend.',
-    ));
+  Future<Either<Failure, PendingPaymentAttempt?>> getPendingPayment() async {
+    try {
+      return Right(await _paymentService.getPendingPayment());
+    } catch (_) {
+      return const Left(CacheFailure(
+        message: 'The pending payment could not be restored',
+        code: 'payment_restore_failed',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> clearPendingPayment() async {
+    try {
+      await _paymentService.clearPendingPayment();
+      return const Right(null);
+    } catch (_) {
+      return const Left(CacheFailure(
+        message: 'The pending payment could not be cleared',
+        code: 'payment_clear_failed',
+      ));
+    }
   }
 
   @override
@@ -207,26 +272,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
   @override
   Future<Either<Failure, PaymentResult>> validatePayment(
       String sessionId) async {
-    try {
-      final response = await _subscriptionsApi.validatePayment(sessionId);
-      final data = response.data!;
-
-      final result = PaymentResult(
-        status: _parsePaymentStatus(data['payment_status'] as String),
-        subscriptionId: data['subscription']['id'] as String,
-        activatedAt: data['subscription']['activated_at'] != null
-            ? DateTime.parse(data['subscription']['activated_at'] as String)
-            : null,
-        featuresUnlocked:
-            (data['features_unlocked'] as List?)?.cast<String>() ?? [],
-      );
-      return Right(result);
-    } on DioException catch (e) {
-      return Left(ServerFailure(message: e.message ?? 'Erreur de serveur'));
-    } catch (e) {
-      return Left(ServerFailure(
-          message: 'Erreur lors de la validation du paiement: $e'));
-    }
+    return verifyPayment(sessionId);
   }
 
   @override
@@ -366,41 +412,100 @@ class PremiumRepositoryImpl implements PremiumRepository {
     return e.message ?? 'Erreur de serveur';
   }
 
+  String _paymentErrorCode(DioException error, {required String fallback}) {
+    final data = error.response?.data;
+    if (data is Map && data['error'] != null) {
+      return data['error'].toString();
+    }
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
+      case DioExceptionType.connectionError:
+        return 'payment_network_error';
+      case DioExceptionType.badCertificate:
+        return 'payment_security_error';
+      case DioExceptionType.badResponse:
+      case DioExceptionType.cancel:
+      case DioExceptionType.unknown:
+        return fallback;
+    }
+  }
+
   @override
-  Future<Either<Failure, UserSubscription>> modifySubscription({
+  Future<Either<Failure, ModifySubscriptionOutcome>> modifySubscription({
     required String newPlanId,
     bool proration = true,
+    String? phoneNumber,
+    String language = 'fr',
   }) async {
     try {
+      // Une clé d'idempotence permet un retry sûr côté serveur si la réponse
+      // se perd après création d'un Paylink (voir `purchaseSubscription` /
+      // `PaymentService.createPaymentSession`, même principe).
+      final idempotencyKey = _paymentService.newIdempotencyKey();
       final response = await _subscriptionsApi.modifySubscription(
         newPlanId: newPlanId,
         proration: proration,
+        phoneNumber: phoneNumber,
+        language: language,
+        idempotencyKey: idempotencyKey,
       );
       final data = response.data ?? const <String, dynamic>{};
+
+      final paymentId = data['payment_id']?.toString();
+      if (paymentId != null && paymentId.isNotEmpty) {
+        // MyCoolPay n'a pas d'API de modification d'abonnement : un montant
+        // net positif nécessite un nouveau Paylink, exactement comme un
+        // achat. Le plan ne bascule qu'à la confirmation du webhook.
+        final rawPaymentUrl = data['payment_url']?.toString();
+        String? paymentUrl;
+        if (rawPaymentUrl != null && rawPaymentUrl.isNotEmpty) {
+          try {
+            paymentUrl = _paymentService.validatePaymentUrl(rawPaymentUrl);
+          } on payment_service.PaymentException {
+            return const Left(ServerFailure(
+              message: 'Invalid payment URL',
+              code: 'invalid_payment_url',
+            ));
+          }
+        }
+        final paymentStatus =
+            _paymentService.parsePaymentStatus(data['payment_status']?.toString());
+
+        await _paymentService.recordExternalPendingPayment(
+          paymentId: paymentId,
+          planId: newPlanId,
+          idempotencyKey: idempotencyKey,
+          paymentUrl: paymentUrl,
+          returnTo: null,
+        );
+
+        return Right(ModifySubscriptionOutcome.paymentRequired(PaymentSession(
+          sessionId: paymentId,
+          paymentUrl: paymentUrl,
+          planId: newPlanId,
+          idempotencyKey: idempotencyKey,
+          status: paymentStatus,
+        )));
+      }
 
       // Le backend retourne les champs à plat (CurrentSubscriptionSerializer),
       // identique à GET /current/. Pas de wrapper `subscription`.
       final result = _mapJsonToUserSubscription(data);
-      return Right(result);
+      return Right(ModifySubscriptionOutcome.applied(result));
     } on DioException catch (e) {
-      final statusCode = e.response?.statusCode;
-      final message = _extractServerErrorMessage(e);
-
-      // 402 → un paiement est requis (proration avec nouveau débit)
-      if (statusCode == 402) {
-        return Left(ServerFailure(
-          message: message,
-          code: 'payment_required',
-        ));
-      }
-
-      // 400 → erreur de validation métier (same_plan, no_active_subscription,
-      // invalid_plan ou erreur DRF field-level)
-      if (statusCode == 400) {
-        return Left(ServerFailure(message: message));
-      }
-
-      return Left(ServerFailure(message: message));
+      // Propage le code d'erreur backend quel que soit le statut HTTP :
+      // 400 → validation métier (same_plan, no_active_subscription,
+      // phone_number_required, invalid_plan, erreur DRF field-level) ;
+      // 502/503 → Paylink/provider indisponible (mêmes codes que l'achat).
+      return Left(ServerFailure(
+        message: _extractServerErrorMessage(e),
+        code: e.response?.data is Map
+            ? (e.response?.data as Map)['error']?.toString()
+            : null,
+      ));
     } catch (e) {
       return Left(ServerFailure(message: 'Erreur lors de la modification: $e'));
     }
@@ -408,31 +513,52 @@ class PremiumRepositoryImpl implements PremiumRepository {
 
   // Helper methods pour mapper les données JSON
   PremiumPlan _mapJsonToPremiumPlan(Map<String, dynamic> json) {
-    final features = json['features'] as Map<String, dynamic>;
+    final rawFeatures = json['features'];
+    final featureMap = rawFeatures is Map<String, dynamic>
+        ? rawFeatures
+        : const <String, dynamic>{};
+    final featureKeys = rawFeatures is List
+        ? rawFeatures.map((value) => value.toString()).toSet()
+        : const <String>{};
+    bool enabled(String key) =>
+        featureMap[key] as bool? ?? featureKeys.contains(key);
+    int count(String key, String listKey, int fallback) =>
+        featureMap[key] as int? ??
+        (featureKeys.contains(listKey) ? fallback : 0);
+    final planId = json['plan_id'] as String;
+    final rawPrice = json['price'];
+    final price = _toDouble(rawPrice);
 
     return PremiumPlan(
-      id: json['id'] as String,
-      planId: json['plan_id'] as String,
+      id: json['id']?.toString() ?? planId,
+      planId: planId,
       name: json['name'] as String,
       description: json['description'] as String,
-      price: (json['price'] as num).toDouble(),
-      currency: json['currency'] as String,
+      price: price,
+      currency: json['currency']?.toString() ?? 'EUR',
+      basePrice: _toDouble(json['base_price'], fallback: price),
+      baseCurrency: json['base_currency']?.toString() ?? 'EUR',
+      monthlyEquivalent: _toDouble(json['monthly_equivalent'], fallback: price),
       billingInterval:
           _parseBillingInterval(json['billing_interval'] as String),
       trialPeriodDays: json['trial_period_days'] as int? ?? 0,
       features: PremiumFeatures(
-        unlimitedLikes: features['unlimited_likes'] as bool? ?? false,
-        canSeeWhoLiked: features['can_see_likers'] as bool? ?? false,
-        canRewind: features['can_rewind'] as bool? ?? false,
-        monthlyBoosts: features['monthly_boosts_count'] as int? ?? 0,
-        dailySuperLikes: features['daily_super_likes_count'] as int? ?? 0,
-        mediaMessaging: features['media_messaging_enabled'] as bool? ?? false,
-        videoCalls: features['audio_video_calls_enabled'] as bool? ?? false,
-        prioritySupport: features['priority_support'] as bool? ?? false,
-        advancedFilters: features['advanced_filters'] as bool? ?? false,
-        incognitoMode: features['incognito_mode'] as bool? ?? false,
+        unlimitedLikes: enabled('unlimited_likes'),
+        canSeeWhoLiked: enabled('can_see_likers'),
+        canRewind: enabled('can_rewind'),
+        monthlyBoosts: count('monthly_boosts_count', 'monthly_boosts', 1),
+        dailySuperLikes:
+            count('daily_super_likes_count', 'daily_super_likes', 5),
+        dailyRewinds: count('daily_rewinds_count', 'daily_rewinds', 5),
+        mediaMessaging: enabled('media_messaging_enabled') ||
+            featureKeys.contains('media_messaging'),
+        videoCalls: enabled('audio_video_calls_enabled') ||
+            featureKeys.contains('audio_video_calls'),
+        prioritySupport: enabled('priority_support'),
+        advancedFilters: enabled('advanced_filters'),
+        incognitoMode: enabled('incognito_mode'),
       ),
-      savings: json['savings_percentage'] as int? ?? 0,
+      savings: _toInt(json['savings_percentage']),
       isPopular: json['most_popular'] as bool? ?? false,
       isRecommended: json['recommended'] as bool? ?? false,
     );
@@ -466,6 +592,7 @@ class PremiumRepositoryImpl implements PremiumRepository {
                   featuresSummary['monthly_boosts_count'] as int? ?? 0,
               dailySuperLikes:
                   featuresSummary['daily_super_likes_count'] as int? ?? 0,
+              dailyRewinds: featuresSummary['daily_rewinds_count'] as int? ?? 0,
               mediaMessaging:
                   featuresSummary['media_messaging_enabled'] as bool? ?? false,
               videoCalls:
@@ -474,6 +601,17 @@ class PremiumRepositoryImpl implements PremiumRepository {
             )
           : const PremiumFeatures(),
     );
+
+    final scheduledChangeJson = json['scheduled_change'];
+    final scheduledChange = scheduledChangeJson is Map
+        ? ScheduledPlanChange(
+            planId: scheduledChangeJson['plan_id']?.toString() ?? '',
+            planName: scheduledChangeJson['plan_name']?.toString() ?? '',
+            effectiveAt: DateTime.tryParse(
+              scheduledChangeJson['effective_at']?.toString() ?? '',
+            ),
+          )
+        : null;
 
     return UserSubscription(
       id: json['subscription_id'] as String? ?? '',
@@ -490,20 +628,45 @@ class PremiumRepositoryImpl implements PremiumRepository {
       cancelAtPeriodEnd: json['cancel_at_period_end'] as bool? ?? false,
       nextBillingDate: null,
       featuresUsage: null,
+      scheduledChange: scheduledChange,
     );
   }
 
   BillingInterval _parseBillingInterval(String interval) {
     switch (interval) {
       case 'month':
+      case 'monthly':
         return BillingInterval.monthly;
       case 'year':
+      case 'yearly':
         return BillingInterval.yearly;
       case 'week':
+      case 'weekly':
         return BillingInterval.weekly;
       default:
         return BillingInterval.monthly;
     }
+  }
+
+  double _toDouble(dynamic value, {double fallback = 0}) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  int _planOrder(PremiumPlan plan) {
+    switch (plan.billingInterval) {
+      case BillingInterval.monthly:
+        return 0;
+      case BillingInterval.yearly:
+        return 1;
+      case BillingInterval.weekly:
+        return 2;
+    }
+  }
+
+  int _toInt(dynamic value, {int fallback = 0}) {
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
   SubscriptionStatus _parseSubscriptionStatus(String status) {
@@ -527,21 +690,6 @@ class PremiumRepositoryImpl implements PremiumRepository {
         return SubscriptionStatus.pending;
       default:
         return SubscriptionStatus.expired;
-    }
-  }
-
-  PaymentStatus _parsePaymentStatus(String status) {
-    switch (status) {
-      case 'succeeded':
-        return PaymentStatus.succeeded;
-      case 'failed':
-        return PaymentStatus.failed;
-      case 'pending':
-        return PaymentStatus.pending;
-      case 'cancelled':
-        return PaymentStatus.cancelled;
-      default:
-        return PaymentStatus.failed;
     }
   }
 }

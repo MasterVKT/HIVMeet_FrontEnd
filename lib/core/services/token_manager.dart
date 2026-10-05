@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
+import 'package:hivmeet/core/utils/log_service.dart' as developer;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:hivmeet/domain/entities/user.dart' as domain;
@@ -261,6 +261,17 @@ class TokenManager {
           name: 'TokenManager');
       return null;
     }
+  }
+
+  /// Remplace uniquement le snapshot utilisateur sans toucher aux JWT.
+  Future<void> updateStoredUserData(domain.User userData) async {
+    await _secureStorage.write(
+      key: StorageKeys.userData,
+      value: jsonEncode(userData.toJson()),
+      aOptions: _secureStorageOptions,
+    );
+    _cachedUserData = userData;
+    _tokenCacheTime = DateTime.now();
   }
 
   /// Vérifie si des tokens valides sont stockés

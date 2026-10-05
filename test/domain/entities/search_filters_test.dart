@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hivmeet/domain/entities/discovery_preference_catalog.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/entities/search_filters.dart';
 
@@ -52,13 +53,13 @@ void main() {
       );
     });
 
-    test('round-trips from SearchPreferences', () {
+    test('round-trips canonical preferences from SearchPreferences', () {
       const prefs = SearchPreferences(
         minAge: 19,
         maxAge: 33,
         maxDistance: 42,
-        interestedIn: <String>['male', 'non_binary'],
-        relationshipTypes: <String>['friendship', 'casual'],
+        interestedIn: <String>['male'],
+        relationshipTypes: <String>['casual'],
         showVerifiedOnly: true,
         showOnlineOnly: true,
       );
@@ -68,10 +69,27 @@ void main() {
       expect(filters.minAge, 19);
       expect(filters.maxAge, 33);
       expect(filters.maxDistance, 42);
-      expect(filters.genders, <String>['male', 'non_binary']);
-      expect(filters.relationshipTypes, <String>['friendship', 'casual']);
+      expect(filters.genders, <String>['male']);
+      expect(filters.relationshipTypes, <String>['casual']);
       expect(filters.verifiedOnly, isTrue);
       expect(filters.onlineOnly, isTrue);
+    });
+
+    test('normalizes legacy multi-value preferences to the inclusive choice',
+        () {
+      const legacy = SearchFilters(
+        genders: <String>['male', 'female'],
+        relationshipTypes: <String>['friendship', 'casual'],
+      );
+
+      final normalized = legacy.normalized();
+
+      expect(normalized.genders, isEmpty);
+      expect(normalized.relationshipTypes, isEmpty);
+      expect(
+        DiscoveryPreferenceCatalog.genderSelection(normalized.genders),
+        DiscoveryPreferenceCatalog.everyone,
+      );
     });
 
     test('validates minimum distance and age ordering', () {

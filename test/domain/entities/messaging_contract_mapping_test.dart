@@ -43,6 +43,21 @@ void main() {
       expect(message.status, MessageStatus.sent);
     });
 
+    test('Message.fromJson maps the server-authoritative edit timestamp', () {
+      final message = Message.fromJson({
+        'message_id': 'message-1',
+        'conversation_id': 'conversation-1',
+        'sender_id': 'user-1',
+        'content': 'Edited text',
+        'message_type': 'text',
+        'sent_at': '2026-09-25T13:55:00Z',
+        'edited_at': '2026-09-25T14:00:00Z',
+      });
+
+      expect(message.editedAt, DateTime.utc(2026, 9, 25, 14));
+      expect(message.toJson()['edited_at'], '2026-09-25T14:00:00.000Z');
+    });
+
     test('Message.fromJson preserves all realtime media fields and text nulls',
         () {
       final media = Message.fromJson({
@@ -54,6 +69,12 @@ void main() {
         'media_url': 'https://example.com/video.mp4',
         'media_type': 'video/mp4',
         'media_thumbnail_url': 'https://example.com/video.jpg',
+        'media_download_url':
+            '/api/v1/conversations/conv-1/messages/media-1/media/',
+        'media_mime_type': 'video/mp4',
+        'media_size_bytes': 321,
+        'media_file_name': 'video.mp4',
+        'media_duration_ms': 1200,
       });
       final text = Message.fromJson({
         'message_id': 'text-1',
@@ -70,6 +91,12 @@ void main() {
       expect(media.mediaUrl, 'https://example.com/video.mp4');
       expect(media.mediaType, 'video/mp4');
       expect(media.mediaThumbnailUrl, 'https://example.com/video.jpg');
+      expect(media.mediaDownloadUrl,
+          '/api/v1/conversations/conv-1/messages/media-1/media/');
+      expect(media.mediaMimeType, 'video/mp4');
+      expect(media.mediaSizeBytes, 321);
+      expect(media.mediaFileName, 'video.mp4');
+      expect(media.mediaDurationMs, 1200);
       expect(text.mediaUrl, isNull);
       expect(text.mediaType, isNull);
       expect(text.mediaThumbnailUrl, isNull);

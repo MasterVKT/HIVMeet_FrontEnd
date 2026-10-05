@@ -7,21 +7,29 @@ import 'package:bloc/bloc.dart';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
+import 'package:hivmeet/domain/usecases/chat/get_presence.dart';
 import 'package:hivmeet/domain/usecases/chat/send_text_message.dart'
     as send_text;
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
 import 'package:hivmeet/domain/usecases/chat/set_typing_status.dart';
 import 'package:hivmeet/domain/usecases/chat/delete_message.dart';
+import 'package:hivmeet/domain/usecases/chat/delete_messages.dart';
+import 'package:hivmeet/domain/usecases/chat/edit_message.dart';
+import 'package:hivmeet/domain/usecases/chat/restore_conversation.dart';
+import 'package:hivmeet/domain/usecases/message/delete_conversation.dart'
+    as delete_conversation;
 import 'package:hivmeet/domain/usecases/profile/block_user.dart';
 import 'package:hivmeet/domain/usecases/profile/report_user.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
 import 'package:hivmeet/core/services/chat_websocket_service.dart';
+import 'package:hivmeet/core/utils/media_url_resolver.dart';
 
 part 'chat_event.dart';
 part 'chat_state.dart';
@@ -39,11 +47,16 @@ part 'chat_state.dart';
 @injectable
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetMessages _getMessages;
+  final GetPresence? _getPresence;
   final send_text.SendTextMessage _sendTextMessage;
   final SendMediaMessage _sendMediaMessage;
   final MarkMessageAsRead _markMessageAsRead;
   final SetTypingStatusUseCase _setTypingStatus;
   final DeleteMessage _deleteMessage;
+  final DeleteMessages _deleteMessages;
+  final EditMessage _editMessage;
+  final RestoreConversation _restoreConversation;
+  final delete_conversation.DeleteConversation _deleteConversation;
   final BlockUser _blockUser;
   final ReportUser _reportUser;
   final AuthenticationService _authService;
@@ -55,8 +68,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   List<Message> _allMessages = [];
   bool _hasMore = true;
   bool _showPremiumPrompt = false;
+  bool _canSendMessages = true;
   StreamSubscription<WsEvent>? _wsSub;
   final Set<String> _pendingReadCursors = <String>{};
+  Timer? _presenceExpiryTimer;
 
   /// Trie les messages par date croissante (plus ancien en premier).
   ///
@@ -75,22 +90,32 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   ChatBloc({
     required GetMessages getMessages,
+    GetPresence? getPresence,
     required send_text.SendTextMessage sendTextMessage,
     required SendMediaMessage sendMediaMessage,
     required MarkMessageAsRead markMessageAsRead,
     required SetTypingStatusUseCase setTypingStatus,
     required DeleteMessage deleteMessage,
+    required DeleteMessages deleteMessages,
+    required EditMessage editMessage,
+    required RestoreConversation restoreConversation,
+    required delete_conversation.DeleteConversation deleteConversation,
     required BlockUser blockUser,
     required ReportUser reportUser,
     required AuthenticationService authService,
     required ChatWebSocketService wsService,
     required RealtimeEventBus realtimeBus,
   })  : _getMessages = getMessages,
+        _getPresence = getPresence,
         _sendTextMessage = sendTextMessage,
         _sendMediaMessage = sendMediaMessage,
         _markMessageAsRead = markMessageAsRead,
         _setTypingStatus = setTypingStatus,
         _deleteMessage = deleteMessage,
+        _deleteMessages = deleteMessages,
+        _editMessage = editMessage,
+        _restoreConversation = restoreConversation,
+        _deleteConversation = deleteConversation,
         _blockUser = blockUser,
         _reportUser = reportUser,
         _authService = authService,
@@ -105,15 +130,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<MarkUnreadMessagesAsRead>(_onMarkUnreadMessagesAsRead);
     on<SetTypingStatus>(_onSetTypingStatus);
     on<DeleteMessageEvent>(_onDeleteMessage);
+    on<DeleteMessagesEvent>(_onDeleteMessages);
+    on<EditMessageEvent>(_onEditMessage);
+    on<HideConversationEvent>(_onHideConversation);
+    on<RestoreConversationEvent>(_onRestoreConversation);
     on<BlockUserEvent>(_onBlockUser);
     on<ReportUserEvent>(_onReportUser);
     on<ClearChatActionFeedback>(_onClearChatActionFeedback);
     on<ConnectToWebSocket>(_onConnectWebSocket);
     on<DisconnectFromWebSocket>(_onDisconnectWebSocket);
     on<ResyncMessages>(_onResyncMessages);
+    on<RefreshPresence>(_onRefreshPresence);
     on<_WebSocketMessageReceived>(_onWsMessageReceived);
     on<_WebSocketMessageRead>(_onWsMessageRead);
     on<_WebSocketMessageDelivered>(_onWsMessageDelivered);
+    on<_WebSocketMessageUpdated>(_onWsMessageUpdated);
+    on<_WebSocketMessagesDeleted>(_onWsMessagesDeleted);
     on<_WebSocketTypingIndicator>(_onWsTypingIndicator);
     on<_WebSocketPresenceUpdate>(_onWsPresenceUpdate);
   }
@@ -124,6 +156,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) async {
     _conversationId = event.conversationId;
     _pendingReadCursors.clear();
+    _canSendMessages = true;
     emit(ChatLoading());
 
     final params = GetMessagesParams.initial(event.conversationId);
@@ -142,9 +175,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           isTyping: false,
           isLoadingMore: false,
           showPremiumPrompt: _showPremiumPrompt,
+          canSendMessages: _canSendMessages,
         ));
       },
     );
+    await _refreshPresence(emit);
   }
 
   Future<void> _onLoadMoreMessages(
@@ -240,7 +275,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         _allMessages = _sortByCreatedAt(_allMessages.map((m) {
           return m.id == optimisticMessage.id ? failedMessage : m;
         }).toList());
-        emit(currentState.copyWith(messages: _allMessages));
+        final reachedFreeLimit = failure.code == 'free_message_limit_reached' ||
+            failure.code == 'free_match_locked';
+        if (reachedFreeLimit) {
+          _canSendMessages = false;
+        }
+        emit(currentState.copyWith(
+          messages: _allMessages,
+          canSendMessages: _canSendMessages,
+          // The page maps these two public API codes to translated Premium
+          // prompts; raw backend text never reaches the user.
+          actionError: reachedFreeLimit ? failure.code : null,
+        ));
       },
       (sentMessage) {
         _replaceOptimisticMessage(
@@ -271,6 +317,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       content: '',
       type: event.type,
       createdAt: DateTime.now(),
+      localMediaPath: event.mediaFile.path,
+      uploadProgress: 0,
       isSending: true,
       isRead: false,
       status: MessageStatus.sending,
@@ -287,6 +335,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       mediaFile: event.mediaFile,
       type: event.type,
       clientMessageId: clientMessageId,
+      onUploadProgress: (sent, total) {
+        if (total <= 0) return;
+        final progress = ((sent / total) * 100).clamp(0, 100).round();
+        final visibleState = state;
+        if (visibleState is! ChatLoaded) return;
+        _allMessages = _allMessages
+            .map((message) => message.id == optimisticMessage.id
+                ? message.copyWith(uploadProgress: progress)
+                : message)
+            .toList();
+        emit(visibleState.copyWith(messages: _allMessages));
+      },
     );
 
     final result = await _sendMediaMessage(params);
@@ -456,7 +516,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       (failure) {
         // Rollback si l'appel échoue
         if (kDebugMode) {
-          debugPrint('[ChatBloc] Delete failed: ${failure.message}');
+          LogService.debug('[ChatBloc] Delete failed: ${failure.message}');
         }
         _allMessages = _sortByCreatedAt(_allMessages);
         emit(currentState.copyWith(messages: _allMessages));
@@ -468,7 +528,135 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
+  Future<void> _onDeleteMessages(
+    DeleteMessagesEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded ||
+        _conversationId == null ||
+        event.messageIds.isEmpty) {
+      return;
+    }
+
+    final result = await _deleteMessages(DeleteMessagesParams(
+      conversationId: _conversationId!,
+      messageIds: event.messageIds.toList(growable: false),
+      scope: event.scope,
+    ));
+    result.fold(
+      (failure) => emit(currentState.copyWith(
+        actionError: failure.code ?? failure.message,
+      )),
+      (_) {
+        _allMessages = event.scope == MessageDeletionScope.forMe
+            ? _allMessages
+                .where((message) => !event.messageIds.contains(message.id))
+                .toList(growable: false)
+            : _allMessages
+                .map((message) => event.messageIds.contains(message.id)
+                    ? message.copyWith(
+                        content: '',
+                        isDeletedForEveryone: true,
+                      )
+                    : message)
+                .toList(growable: false);
+        emit(currentState.copyWith(
+          messages: _allMessages,
+          completedAction: event.scope == MessageDeletionScope.forMe
+              ? ChatUserAction.deleteForMe
+              : ChatUserAction.deleteForEveryone,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onEditMessage(
+    EditMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded || _conversationId == null) return;
+
+    final result = await _editMessage(EditMessageParams(
+      conversationId: _conversationId!,
+      messageId: event.messageId,
+      content: event.content,
+    ));
+    result.fold(
+      (failure) => emit(currentState.copyWith(
+        actionError: failure.code ?? failure.message,
+      )),
+      (edited) {
+        _allMessages = _allMessages.map((message) {
+          if (message.id != event.messageId) return message;
+          return edited.copyWith(isMine: message.isMine);
+        }).toList(growable: false);
+        emit(currentState.copyWith(
+          messages: _allMessages,
+          completedAction: ChatUserAction.edit,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onHideConversation(
+    HideConversationEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded || _conversationId == null) return;
+    final result = await _deleteConversation(
+      delete_conversation.DeleteConversationParams(
+        conversationId: _conversationId!,
+      ),
+    );
+    result.fold(
+      (failure) => emit(currentState.copyWith(
+        actionError: failure.code ?? failure.message,
+      )),
+      (_) {
+        // La conversation affichée a déjà été marquée lue lors de son
+        // ouverture. Le delta est donc nul, mais le signal force la
+        // réconciliation du badge si un état arrivé hors ligne subsiste.
+        _realtimeBus.publish(RealtimeEvent(
+          type: RealtimeEventType.conversationHidden,
+          source: RealtimeSource.local,
+          conversationId: _conversationId,
+        ));
+        emit(currentState.copyWith(completedAction: ChatUserAction.hide));
+      },
+    );
+  }
+
   // ─── WebSocket handlers ───────────────────────────────────────────────────
+
+  Future<void> _onRestoreConversation(
+    RestoreConversationEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! ChatLoaded || _conversationId == null) return;
+
+    final result = await _restoreConversation(
+      RestoreConversationParams(conversationId: _conversationId!),
+    );
+    result.fold(
+      (failure) => emit(currentState.copyWith(
+        actionError: failure.code ?? failure.message,
+      )),
+      (_) {
+        _realtimeBus.publish(RealtimeEvent(
+          type: RealtimeEventType.conversationRestored,
+          source: RealtimeSource.local,
+          conversationId: _conversationId,
+        ));
+        emit(currentState.copyWith(
+          completedAction: ChatUserAction.restore,
+        ));
+      },
+    );
+  }
 
   Future<void> _onBlockUser(
     BlockUserEvent event,
@@ -536,6 +724,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       switch (wsEvent.type) {
         case WsEventType.reconnected:
           add(const ResyncMessages());
+          add(const RefreshPresence());
         case WsEventType.messageCreated:
           add(_WebSocketMessageReceived(wsEvent.data));
         case WsEventType.messageRead:
@@ -559,6 +748,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             messageIds: messageIds,
             readAt: readAtRaw == null ? null : DateTime.tryParse(readAtRaw),
           ));
+        case WsEventType.messageUpdated:
+          final messageId = wsEvent.data['message_id'] as String? ?? '';
+          final content = wsEvent.data['content'] as String? ?? '';
+          final editedAtRaw = wsEvent.data['edited_at'] as String?;
+          if (messageId.isNotEmpty) {
+            add(_WebSocketMessageUpdated(
+              messageId: messageId,
+              content: content,
+              editedAt:
+                  editedAtRaw == null ? null : DateTime.tryParse(editedAtRaw),
+            ));
+          }
         case WsEventType.messageDelivered:
           final rawIds = wsEvent.data['message_ids'];
           final messageIds = rawIds is List
@@ -580,6 +781,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                 ? null
                 : DateTime.tryParse(deliveredAtRaw),
           ));
+        case WsEventType.messageDeleted:
+          final rawIds = wsEvent.data['message_ids'];
+          final messageIds = rawIds is List
+              ? rawIds
+                  .where((value) => value != null)
+                  .map((value) => value.toString())
+                  .where((id) => id.isNotEmpty)
+                  .toSet()
+              : <String>{};
+          if (messageIds.isNotEmpty) {
+            add(_WebSocketMessagesDeleted(messageIds));
+          }
         case WsEventType.typingIndicator:
           final userId = wsEvent.data['user_id'] as String? ?? '';
           final status = wsEvent.data['status'] as String? ?? '';
@@ -589,21 +802,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           ));
         case WsEventType.presenceUpdate:
           final userId = wsEvent.data['user_id'] as String? ?? '';
-          final status = wsEvent.data['status'] as String? ?? '';
-          final timestamp = wsEvent.data['timestamp'] as String?;
+          final visible = wsEvent.data['visibility'] as bool? ?? false;
+          final isOnline = wsEvent.data['is_online'] as bool? ?? false;
+          final lastActive = wsEvent.data['last_active'] as String?;
           add(_WebSocketPresenceUpdate(
             userId: userId,
-            isOnline: status == 'online',
-            lastActive: timestamp == null ? null : DateTime.tryParse(timestamp),
+            isVisible: visible,
+            isOnline: isOnline,
+            lastActive:
+                lastActive == null ? null : DateTime.tryParse(lastActive),
           ));
         case WsEventType.error:
-          if (kDebugMode) {
-            debugPrint('[ChatBloc][WS] Error: ${wsEvent.data}');
-          }
+          LogService.warning(
+              '[ChatBloc][WS] Error, keys=${wsEvent.data.keys.toList()}',
+              name: 'ChatBloc');
         default:
           break;
       }
     });
+    add(const RefreshPresence());
   }
 
   Future<void> _onDisconnectWebSocket(
@@ -612,6 +829,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) async {
     await _wsSub?.cancel();
     _wsSub = null;
+    _presenceExpiryTimer?.cancel();
+    _presenceExpiryTimer = null;
     _wsService.disconnect();
   }
 
@@ -702,9 +921,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       sentAt: sentAt,
       isRead: false,
       isMine: senderId == currentUserId,
-      mediaUrl: event.data['media_url'] as String?,
+      mediaUrl: MediaUrlResolver.resolve(event.data['media_url'] as String?),
+      mediaDownloadUrl:
+          MediaUrlResolver.resolve(event.data['media_download_url'] as String?),
       mediaType: event.data['media_type'] as String?,
-      mediaThumbnailUrl: event.data['media_thumbnail_url'] as String?,
+      mediaThumbnailUrl: MediaUrlResolver.resolve(
+        event.data['media_thumbnail_url'] as String?,
+      ),
+      mediaMimeType: event.data['media_mime_type'] as String?,
+      mediaSizeBytes: _intOrNull(event.data['media_size_bytes']),
+      mediaFileName: event.data['media_file_name'] as String?,
+      mediaDurationMs: _intOrNull(event.data['media_duration_ms']),
       status: MessageStatus.sent,
       reactions: const {},
     );
@@ -783,6 +1010,38 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(currentState.copyWith(messages: _allMessages));
   }
 
+  void _onWsMessageUpdated(
+    _WebSocketMessageUpdated event,
+    Emitter<ChatState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+    var changed = false;
+    _allMessages = _allMessages.map((message) {
+      if (message.id != event.messageId || message.isDeletedForEveryone) {
+        return message;
+      }
+      changed = true;
+      return message.copyWith(content: event.content, editedAt: event.editedAt);
+    }).toList(growable: false);
+    if (changed) {
+      emit(currentState.copyWith(messages: _allMessages));
+    }
+  }
+
+  void _onWsMessagesDeleted(
+    _WebSocketMessagesDeleted event,
+    Emitter<ChatState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+    _allMessages = _allMessages.map((message) {
+      if (!event.messageIds.contains(message.id)) return message;
+      return message.copyWith(content: '', isDeletedForEveryone: true);
+    }).toList(growable: false);
+    emit(currentState.copyWith(messages: _allMessages));
+  }
+
   /// Met à jour le flag isTyping dans l'état courant.
   void _onWsTypingIndicator(
     _WebSocketTypingIndicator event,
@@ -798,6 +1057,44 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(currentState.copyWith(isTyping: event.isTyping));
   }
 
+  Future<void> _onRefreshPresence(
+    RefreshPresence event,
+    Emitter<ChatState> emit,
+  ) async {
+    await _refreshPresence(emit);
+  }
+
+  Future<void> _refreshPresence(Emitter<ChatState> emit) async {
+    final getPresence = _getPresence;
+    final conversationId = _conversationId;
+    final currentState = state;
+    if (getPresence == null ||
+        conversationId == null ||
+        currentState is! ChatLoaded) {
+      return;
+    }
+
+    final result =
+        await getPresence(GetPresenceParams(conversationId: conversationId));
+    result.fold(
+      (_) {
+        // Leave an already displayed server snapshot untouched on a transient
+        // network failure; absence of data never falls back to a guessed time.
+      },
+      (presence) {
+        final latest = state;
+        if (latest is! ChatLoaded) return;
+        _applyPresence(
+          latest,
+          emit,
+          isVisible: presence.isVisible,
+          isOnline: presence.isOnline,
+          lastActive: presence.lastActive,
+        );
+      },
+    );
+  }
+
   void _onWsPresenceUpdate(
     _WebSocketPresenceUpdate event,
     Emitter<ChatState> emit,
@@ -808,10 +1105,49 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final currentUserId = _authService.currentUser?.id ?? '';
     if (event.userId == currentUserId) return;
 
+    _applyPresence(
+      currentState,
+      emit,
+      isVisible: event.isVisible,
+      isOnline: event.isOnline,
+      lastActive: event.lastActive,
+    );
+  }
+
+  void _applyPresence(
+    ChatLoaded currentState,
+    Emitter<ChatState> emit, {
+    required bool isVisible,
+    required bool isOnline,
+    required DateTime? lastActive,
+  }) {
+    _presenceExpiryTimer?.cancel();
+    _presenceExpiryTimer = null;
+
+    if (!isVisible) {
+      emit(currentState.copyWith(
+        otherPresenceVisible: false,
+        otherIsOnline: false,
+        otherLastActive: null,
+      ));
+      return;
+    }
+
     emit(currentState.copyWith(
-      otherIsOnline: event.isOnline,
-      otherLastActive: event.lastActive,
+      otherPresenceVisible: true,
+      otherIsOnline: isOnline,
+      otherLastActive: lastActive,
     ));
+
+    if (isOnline && lastActive != null) {
+      final untilRefresh = lastActive
+          .add(const Duration(seconds: 90))
+          .difference(DateTime.now().toUtc());
+      _presenceExpiryTimer = Timer(
+        untilRefresh.isNegative ? Duration.zero : untilRefresh,
+        () => add(const RefreshPresence()),
+      );
+    }
   }
 
   /// Anti-collision : suffixe aléatoire en plus du micro-timestamp. Deux
@@ -823,6 +1159,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final randomSuffix = Random().nextInt(1 << 31);
     return 'client_${_conversationId!}_${DateTime.now().microsecondsSinceEpoch}_$randomSuffix';
   }
+
+  int? _intOrNull(Object? value) => value is int
+      ? value
+      : value == null
+          ? null
+          : int.tryParse(value.toString());
 
   MessageType _stringToMessageType(String type) {
     switch (type) {
@@ -846,6 +1188,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   @override
   Future<void> close() async {
+    _presenceExpiryTimer?.cancel();
+    _presenceExpiryTimer = null;
     await _wsSub?.cancel();
     _wsService.dispose();
     return super.close();

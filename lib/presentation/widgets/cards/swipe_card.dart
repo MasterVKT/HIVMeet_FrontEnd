@@ -559,7 +559,8 @@ class SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (widget.profile.distance != null)
+                      if (widget.profile.sameCity ||
+                          widget.profile.distance != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -570,7 +571,10 @@ class SwipeCardState extends State<SwipeCard> with TickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '${widget.profile.distance!.round()} km',
+                            widget.profile.sameCity
+                                ? LocalizationService.translate(
+                                    'profile.same_city')
+                                : '${widget.profile.distance!.round()} km',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,

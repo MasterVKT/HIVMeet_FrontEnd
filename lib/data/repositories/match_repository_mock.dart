@@ -125,7 +125,8 @@ class MatchRepositoryMock implements MatchRepository {
   }
 
   @override
-  Future<Either<Failure, SwipeResult>> rewindLastSwipe() async {
+  Future<Either<Failure, SwipeResult>> rewindInteraction(
+      String interactionId) async {
     // Simuler un match aléatoire (10% de chance pour rewind)
     final isMatch = (DateTime.now().millisecond % 10) == 0;
     return Right(SwipeResult(
@@ -154,6 +155,18 @@ class MatchRepositoryMock implements MatchRepository {
   }
 
   @override
+  Future<Either<Failure, int>> getUnseenMatchCount() async => const Right(0);
+
+  @override
+  Future<Either<Failure, int>> markMatchesSeen(List<String> matchIds) async =>
+      const Right(0);
+
+  @override
+  Future<Either<Failure, Match>> unlockFreeMatch(String matchId) async {
+    return Left(ServerFailure(message: 'Match not found'));
+  }
+
+  @override
   Stream<List<Match>> watchMatches() async* {
     yield [];
   }
@@ -169,6 +182,11 @@ class MatchRepositoryMock implements MatchRepository {
   @override
   Future<Either<Failure, int>> getLikesReceivedCount() async {
     return const Right(0);
+  }
+
+  @override
+  Future<Either<Failure, DiscoveryProfile>> revealReceivedLike() async {
+    return const Left(ServerFailure(message: 'No received like'));
   }
 
   @override

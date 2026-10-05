@@ -17,6 +17,7 @@ class RegisterSubmitted extends RegisterEvent {
   final String displayName;
   final DateTime birthDate;
   final String? phoneNumber;
+  final String gender;
   final bool acceptTerms;
 
   const RegisterSubmitted({
@@ -26,6 +27,7 @@ class RegisterSubmitted extends RegisterEvent {
     required this.displayName,
     required this.birthDate,
     this.phoneNumber,
+    required this.gender,
     required this.acceptTerms,
   });
 
@@ -37,6 +39,7 @@ class RegisterSubmitted extends RegisterEvent {
         displayName,
         birthDate,
         phoneNumber,
+        gender,
         acceptTerms,
       ];
 }

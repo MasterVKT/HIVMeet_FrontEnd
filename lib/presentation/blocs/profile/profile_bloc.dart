@@ -5,6 +5,9 @@ import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
+import 'dart:async';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
@@ -13,7 +16,6 @@ import 'package:hivmeet/domain/usecases/profile/upload_photo.dart' as upload;
 import 'package:hivmeet/domain/usecases/profile/delete_photo.dart' as delete;
 import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart'
     as set_main;
-import 'package:hivmeet/domain/usecases/profile/reorder_photos.dart' as reorder;
 import 'package:hivmeet/domain/usecases/profile/update_location.dart'
     as update_loc;
 import 'package:hivmeet/domain/usecases/profile/block_user.dart' as block;
@@ -30,12 +32,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final upload.UploadPhoto _uploadPhoto;
   final delete.DeletePhoto _deletePhoto;
   final set_main.SetMainPhoto _setMainPhoto;
-  final reorder.ReorderPhotos _reorderPhotos;
   final update_loc.UpdateLocation _updateLocation;
   final block.BlockUser _blockUser;
   final unblock.UnblockUser _unblockUser;
   final toggle.ToggleProfileVisibility _toggleProfileVisibility;
   final ProfileRepository _profileRepository;
+  StreamSubscription<RealtimeEvent>? _subscriptionChanges;
 
   ProfileBloc({
     required GetCurrentProfile getCurrentProfile,
@@ -43,18 +45,17 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     required upload.UploadPhoto uploadPhoto,
     required delete.DeletePhoto deletePhoto,
     required set_main.SetMainPhoto setMainPhoto,
-    required reorder.ReorderPhotos reorderPhotos,
     required update_loc.UpdateLocation updateLocation,
     required block.BlockUser blockUser,
     required unblock.UnblockUser unblockUser,
     required toggle.ToggleProfileVisibility toggleProfileVisibility,
     required ProfileRepository profileRepository,
+    required RealtimeEventBus realtimeBus,
   })  : _getCurrentProfile = getCurrentProfile,
         _updateProfile = updateProfile,
         _uploadPhoto = uploadPhoto,
         _deletePhoto = deletePhoto,
         _setMainPhoto = setMainPhoto,
-        _reorderPhotos = reorderPhotos,
         _updateLocation = updateLocation,
         _blockUser = blockUser,
         _unblockUser = unblockUser,
@@ -64,7 +65,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<LoadProfile>(_onLoadProfile);
     on<CreateProfile>(_onCreateProfile);
     on<UpdateProfileEvent>(_onUpdateProfile);
+    on<ApplySavedProfile>(_onApplySavedProfile);
     on<UploadPhoto>(_onUploadPhoto);
+    on<ReplacePhoto>(_onReplacePhoto);
     on<DeletePhoto>(_onDeletePhoto);
     on<SetMainPhoto>(_onSetMainPhoto);
     on<ReorderPhotos>(_onReorderPhotos);
@@ -81,6 +84,17 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<RequestAccountDeletion>(_onRequestAccountDeletion);
     on<LoadVerificationDetails>(_onLoadVerificationDetails);
     on<SubmitVerificationDocuments>(_onSubmitVerificationDocuments);
+    _subscriptionChanges = realtimeBus.events.listen((event) {
+      if (event.type == RealtimeEventType.subscriptionChanged && !isClosed) {
+        add(LoadProfile());
+      }
+    });
+  }
+
+  @override
+  Future<void> close() async {
+    await _subscriptionChanges?.cancel();
+    return super.close();
   }
 
   Future<void> _onLoadProfile(
@@ -170,12 +184,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
         final updateResult = await _updateProfile(UpdateProfileParams(
           bio: event.bio,
-          city: event.city,
-          country: event.country,
           interests: event.interests,
           relationshipType: event.relationshipType,
           relationshipTypesSought: event.relationshipTypesSought,
           searchPreferences: searchPreferences,
+          locationUpdate: event.locationUpdate,
         ));
 
         await updateResult.fold(
@@ -183,29 +196,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             message: failure.message,
             profile: currentProfile,
           )),
-          (updatedProfile) async {
-            // 4. Mettre à jour la localisation GPS.
-            final locationResult = await _updateLocation(
-              update_loc.UpdateLocationParams(
-                latitude: event.latitude,
-                longitude: event.longitude,
-                city: event.city,
-                country: event.country,
-              ),
-            );
-
-            locationResult.fold(
-              (failure) => emit(ProfileError(
-                message: failure.message,
-                profile: updatedProfile,
-              )),
-              (_) => emit(ProfileActionSuccess(
-                message: 'profile.success_created',
-                profile: updatedProfile,
-                loadedState: ProfileLoaded(profile: updatedProfile),
-              )),
-            );
-          },
+          (updatedProfile) async => emit(ProfileActionSuccess(
+            message: 'profile.success_created',
+            profile: updatedProfile,
+            loadedState: ProfileLoaded(profile: updatedProfile),
+          )),
         );
       },
     );
@@ -223,27 +218,34 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       UpdateProfileParams(
         displayName: event.displayName,
         bio: event.bio,
+        gender: event.gender,
         city: event.city,
         country: event.country,
+        preferredCurrency: event.preferredCurrency,
         interests: event.interests,
         relationshipType: event.relationshipType,
         relationshipTypesSought: event.relationshipTypesSought,
         searchPreferences: event.searchPreferences,
         privacySettings: event.privacySettings,
+        locationUpdate: event.locationUpdate,
       ),
     );
 
-    result.fold(
-      (failure) => emit(ProfileError(
-        message: failure.message,
-        profile: current.profile,
-        loadedState: current,
-      )),
-      (profile) => emit(ProfileActionSuccess(
-        message: 'profile.success_updated',
-        profile: profile,
-        loadedState: current.copyWith(profile: profile),
-      )),
+    await result.fold<Future<void>>(
+      (failure) async {
+        emit(ProfileError(
+          message: failure.message,
+          profile: current.profile,
+          loadedState: current,
+        ));
+      },
+      (profile) async {
+        emit(ProfileActionSuccess(
+          message: 'profile.success_updated',
+          profile: profile,
+          loadedState: current.copyWith(profile: profile),
+        ));
+      },
     );
   }
 
@@ -269,6 +271,37 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         loadedState: current,
       )),
       (_) async => _reloadAfterAction(emit, 'profile.success_photo_uploaded'),
+    );
+  }
+
+  void _onApplySavedProfile(
+    ApplySavedProfile event,
+    Emitter<ProfileState> emit,
+  ) {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(current.copyWith(profile: event.profile));
+  }
+
+  Future<void> _onReplacePhoto(
+    ReplacePhoto event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final current = _currentLoaded;
+    if (current == null) return;
+    emit(PhotoUploading(profile: current.profile, progress: 0));
+
+    final result = await _profileRepository.replaceProfilePhoto(
+      photoId: event.photoId,
+      photo: event.photo,
+    );
+    await result.fold<Future<void>>(
+      (failure) async => emit(ProfileError(
+        message: failure.message,
+        profile: current.profile,
+        loadedState: current,
+      )),
+      (_) => _reloadAfterAction(emit, 'profile.success_photo_uploaded'),
     );
   }
 
@@ -321,19 +354,16 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     final current = _currentLoaded;
     if (current == null) return;
-    final result = await _reorderPhotos(
-        reorder.ReorderPhotosParams(photoUrls: event.photoUrls));
-    result.fold(
-      (failure) => emit(ProfileError(
-        message: failure.message,
-        profile: current.profile,
-        loadedState: current,
-      )),
-      (_) => emit(ProfileActionSuccess(
-        message: 'profile.feature_unavailable',
-        profile: current.profile,
-        loadedState: current,
-      )),
+    final result = await _profileRepository.reorderPhotosByIds(event.photoIds);
+    await result.fold<Future<void>>(
+      (failure) async {
+        emit(ProfileError(
+          message: failure.message,
+          profile: current.profile,
+          loadedState: current,
+        ));
+      },
+      (_) => _reloadAfterAction(emit, 'profile.photos_reordered'),
     );
   }
 

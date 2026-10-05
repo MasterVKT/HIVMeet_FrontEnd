@@ -24,6 +24,10 @@ class MatchesLoaded extends MatchesState {
   final int likesReceivedCount;
   final MatchFilter currentFilter;
   final String searchQuery;
+  final String? deletingMatchId;
+  final String? actionMessage;
+  final bool actionSucceeded;
+  final int actionSequence;
 
   const MatchesLoaded({
     required this.matches,
@@ -34,6 +38,10 @@ class MatchesLoaded extends MatchesState {
     this.likesReceivedCount = 0,
     this.currentFilter = MatchFilter.all,
     this.searchQuery = '',
+    this.deletingMatchId,
+    this.actionMessage,
+    this.actionSucceeded = false,
+    this.actionSequence = 0,
   });
 
   /// Getter pour les matches filtrés selon le filtre et la recherche
@@ -75,6 +83,12 @@ class MatchesLoaded extends MatchesState {
     int? likesReceivedCount,
     MatchFilter? currentFilter,
     String? searchQuery,
+    String? deletingMatchId,
+    String? actionMessage,
+    bool? actionSucceeded,
+    int? actionSequence,
+    bool clearDeletingMatchId = false,
+    bool clearActionMessage = false,
   }) {
     return MatchesLoaded(
       matches: matches ?? this.matches,
@@ -85,6 +99,12 @@ class MatchesLoaded extends MatchesState {
       likesReceivedCount: likesReceivedCount ?? this.likesReceivedCount,
       currentFilter: currentFilter ?? this.currentFilter,
       searchQuery: searchQuery ?? this.searchQuery,
+      deletingMatchId:
+          clearDeletingMatchId ? null : deletingMatchId ?? this.deletingMatchId,
+      actionMessage:
+          clearActionMessage ? null : actionMessage ?? this.actionMessage,
+      actionSucceeded: actionSucceeded ?? this.actionSucceeded,
+      actionSequence: actionSequence ?? this.actionSequence,
     );
   }
 
@@ -98,6 +118,10 @@ class MatchesLoaded extends MatchesState {
         likesReceivedCount,
         currentFilter,
         searchQuery,
+        deletingMatchId,
+        actionMessage,
+        actionSucceeded,
+        actionSequence,
       ];
 }
 
@@ -106,14 +130,16 @@ class LikesReceivedLoading extends MatchesState {}
 class LikesReceivedLoaded extends MatchesState {
   final List<DiscoveryProfile> profiles;
   final bool hasMore;
+  final bool isFreeReveal;
 
   const LikesReceivedLoaded({
     required this.profiles,
     required this.hasMore,
+    this.isFreeReveal = false,
   });
 
   @override
-  List<Object> get props => [profiles, hasMore];
+  List<Object> get props => [profiles, hasMore, isFreeReveal];
 }
 
 class MatchesError extends MatchesState {

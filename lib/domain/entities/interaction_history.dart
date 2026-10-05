@@ -68,6 +68,84 @@ class InteractionHistory extends Equatable {
   }
 }
 
+/// Explicit backend filter. `all` never changes meaning when matches exist.
+enum InteractionMatchFilter { all, matched, unmatched }
+
+extension InteractionMatchFilterApi on InteractionMatchFilter {
+  String get apiValue => switch (this) {
+        InteractionMatchFilter.all => 'all',
+        InteractionMatchFilter.matched => 'matched',
+        InteractionMatchFilter.unmatched => 'unmatched',
+      };
+}
+
+/// A server-paginated history page. The total is used for the "all results"
+/// selection, which must include rows that have not been loaded yet.
+class InteractionHistoryPage extends Equatable {
+  final List<InteractionHistory> interactions;
+  final int totalCount;
+  final int selectableCount;
+  final bool hasNextPage;
+
+  const InteractionHistoryPage({
+    required this.interactions,
+    required this.totalCount,
+    required this.selectableCount,
+    required this.hasNextPage,
+  });
+
+  @override
+  List<Object?> get props =>
+      [interactions, totalCount, selectableCount, hasNextPage];
+}
+
+enum InteractionHistoryType { likes, passes }
+
+extension InteractionHistoryTypeApi on InteractionHistoryType {
+  String get apiValue => switch (this) {
+        InteractionHistoryType.likes => 'likes',
+        InteractionHistoryType.passes => 'passes',
+      };
+}
+
+class BulkRevokeRequest extends Equatable {
+  final InteractionHistoryType historyType;
+  final List<String> interactionIds;
+  final bool selectAll;
+  final String query;
+  final InteractionMatchFilter matchFilter;
+
+  const BulkRevokeRequest({
+    required this.historyType,
+    this.interactionIds = const [],
+    this.selectAll = false,
+    this.query = '',
+    this.matchFilter = InteractionMatchFilter.all,
+  });
+
+  @override
+  List<Object?> get props => [
+        historyType,
+        interactionIds,
+        selectAll,
+        query,
+        matchFilter,
+      ];
+}
+
+class BulkRevokeResult extends Equatable {
+  final int revokedCount;
+  final List<String> revokedInteractionIds;
+
+  const BulkRevokeResult({
+    required this.revokedCount,
+    required this.revokedInteractionIds,
+  });
+
+  @override
+  List<Object?> get props => [revokedCount, revokedInteractionIds];
+}
+
 /// Type d'interaction utilisateur
 enum InteractionType {
   like,

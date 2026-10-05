@@ -7,7 +7,8 @@ class SimpleTestWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        backgroundColor: Colors.blue, // Arrière-plan bleu pour être sûr de voir quelque chose
+        backgroundColor: Colors
+            .blue, // Arrière-plan bleu pour être sûr de voir quelque chose
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "HIVMeet Frontend Orchestrator"
+  short_description: "Route le travail frontend et les dépendances backend."
+  default_prompt: "Route cette demande HIVMeet depuis le frontend et vérifie si le backend est concerné."

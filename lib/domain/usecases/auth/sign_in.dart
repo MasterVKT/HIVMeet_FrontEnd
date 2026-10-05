@@ -2,10 +2,10 @@
 
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/domain/entities/user.dart';
 import 'package:hivmeet/domain/repositories/auth_repository.dart';
 
@@ -17,20 +17,20 @@ class SignIn implements UseCase<User, SignInParams> {
 
   @override
   Future<Either<Failure, User>> call(SignInParams params) async {
-    debugPrint('🔄 DEBUG SignIn: Début call avec email: ${params.email}');
+    LogService.debug('🔄 DEBUG SignIn: Début call avec email: ${params.email}');
 
     try {
-      debugPrint('🔄 DEBUG SignIn: Appel repository.signIn...');
+      LogService.debug('🔄 DEBUG SignIn: Appel repository.signIn...');
       final result = await repository.signIn(
         email: params.email,
         password: params.password,
       );
-      debugPrint('✅ DEBUG SignIn: Repository.signIn terminé');
+      LogService.debug('✅ DEBUG SignIn: Repository.signIn terminé');
 
       return result;
     } catch (e) {
-      debugPrint('❌ DEBUG SignIn: Exception dans call: $e');
-      debugPrint('Type exception: ${e.runtimeType}');
+      LogService.debug('❌ DEBUG SignIn: Exception dans call: $e');
+      LogService.debug('Type exception: ${e.runtimeType}');
       rethrow;
     }
   }

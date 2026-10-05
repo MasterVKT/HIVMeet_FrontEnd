@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/config/premium_navigation.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/injection.dart';
@@ -15,8 +18,25 @@ import 'package:hivmeet/presentation/blocs/matches/matches_state.dart';
 import 'package:hivmeet/presentation/widgets/common/optimized_image.dart';
 import 'package:hivmeet/presentation/widgets/loaders/hiv_loader.dart';
 
-class LikesReceivedPage extends StatelessWidget {
+class LikesReceivedPage extends StatefulWidget {
   const LikesReceivedPage({super.key});
+
+  @override
+  State<LikesReceivedPage> createState() => _LikesReceivedPageState();
+}
+
+class _LikesReceivedPageState extends State<LikesReceivedPage> {
+  @override
+  void initState() {
+    super.initState();
+    getIt<RealtimeEventBus>().setActiveRoute('/likes-received');
+  }
+
+  @override
+  void dispose() {
+    getIt<RealtimeEventBus>().setActiveRoute(null);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,28 +55,15 @@ class LikesReceivedPage extends StatelessWidget {
           );
         }
 
-        final isPremium = authState.user.isPremium;
-        if (!isPremium) {
-          // Upsell immédiat sans appel API inutile
-          return Scaffold(
-            backgroundColor: AppColors.primaryWhite,
-            appBar: AppBar(
-              title: Text(_tr('profile.likes_received')),
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-            ),
-            body: _ErrorState(
-              icon: Icons.workspace_premium_outlined,
-              title: _tr('profile.likes_premium_title'),
-              subtitle: _tr('profile.likes_premium_message'),
-              actionLabel: _tr('profile.upgrade_premium'),
-              onPressed: () => context.push('/premium'),
-            ),
-          );
-        }
-
+        final isPremium = authState.user.isPremiumActive;
         return BlocProvider(
-          create: (_) => getIt<MatchesBloc>()..add(LoadLikesReceived()),
+          create: (_) {
+            final bloc = getIt<MatchesBloc>();
+            if (isPremium) {
+              bloc.add(LoadLikesReceived());
+            }
+            return bloc;
+          },
           child: Scaffold(
             backgroundColor: AppColors.primaryWhite,
             appBar: AppBar(
@@ -66,7 +73,18 @@ class LikesReceivedPage extends StatelessWidget {
             ),
             body: BlocBuilder<MatchesBloc, MatchesState>(
               builder: (context, state) {
-                if (state is LikesReceivedLoading || state is MatchesInitial) {
+                if (!isPremium && state is MatchesInitial) {
+                  return _ErrorState(
+                    icon: Icons.favorite_outline,
+                    title: _tr('profile.likes_free_title'),
+                    subtitle: _tr('profile.likes_free_message'),
+                    actionLabel: _tr('profile.likes_reveal_action'),
+                    onPressed: () => context
+                        .read<MatchesBloc>()
+                        .add(RevealReceivedLikeEvent()),
+                  );
+                }
+                if (state is LikesReceivedLoading || state is MatchesLoading) {
                   return const Center(child: HIVLoader());
                 }
 
@@ -79,46 +97,75 @@ class LikesReceivedPage extends StatelessWidget {
                     );
                   }
 
+                  final grid = GridView.builder(
+                    padding: EdgeInsets.all(AppSpacing.md),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.75,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: AppSpacing.md,
+                    ),
+                    itemCount: state.profiles.length,
+                    itemBuilder: (context, index) {
+                      return _LikeProfileCard(profile: state.profiles[index]);
+                    },
+                  );
+                  if (state.isFreeReveal) {
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            0,
+                          ),
+                          child: Text(
+                            _tr('profile.likes_revealed_message'),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(child: grid),
+                      ],
+                    );
+                  }
                   return RefreshIndicator(
                     onRefresh: () async =>
                         context.read<MatchesBloc>().add(LoadLikesReceived()),
-                    child: GridView.builder(
-                      padding: EdgeInsets.all(AppSpacing.md),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.75,
-                        crossAxisSpacing: AppSpacing.md,
-                        mainAxisSpacing: AppSpacing.md,
-                      ),
-                      itemCount: state.profiles.length,
-                      itemBuilder: (context, index) {
-                        return _LikeProfileCard(profile: state.profiles[index]);
-                      },
-                    ),
+                    child: grid,
                   );
                 }
 
                 if (state is MatchesError) {
+                  final freeAllowanceUsed = state.code == 'monthly_token_used';
                   final premiumRequired = state.code == 'premium-required' ||
                       state.message.toLowerCase().contains('premium');
                   return _ErrorState(
-                    icon: premiumRequired
+                    icon: premiumRequired || freeAllowanceUsed
                         ? Icons.workspace_premium_outlined
                         : Icons.error_outline,
-                    title: premiumRequired
-                        ? _tr('profile.likes_premium_title')
-                        : _tr('profile.likes_error_title'),
-                    subtitle: premiumRequired
-                        ? _tr('profile.likes_premium_message')
-                        : _tr('profile.likes_error_message'),
-                    actionLabel: premiumRequired
+                    title: freeAllowanceUsed
+                        ? _tr('profile.likes_free_used_title')
+                        : premiumRequired
+                            ? _tr('profile.likes_premium_title')
+                            : _tr('profile.likes_error_title'),
+                    subtitle: freeAllowanceUsed
+                        ? _tr('profile.likes_free_used_message')
+                        : premiumRequired
+                            ? _tr('profile.likes_premium_message')
+                            : _tr('profile.likes_error_message'),
+                    actionLabel: premiumRequired || freeAllowanceUsed
                         ? _tr('profile.upgrade_premium')
                         : _tr('common.retry'),
-                    onPressed: premiumRequired
-                        ? () => context.push('/premium')
+                    onPressed: premiumRequired || freeAllowanceUsed
+                        ? () => context.push(PremiumNavigation.location(
+                              returnTo: AppRoutes.likesReceived,
+                            ))
                         : () => context.read<MatchesBloc>().add(
-                              LoadLikesReceived(),
+                              isPremium
+                                  ? LoadLikesReceived()
+                                  : RevealReceivedLikeEvent(),
                             ),
                   );
                 }
@@ -128,8 +175,11 @@ class LikesReceivedPage extends StatelessWidget {
                   title: _tr('profile.likes_error_title'),
                   subtitle: _tr('profile.likes_error_message'),
                   actionLabel: _tr('common.retry'),
-                  onPressed: () =>
-                      context.read<MatchesBloc>().add(LoadLikesReceived()),
+                  onPressed: () => context.read<MatchesBloc>().add(
+                        isPremium
+                            ? LoadLikesReceived()
+                            : RevealReceivedLikeEvent(),
+                      ),
                 );
               },
             ),

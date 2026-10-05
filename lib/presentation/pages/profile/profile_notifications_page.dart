@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/injection.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_state.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_event.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_state.dart';
@@ -21,6 +25,27 @@ class ProfileNotificationsPage extends StatefulWidget {
 
 class _ProfileNotificationsPageState extends State<ProfileNotificationsPage> {
   NotificationPreferences? _draft;
+  PermissionStatus? _systemNotificationPermission;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshSystemNotificationPermission();
+  }
+
+  Future<void> _refreshSystemNotificationPermission() async {
+    try {
+      final status = await Permission.notification.status;
+      if (mounted) setState(() => _systemNotificationPermission = status);
+    } catch (_) {
+      // The preference screen remains usable if a platform cannot report it.
+    }
+  }
+
+  Future<void> _openSystemNotificationSettings() async {
+    await openAppSettings();
+    await _refreshSystemNotificationPermission();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +78,9 @@ class _ProfileNotificationsPageState extends State<ProfileNotificationsPage> {
           final prefs = _draft ??
               loaded.notificationPreferences ??
               const NotificationPreferences();
+          final authState = context.watch<AuthBlocSimple>().state;
+          final isPremium =
+              authState is Authenticated && authState.user.isPremiumActive;
           final isSaving = state is ProfileSectionLoading;
           return Scaffold(
             backgroundColor: AppColors.primaryWhite,
@@ -72,6 +100,25 @@ class _ProfileNotificationsPageState extends State<ProfileNotificationsPage> {
             ),
             body: ListView(
               children: [
+                if (_systemNotificationPermission?.isGranted == false)
+                  Semantics(
+                    button: true,
+                    label: _tr('profile.system_notifications_open_settings'),
+                    child: ListTile(
+                      onTap: _openSystemNotificationSettings,
+                      leading: const Icon(Icons.notifications_off_outlined),
+                      title: Text(_tr('profile.system_notifications_disabled')),
+                      subtitle: Text(
+                        _tr('profile.system_notifications_disabled_subtitle'),
+                      ),
+                      trailing: TextButton(
+                        onPressed: _openSystemNotificationSettings,
+                        child: Text(
+                          _tr('profile.system_notifications_open_settings'),
+                        ),
+                      ),
+                    ),
+                  ),
                 _switch(
                   title: _tr('profile.notify_matches'),
                   value: prefs.newMatchNotifications,
@@ -90,6 +137,18 @@ class _ProfileNotificationsPageState extends State<ProfileNotificationsPage> {
                   value: prefs.profileLikeNotifications,
                   onChanged: (value) =>
                       _set(prefs.copyWith(profileLikeNotifications: value)),
+                ),
+                _switch(
+                  title: _tr('profile.notify_read_receipts'),
+                  subtitle: _tr('profile.premium_only'),
+                  value: isPremium && prefs.messageReadNotifications,
+                  onChanged: (value) {
+                    if (!isPremium) {
+                      context.push('/premium');
+                      return;
+                    }
+                    _set(prefs.copyWith(messageReadNotifications: value));
+                  },
                 ),
                 _switch(
                   title: _tr('profile.notify_updates'),

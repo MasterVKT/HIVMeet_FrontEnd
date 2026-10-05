@@ -85,6 +85,7 @@ class MessagingApi {
     required String mediaType,
     required String clientMessageId,
     String? text,
+    ProgressCallback? onSendProgress,
   }) async {
     final formData = FormData.fromMap({
       'media_file': await MultipartFile.fromFile(mediaFilePath),
@@ -96,6 +97,7 @@ class MessagingApi {
     return await _apiClient.post(
       '/conversations/$conversationId/messages/media/',
       data: formData,
+      onSendProgress: onSendProgress,
     );
   }
 
@@ -135,10 +137,39 @@ class MessagingApi {
     );
   }
 
+  /// PATCH /conversations/{conversation_id}/messages/{message_id}/
+  Future<Response<Map<String, dynamic>>> editMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+  }) {
+    return _apiClient.patch(
+      '/conversations/$conversationId/messages/$messageId/',
+      data: {'content': content},
+    );
+  }
+
+  /// POST /conversations/{conversation_id}/messages/delete/
+  Future<Response<void>> deleteMessages({
+    required String conversationId,
+    required List<String> messageIds,
+    required MessageDeletionScope scope,
+  }) {
+    return _apiClient.post<void>(
+      '/conversations/$conversationId/messages/delete/',
+      data: {'message_ids': messageIds, 'scope': scope.apiValue},
+    );
+  }
+
   /// Masquer une conversation pour l'utilisateur courant.
   /// DELETE /conversations/{conversation_id}/
   Future<Response<void>> deleteConversation(String conversationId) async {
     return _apiClient.delete<void>('/conversations/$conversationId/');
+  }
+
+  /// Annule le masquage de conversation pour le participant courant.
+  Future<Response<void>> restoreConversation(String conversationId) {
+    return _apiClient.put<void>('/conversations/$conversationId/restore/');
   }
 
   /// Initiation d'appel
@@ -146,10 +177,12 @@ class MessagingApi {
   Future<Response<Map<String, dynamic>>> initiateCall({
     required String calleeId,
     required String callType, // "audio|video"
+    required String offerSdp,
   }) async {
     final data = {
       'target_user_id': calleeId,
       'call_type': callType,
+      'offer_sdp': offerSdp,
     };
 
     return await _apiClient.post('/calls/initiate', data: data);
@@ -159,9 +192,10 @@ class MessagingApi {
   /// POST /calls/{call_id}/answer
   Future<Response<Map<String, dynamic>>> answerCall({
     required String callId,
+    required String answerSdp,
   }) async {
     final data = {
-      'answer': true,
+      'answer_sdp': answerSdp,
     };
 
     return await _apiClient.post('/calls/$callId/answer', data: data);
@@ -171,8 +205,12 @@ class MessagingApi {
   /// POST /calls/{call_id}/terminate
   Future<Response<Map<String, dynamic>>> endCall({
     required String callId,
+    required String reason,
   }) async {
-    return await _apiClient.post('/calls/$callId/terminate');
+    return await _apiClient.post(
+      '/calls/$callId/terminate',
+      data: {'reason': reason},
+    );
   }
 
   /// Ajouter un candidat ICE
@@ -190,14 +228,16 @@ class MessagingApi {
   /// Initier un appel premium (exposé sous conversations/)
   /// POST /conversations/calls/initiate-premium/
   Future<Response<Map<String, dynamic>>> initiatePremiumCall({
-    required String conversationId,
+    required String targetUserId,
     required String callType, // "audio|video"
+    required String offerSdp,
   }) async {
     return await _apiClient.post(
       '/conversations/calls/initiate-premium/',
       data: {
-        'conversation_id': conversationId,
+        'target_user_id': targetUserId,
         'call_type': callType,
+        'offer_sdp': offerSdp,
       },
     );
   }

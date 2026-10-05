@@ -57,6 +57,34 @@ class DeleteMessageEvent extends ChatEvent {
   List<Object> get props => [messageId];
 }
 
+class DeleteMessagesEvent extends ChatEvent {
+  final Set<String> messageIds;
+  final MessageDeletionScope scope;
+
+  const DeleteMessagesEvent({required this.messageIds, required this.scope});
+
+  @override
+  List<Object?> get props => [messageIds, scope];
+}
+
+class EditMessageEvent extends ChatEvent {
+  final String messageId;
+  final String content;
+
+  const EditMessageEvent({required this.messageId, required this.content});
+
+  @override
+  List<Object?> get props => [messageId, content];
+}
+
+class HideConversationEvent extends ChatEvent {
+  const HideConversationEvent();
+}
+
+class RestoreConversationEvent extends ChatEvent {
+  const RestoreConversationEvent();
+}
+
 class BlockUserEvent extends ChatEvent {
   final String userId;
   const BlockUserEvent({required this.userId});
@@ -100,6 +128,12 @@ class ResyncMessages extends ChatEvent {
   const ResyncMessages();
 }
 
+/// Fetches the canonical presence snapshot after loading, resuming, reconnecting
+/// or local 90-second lease expiry.
+class RefreshPresence extends ChatEvent {
+  const RefreshPresence();
+}
+
 /// Événement interne : message créé reçu via WebSocket.
 class _WebSocketMessageReceived extends ChatEvent {
   final Map<String, dynamic> data;
@@ -138,6 +172,30 @@ class _WebSocketMessageDelivered extends ChatEvent {
   List<Object?> get props => [messageIds, deliveredAt];
 }
 
+class _WebSocketMessageUpdated extends ChatEvent {
+  final String messageId;
+  final String content;
+  final DateTime? editedAt;
+
+  const _WebSocketMessageUpdated({
+    required this.messageId,
+    required this.content,
+    this.editedAt,
+  });
+
+  @override
+  List<Object?> get props => [messageId, content, editedAt];
+}
+
+class _WebSocketMessagesDeleted extends ChatEvent {
+  final Set<String> messageIds;
+
+  const _WebSocketMessagesDeleted(this.messageIds);
+
+  @override
+  List<Object?> get props => [messageIds];
+}
+
 /// Événement interne : indicateur de frappe reçu via WebSocket.
 class _WebSocketTypingIndicator extends ChatEvent {
   final String userId;
@@ -151,10 +209,15 @@ class _WebSocketTypingIndicator extends ChatEvent {
 /// Événement interne : mise à jour de présence reçue via WebSocket.
 class _WebSocketPresenceUpdate extends ChatEvent {
   final String userId;
+  final bool isVisible;
   final bool isOnline;
   final DateTime? lastActive;
-  const _WebSocketPresenceUpdate(
-      {required this.userId, required this.isOnline, this.lastActive});
+  const _WebSocketPresenceUpdate({
+    required this.userId,
+    required this.isVisible,
+    required this.isOnline,
+    this.lastActive,
+  });
   @override
-  List<Object?> get props => [userId, isOnline, lastActive];
+  List<Object?> get props => [userId, isVisible, isOnline, lastActive];
 }

@@ -20,7 +20,9 @@ abstract class MatchRepository {
   Future<Either<Failure, SwipeResult>> likeProfile(String profileId);
   Future<Either<Failure, SwipeResult>> superLikeProfile(String profileId);
   Future<Either<Failure, SwipeResult>> dislikeProfile(String profileId);
-  Future<Either<Failure, SwipeResult>> rewindLastSwipe();
+  Future<Either<Failure, SwipeResult>> rewindInteraction(
+    String interactionId,
+  );
 
   // Matches
   Future<Either<Failure, List<Match>>> getMatches({
@@ -30,6 +32,9 @@ abstract class MatchRepository {
 
   Future<Either<Failure, Match>> getMatch(String matchId);
   Future<Either<Failure, void>> deleteMatch(String matchId);
+  Future<Either<Failure, int>> getUnseenMatchCount();
+  Future<Either<Failure, int>> markMatchesSeen(List<String> matchIds);
+  Future<Either<Failure, Match>> unlockFreeMatch(String matchId);
   Stream<List<Match>> watchMatches();
 
   // Likes received (Premium)
@@ -39,6 +44,7 @@ abstract class MatchRepository {
   });
 
   Future<Either<Failure, int>> getLikesReceivedCount();
+  Future<Either<Failure, DiscoveryProfile>> revealReceivedLike();
 
   // Daily limits
   Future<Either<Failure, DailyLikeLimit>> getDailyLikeLimit();

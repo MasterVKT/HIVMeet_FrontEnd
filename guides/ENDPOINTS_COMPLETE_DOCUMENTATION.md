@@ -1,5 +1,13 @@
 # Documentation Complète des Endpoints - HIVMeet Backend
 
+> **Archivage KYC v0 :** les sections historiques KYC de ce document ne sont
+> pas contractuelles. Le seul contrat KYC est
+> `env/hivmeet_backend/docs/kyc/KYC_V1_CONTRACT.openapi.yaml`, complété par son
+> cadrage de phase 0. En particulier, `generate-upload-url/` et
+> `submit-documents/` retournent `410` `kyc_legacy_endpoint_deprecated`; aucun
+> chemin de stockage, URL de lecture ou code selfie ne doit être implémenté à
+> partir de ce document.
+
 ## Table des Matières
 1. [Authentification](#authentification)
 2. [Profils Utilisateurs](#profils-utilisateurs)

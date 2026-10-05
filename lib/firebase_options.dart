@@ -53,9 +53,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '634137235718',
     projectId: 'hivmeet-f76f8',
     storageBucket: 'hivmeet-f76f8.firebasestorage.app',
-    androidClientId: '634137235718-0e8npjn2m2qa5uohi813nb8jc4b3d5oc.apps.googleusercontent.com',
-    iosClientId: '634137235718-bnisegqlgjai9qmol9um8u0mtb7j3iud.apps.googleusercontent.com',
+    androidClientId:
+        '634137235718-0e8npjn2m2qa5uohi813nb8jc4b3d5oc.apps.googleusercontent.com',
+    iosClientId:
+        '634137235718-bnisegqlgjai9qmol9um8u0mtb7j3iud.apps.googleusercontent.com',
     iosBundleId: 'com.hivmeet.hivmeet',
   );
-
 }

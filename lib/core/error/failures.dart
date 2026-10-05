@@ -209,8 +209,7 @@ class PremiumFailure extends Failure {
 class PremiumRequiredFailure extends PremiumFailure {
   const PremiumRequiredFailure()
       : super(
-          message:
-              'Cette fonctionnalité nécessite un abonnement Premium',
+          message: 'Cette fonctionnalité nécessite un abonnement Premium',
           code: 'premium-required',
         );
 }

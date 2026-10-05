@@ -1,6 +1,7 @@
 // lib/presentation/blocs/auth/auth_event.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:hivmeet/domain/entities/user.dart';
 
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
@@ -12,12 +13,33 @@ abstract class AuthEvent extends Equatable {
 /// Événement pour vérifier si l'utilisateur est connecté au démarrage
 class AppStarted extends AuthEvent {}
 
+/// Snapshot utilisateur actualisé sans transition de connexion.
+class AuthUserChanged extends AuthEvent {
+  final User? user;
+
+  const AuthUserChanged(this.user);
+
+  @override
+  List<Object?> get props => [user];
+}
+
 /// Événement pour une demande de connexion
 class LoginRequested extends AuthEvent {
   final String email;
   final String password;
 
   const LoginRequested({required this.email, required this.password});
+
+  @override
+  List<Object> get props => [email, password];
+}
+
+/// Événement pour login backend direct (debug only, bypass Firebase)
+class BackendLoginRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  const BackendLoginRequested({required this.email, required this.password});
 
   @override
   List<Object> get props => [email, password];

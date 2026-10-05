@@ -40,13 +40,25 @@ class UnreadCubit extends Cubit<int> {
     switch (event.type) {
       case RealtimeEventType.newMessage:
       case RealtimeEventType.conversationRead:
+      case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
         _scheduleRefresh();
+      case RealtimeEventType.conversationHidden:
+        final delta = event.unreadCountDelta ?? 0;
+        if (delta != 0) {
+          emit((state + delta).clamp(0, 1 << 31).toInt());
+        }
+        _scheduleRefresh();
       case RealtimeEventType.newMatch:
+      case RealtimeEventType.matchRemoved:
       case RealtimeEventType.messageRead:
+      case RealtimeEventType.messageReadAlert:
       case RealtimeEventType.messageDelivered:
       case RealtimeEventType.likeReceived:
       case RealtimeEventType.superLikeReceived:
+      case RealtimeEventType.subscriptionExpiring:
+      case RealtimeEventType.reportResolved:
+      case RealtimeEventType.subscriptionChanged:
         // Sans impact sur le compteur de messages non lus.
         break;
     }

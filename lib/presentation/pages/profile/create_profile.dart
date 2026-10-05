@@ -6,11 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
-import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_state.dart';
@@ -19,7 +16,11 @@ import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 import 'package:hivmeet/presentation/widgets/common/app_text_field.dart';
 import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:hivmeet/core/services/foreground_location_service.dart';
+import 'package:hivmeet/domain/entities/location_catalog.dart';
+import 'package:hivmeet/domain/entities/discovery_preference_catalog.dart';
+import 'package:hivmeet/domain/repositories/profile_repository.dart';
+import 'package:hivmeet/presentation/widgets/profile/location_catalog_picker.dart';
 
 class CreateProfilePage extends StatefulWidget {
   const CreateProfilePage({super.key});
@@ -34,43 +35,38 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
   // Controllers
   final _bioController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController();
 
   // State
   File? _mainPhoto;
   final List<String> _selectedInterests = [];
-  String _selectedRelationshipType = RelationshipType.friendship;
-  final List<String> _selectedGenders = [];
+  String _selectedRelationship = DiscoveryPreferenceCatalog.everyone;
+  String _selectedGender = DiscoveryPreferenceCatalog.everyone;
   RangeValues _ageRange = const RangeValues(18, 50);
   double _maxDistance = 50;
 
   // Location
-  Position? _currentPosition;
+  double? _automaticLatitude;
+  double? _automaticLongitude;
   bool _isLoadingLocation = false;
+  final ProfileRepository _profileRepository = getIt<ProfileRepository>();
+  final ForegroundLocationService _locationService =
+      const ForegroundLocationService();
+  String? _countryCode;
+  LocationCity? _city;
+  ProfileLocationUpdate? _locationUpdate;
 
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _requestLocationPermission();
   }
 
   @override
   void dispose() {
     _bioController.dispose();
-    _cityController.dispose();
-    _countryController.dispose();
     _pageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _requestLocationPermission() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      await _getCurrentLocation();
-    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -79,25 +75,25 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     });
 
     try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
+      final result = await _locationService.requestCurrentPosition();
       if (!mounted) return;
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
+      if (result case ForegroundLocationReady()) {
         setState(() {
-          _currentPosition = position;
-          _cityController.text = place.locality ?? '';
-          _countryController.text = place.country ?? '';
+          _automaticLatitude = result.latitude;
+          _automaticLongitude = result.longitude;
+          _locationUpdate = ProfileLocationUpdate.automatic(
+            latitude: result.latitude,
+            longitude: result.longitude,
+            accuracyMeters: result.accuracyMeters,
+          );
         });
+      } else {
+        HIVToast.showWarning(
+          context: context,
+          message: _tr('profile.location_permission_denied'),
+        );
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       HIVToast.showError(
         context: context,
@@ -215,7 +211,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         }
         return true;
       case 2:
-        if (_cityController.text.isEmpty || _countryController.text.isEmpty) {
+        if (_locationUpdate == null) {
           HIVToast.showError(
             context: context,
             message: _tr('create_profile.error_location_required'),
@@ -224,13 +220,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
         }
         return true;
       case 3:
-        if (_selectedGenders.isEmpty) {
-          HIVToast.showError(
-            context: context,
-            message: _tr('create_profile.error_gender_required'),
-          );
-          return false;
-        }
+        // An empty sought-gender list is the shared contract for “all”.
         return true;
       default:
         return true;
@@ -238,7 +228,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   }
 
   void _createProfile() {
-    if (_mainPhoto == null || _currentPosition == null) {
+    if (_mainPhoto == null || _locationUpdate == null) {
       HIVToast.showError(
         context: context,
         message: _tr('create_profile.error_photo_location_required'),
@@ -251,16 +241,18 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
       mainPhoto: _mainPhoto!,
       bio: _bioController.text,
       interests: List<String>.from(_selectedInterests),
-      relationshipType: _selectedRelationshipType,
-      relationshipTypesSought: [_selectedRelationshipType],
-      city: _cityController.text,
-      country: _countryController.text,
-      latitude: _currentPosition!.latitude,
-      longitude: _currentPosition!.longitude,
+      relationshipType: _selectedRelationship,
+      relationshipTypesSought:
+          DiscoveryPreferenceCatalog.relationshipPayload(_selectedRelationship),
+      city: _city?.name ?? '',
+      country: _city?.countryName ?? '',
+      latitude: _automaticLatitude ?? 0,
+      longitude: _automaticLongitude ?? 0,
       minAge: _ageRange.start.round(),
       maxAge: _ageRange.end.round(),
       maxDistance: _maxDistance,
-      interestedIn: List<String>.from(_selectedGenders),
+      interestedIn: DiscoveryPreferenceCatalog.genderPayload(_selectedGender),
+      locationUpdate: _locationUpdate,
     ));
   }
 
@@ -547,7 +539,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
           const SizedBox(height: AppSpacing.xl),
 
           // Location button
-          if (_currentPosition == null && !_isLoadingLocation)
+          if (_locationUpdate == null && !_isLoadingLocation)
             AppButton(
               onPressed: _getCurrentLocation,
               text: _tr('create_profile.use_current_location'),
@@ -562,20 +554,19 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
 
           const SizedBox(height: AppSpacing.lg),
 
-          // Manual input
-          AppTextField(
-            controller: _cityController,
-            label: _tr('profile.city'),
-            hintText: _tr('create_profile.city_hint'),
-            prefixIcon: Icons.location_city,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          AppTextField(
-            controller: _countryController,
-            label: _tr('profile.country'),
-            hintText: _tr('create_profile.country_hint'),
-            prefixIcon: Icons.flag,
+          Text(_tr('profile.manual_location')),
+          const SizedBox(height: AppSpacing.sm),
+          LocationCatalogPicker(
+            repository: _profileRepository,
+            initialCountryCode: _countryCode,
+            initialCity: _city,
+            onCityChanged: (city) => setState(() {
+              _city = city;
+              _countryCode = city?.countryCode;
+              _locationUpdate = city == null
+                  ? null
+                  : ProfileLocationUpdate.manual(cityId: city.id);
+            }),
           ),
         ],
       ),
@@ -728,50 +719,57 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   }
 
   Widget _buildRelationshipTypeSelector() {
-    final types = [
-      (RelationshipType.friendship, _tr('profile.relationship_friendship')),
-      (RelationshipType.longTerm, _tr('profile.relationship_long_term')),
-      (RelationshipType.shortTerm, _tr('profile.relationship_short_term')),
-      (RelationshipType.casualDating, _tr('profile.relationship_casual')),
+    const types = <String>[
+      DiscoveryPreferenceCatalog.everyone,
+      ...DiscoveryPreferenceCatalog.relationshipValues,
     ];
 
-    return Column(
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: types.map((type) {
-        return RadioListTile<String>(
-          title: Text(type.$2),
-          value: type.$1,
-          groupValue: _selectedRelationshipType,
-          onChanged: (value) {
+        final isSelected = _selectedRelationship == type;
+        return ChoiceChip(
+          label: Text(_tr(
+            DiscoveryPreferenceCatalog.relationshipLabelKey(type),
+          )),
+          selected: isSelected,
+          selectedColor: AppColors.primaryPurple,
+          labelStyle: TextStyle(
+            color: isSelected ? Colors.white : AppColors.charcoal,
+          ),
+          onSelected: (selected) {
             setState(() {
-              _selectedRelationshipType = value!;
+              if (selected) {
+                _selectedRelationship = type;
+              }
             });
           },
-          activeColor: AppColors.primaryPurple,
         );
       }).toList(),
     );
   }
 
   Widget _buildGenderSelector() {
-    // 3 options simplifiées : Tout le monde, Hommes, Femmes
-    final genders = [
-      ('all', _tr('gender.all'), Icons.people),
-      (Gender.male, Gender.getLabel(Gender.male), Icons.male),
-      (Gender.female, Gender.getLabel(Gender.female), Icons.female),
+    const genders = <String>[
+      DiscoveryPreferenceCatalog.everyone,
+      ...DiscoveryPreferenceCatalog.genderValues,
     ];
 
     return Column(
       children: genders.map((gender) {
-        final isSelected = _selectedGenders.contains(gender.$1);
+        final isSelected = _selectedGender == gender;
         return Card(
           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: ListTile(
             leading: Icon(
-              gender.$3,
+              gender == DiscoveryPreferenceCatalog.everyone
+                  ? Icons.people
+                  : Icons.person,
               color: isSelected ? AppColors.primaryPurple : AppColors.slate,
             ),
             title: Text(
-              gender.$2,
+              _tr(DiscoveryPreferenceCatalog.genderLabelKey(gender)),
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? AppColors.primaryPurple : null,
@@ -782,8 +780,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                 : const Icon(Icons.circle_outlined, color: AppColors.slate),
             onTap: () {
               setState(() {
-                _selectedGenders.clear();
-                _selectedGenders.add(gender.$1);
+                _selectedGender = gender;
               });
             },
           ),

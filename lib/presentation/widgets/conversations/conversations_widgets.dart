@@ -3,7 +3,6 @@
 /// Barrel file pour exporter tous les widgets relatifs aux conversations
 library;
 
-
 export 'conversation_card.dart';
 export 'conversations_search_bar.dart';
 export 'empty_conversations_view.dart';

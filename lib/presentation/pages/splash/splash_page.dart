@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_event.dart';
@@ -136,7 +135,8 @@ class _SplashPageState extends State<SplashPage>
                     // Nom de l'application
                     Text(
                       'HIVMeet',
-                      style: GoogleFonts.openSans(
+                      style: TextStyle(
+                        fontFamily: 'OpenSans',
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primaryPurple,
@@ -147,7 +147,8 @@ class _SplashPageState extends State<SplashPage>
                     // Tagline
                     Text(
                       'Connecter - Soutenir - Grandir',
-                      style: GoogleFonts.openSans(
+                      style: TextStyle(
+                        fontFamily: 'OpenSans',
                         fontSize: 16,
                         color: AppColors.slate,
                       ),
@@ -162,7 +163,8 @@ class _SplashPageState extends State<SplashPage>
                           const SizedBox(height: 16),
                           Text(
                             'Verification de la connexion...',
-                            style: GoogleFonts.openSans(
+                            style: TextStyle(
+                              fontFamily: 'OpenSans',
                               fontSize: 14,
                               color: AppColors.slate,
                             ),
@@ -184,7 +186,8 @@ class _SplashPageState extends State<SplashPage>
                             Text(
                               state.message,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.openSans(
+                              style: TextStyle(
+                                fontFamily: 'OpenSans',
                                 fontSize: 12,
                                 color: AppColors.error,
                               ),
@@ -233,7 +236,8 @@ class _SplashPageState extends State<SplashPage>
                             const SizedBox(height: 8),
                             Text(
                               'Erreur d\'authentification',
-                              style: GoogleFonts.openSans(
+                              style: TextStyle(
+                                fontFamily: 'OpenSans',
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.error,
@@ -243,7 +247,8 @@ class _SplashPageState extends State<SplashPage>
                             Text(
                               state.message,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.openSans(
+                              style: TextStyle(
+                                fontFamily: 'OpenSans',
                                 fontSize: 12,
                                 color: AppColors.slate,
                               ),
@@ -273,7 +278,8 @@ class _SplashPageState extends State<SplashPage>
                           const SizedBox(height: 16),
                           Text(
                             'Initialisation...',
-                            style: GoogleFonts.openSans(
+                            style: TextStyle(
+                              fontFamily: 'OpenSans',
                               fontSize: 14,
                               color: AppColors.slate,
                             ),
@@ -286,7 +292,8 @@ class _SplashPageState extends State<SplashPage>
                     // Version de l'app (en bas)
                     Text(
                       'Version 1.0.0',
-                      style: GoogleFonts.openSans(
+                      style: TextStyle(
+                        fontFamily: 'OpenSans',
                         fontSize: 12,
                         color: AppColors.slate.withOpacityValues(0.7),
                       ),

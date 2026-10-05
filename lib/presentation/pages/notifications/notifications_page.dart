@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/config/premium_navigation.dart';
+import 'package:hivmeet/core/notifications/notification_read_policy.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/app_notification.dart';
 import 'package:hivmeet/domain/entities/message.dart';
@@ -18,8 +22,36 @@ class NotificationsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: getIt<NotificationsBloc>(),
-      child: const _NotificationsContent(),
+      child: const _NotificationsRouteTracker(),
     );
+  }
+}
+
+class _NotificationsRouteTracker extends StatefulWidget {
+  const _NotificationsRouteTracker();
+
+  @override
+  State<_NotificationsRouteTracker> createState() =>
+      _NotificationsRouteTrackerState();
+}
+
+class _NotificationsRouteTrackerState
+    extends State<_NotificationsRouteTracker> {
+  @override
+  void initState() {
+    super.initState();
+    getIt<RealtimeEventBus>().setActiveRoute('/notifications');
+  }
+
+  @override
+  void dispose() {
+    getIt<RealtimeEventBus>().setActiveRoute(null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const _NotificationsContent();
   }
 }
 
@@ -44,7 +76,8 @@ class _NotificationsContent extends StatelessWidget {
           notification.data,
           'from_user_id',
         ) ??
-        _nonEmptyString(notification.data, 'other_user_id');
+        _nonEmptyString(notification.data, 'other_user_id') ??
+        _nonEmptyString(notification.data, 'reader_id');
 
     if (otherUserId == null) return null;
 
@@ -57,14 +90,41 @@ class _NotificationsContent extends StatelessWidget {
   }
 
   void _onTap(BuildContext context, AppNotification notification) {
-    context
-        .read<NotificationsBloc>()
-        .add(MarkNotificationRead(notification.id));
+    if (NotificationReadPolicy.shouldMarkReadOnTap(notification.type)) {
+      context
+          .read<NotificationsBloc>()
+          .add(MarkNotificationRead(notification.id));
+    }
 
     final data = notification.data;
+
+    // Pour les notifications de message : marquer immédiatement toutes les
+    // notifications de cette conversation comme lues (meilleure UX — le
+    // badge cloche se décrémente pour toutes les notifs de cette conv,
+    // pas seulement celle tapée). ChatPage fera de même via
+    // conversationRead, mais ce dispatch anticipe le résultat.
+    if (notification.type == AppNotificationType.newMessage) {
+      final conversationId = data['conversation_id'] as String?;
+      if (conversationId != null && conversationId.isNotEmpty) {
+        context
+            .read<NotificationsBloc>()
+            .add(ConversationNotificationsRead(conversationId));
+      }
+    }
+
     switch (notification.type) {
       case AppNotificationType.newMatch:
-        context.push('/matches');
+        final conversationId =
+            data['conversation_id'] as String? ?? data['match_id'] as String?;
+        if (conversationId != null && conversationId.isNotEmpty) {
+          // Aller directement à la conversation du match
+          final conversation =
+              _conversationFromNotification(notification, conversationId);
+          context.push('/chat/$conversationId', extra: conversation);
+        } else {
+          // Fallback : liste des matches
+          context.push('/matches');
+        }
         break;
       case AppNotificationType.newMessage:
         final conversationId = data['conversation_id'] as String?;
@@ -76,13 +136,103 @@ class _NotificationsContent extends StatelessWidget {
           context.push('/conversations');
         }
         break;
+      case AppNotificationType.messageRead:
+        final conversationId = data['conversation_id'] as String?;
+        if (conversationId != null && conversationId.isNotEmpty) {
+          final conversation =
+              _conversationFromNotification(notification, conversationId);
+          context.push('/chat/$conversationId', extra: conversation);
+        } else {
+          context.push('/conversations');
+        }
+        break;
       case AppNotificationType.like:
       case AppNotificationType.superLike:
-        context.push('/discovery');
+        final fromUserId = data['from_user_id'] as String?;
+        if (fromUserId != null && fromUserId.isNotEmpty) {
+          // Premium : le backend fournit l'ID du liker → aller à son profil
+          context.push('/profile/$fromUserId');
+        } else {
+          // Non-premium : from_user_id est vide → page d'upsell
+          context.push('/likes-received');
+        }
+        break;
+      case AppNotificationType.subscriptionExpiring:
+        context.push(PremiumNavigation.location(
+          returnTo: AppRoutes.profile,
+        ));
+        break;
+      case AppNotificationType.reportResolved:
+        _showReportResolutionDialog(context, notification);
         break;
       case AppNotificationType.system:
         break;
     }
+  }
+
+  /// Affiche la décision complète d'un signalement dans un dialog.
+  void _showReportResolutionDialog(
+    BuildContext context,
+    AppNotification notification,
+  ) {
+    final data = notification.data;
+    final status = data['status'] as String? ?? 'resolved';
+    final resolutionSummary = data['resolution_summary'] as String? ?? '';
+    final isResolved = status == 'resolved';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              isResolved ? Icons.check_circle : Icons.cancel,
+              color: isResolved ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                LocalizationService.translate(
+                  'notifications.report_resolved_title',
+                ),
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              LocalizationService.translate(
+                isResolved
+                    ? 'notifications.report_status_resolved'
+                    : 'notifications.report_status_dismissed',
+              ),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isResolved ? Colors.green : Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (resolutionSummary.isNotEmpty)
+              Text(
+                resolutionSummary,
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              LocalizationService.translate('common.close'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -97,16 +247,38 @@ class _NotificationsContent extends StatelessWidget {
         actions: [
           BlocBuilder<NotificationsBloc, NotificationsState>(
             builder: (context, state) {
-              if (state is NotificationsLoaded && state.unreadCount > 0) {
-                return TextButton(
-                  onPressed: () => context
-                      .read<NotificationsBloc>()
-                      .add(const MarkAllNotificationsRead()),
-                  child: Text(
-                    LocalizationService.translate(
-                      'notifications.mark_all_read',
+              if (state is NotificationsLoaded &&
+                  state.notifications.isNotEmpty) {
+                return PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'mark_all_read') {
+                      context
+                          .read<NotificationsBloc>()
+                          .add(const MarkAllNotificationsRead());
+                    } else if (value == 'delete_all') {
+                      _confirmDeleteAll(context);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (state.unreadCount > 0)
+                      PopupMenuItem(
+                        value: 'mark_all_read',
+                        child: Text(
+                          LocalizationService.translate(
+                            'notifications.mark_all_read',
+                          ),
+                        ),
+                      ),
+                    PopupMenuItem(
+                      value: 'delete_all',
+                      child: Text(
+                        LocalizationService.translate(
+                          'notifications.delete_all',
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 );
               }
               return const SizedBox.shrink();
@@ -164,9 +336,25 @@ class _NotificationsContent extends StatelessWidget {
                     const Divider(height: 1, indent: 68),
                 itemBuilder: (context, index) {
                   final notification = state.notifications[index];
-                  return NotificationCard(
-                    notification: notification,
-                    onTap: () => _onTap(context, notification),
+                  return Dismissible(
+                    key: ValueKey(notification.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      child: const Icon(
+                        Icons.delete,
+                        color: Colors.white,
+                      ),
+                    ),
+                    confirmDismiss: (direction) async {
+                      return await _confirmDelete(context, notification);
+                    },
+                    child: NotificationCard(
+                      notification: notification,
+                      onTap: () => _onTap(context, notification),
+                    ),
                   );
                 },
               ),
@@ -175,6 +363,81 @@ class _NotificationsContent extends StatelessWidget {
 
           return const SizedBox.shrink();
         },
+      ),
+    );
+  }
+
+  /// Confirmation pour la suppression individuelle (swipe).
+  Future<bool> _confirmDelete(
+    BuildContext context,
+    AppNotification notification,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          LocalizationService.translate('notifications.delete_title'),
+        ),
+        content: Text(
+          LocalizationService.translate('notifications.delete_confirm'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              LocalizationService.translate('common.cancel'),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(
+              LocalizationService.translate('common.delete'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (result == true && context.mounted) {
+      context
+          .read<NotificationsBloc>()
+          .add(DeleteNotification(notification.id));
+      return true;
+    }
+    return false;
+  }
+
+  /// Confirmation pour la suppression de toutes les notifications.
+  void _confirmDeleteAll(BuildContext context) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          LocalizationService.translate('notifications.delete_all_title'),
+        ),
+        content: Text(
+          LocalizationService.translate('notifications.delete_all_confirm'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              LocalizationService.translate('common.cancel'),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop(true);
+              context
+                  .read<NotificationsBloc>()
+                  .add(const DeleteAllNotifications());
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(
+              LocalizationService.translate('common.delete'),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Cline hook: task-router gate - executes BEFORE every user prompt
+set -euo pipefail
+
+# Read JSON payload from stdin
+INPUT=$(cat)
+
+# Emit system instruction via JSON stdout
+cat <<EOF
+{
+  "systemMessage": "[ORCHESTRATOR GATE] Avant tout traitement : lire .agents/skills/task-router/SKILL.md, appliquer son arbre de decision, identifier les skills pertinentes, puis traiter la requete."
+}
+EOF
+exit 0

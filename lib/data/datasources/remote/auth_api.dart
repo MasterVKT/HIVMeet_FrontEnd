@@ -3,9 +3,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/error/exceptions.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/data/models/user_model.dart';
 import 'package:hivmeet/core/network/api_client.dart';
 
@@ -15,6 +15,7 @@ abstract class AuthRemoteDataSource {
     required String password,
     required String displayName,
     required DateTime birthDate,
+    required String gender,
     String? phoneNumber,
   });
 
@@ -69,26 +70,33 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String password,
     required String displayName,
     required DateTime birthDate,
+    required String gender,
     String? phoneNumber,
   }) async {
     try {
-      // Créer le compte Firebase Auth
-      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+      // The backend provisions Firebase and Django with compensation.  This
+      // path must never create a Firebase-only account.
+      await _apiClient.post<Map<String, dynamic>>(
+        'auth/register/',
+        data: {
+          'email': email,
+          'password': password,
+          'password_confirm': password,
+          'display_name': displayName,
+          'birth_date': birthDate.toIso8601String().substring(0, 10),
+          if (phoneNumber != null && phoneNumber.isNotEmpty)
+            'phone_number': phoneNumber,
+          'gender': gender,
+        },
+      );
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
       if (credential.user == null) {
-        throw ServerException(message: 'Échec de création du compte');
+        throw ServerException(
+            message: '\u00c9chec de connexion apr\u00e8s inscription');
       }
-
-      // Mettre à jour le displayName
-      await credential.user!.updateDisplayName(displayName);
-
-      // Envoyer l'email de vérification
-      await credential.user!.sendEmailVerification();
-
-      // Créer le document utilisateur dans Firestore
       final userModel = UserModel(
         id: credential.user!.uid,
         email: email,
@@ -102,17 +110,24 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-
       await _firestore
           .collection('users')
           .doc(credential.user!.uid)
           .set(userModel.toFirestore());
-
       return userModel;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    } catch (e) {
-      throw ServerException(message: e.toString());
+    } on firebase_auth.FirebaseAuthException catch (error) {
+      throw _handleFirebaseAuthException(error);
+    } on DioException catch (error) {
+      final data = error.response?.data;
+      final message = data is Map && data['message'] is String
+          ? data['message'] as String
+          : 'Impossible de cr\u00e9er le compte pour le moment.';
+      throw ServerException(message: message);
+    } on ServerException {
+      rethrow;
+    } catch (_) {
+      throw ServerException(
+          message: 'Impossible de cr\u00e9er le compte pour le moment.');
     }
   }
 
@@ -121,23 +136,23 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
-    debugPrint('🔥 DEBUG AuthAPI: signIn DÉMARRÉ pour $email');
+    LogService.debug('🔥 DEBUG AuthAPI: signIn DÉMARRÉ pour $email');
 
     try {
-      debugPrint(
+      LogService.debug(
           '🔥 DEBUG AuthAPI: Appel Firebase signInWithEmailAndPassword...');
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      debugPrint('✅ DEBUG AuthAPI: Firebase signIn terminé');
+      LogService.debug('✅ DEBUG AuthAPI: Firebase signIn terminé');
 
       if (credential.user == null) {
-        debugPrint('❌ DEBUG AuthAPI: credential.user est null');
+        LogService.debug('❌ DEBUG AuthAPI: credential.user est null');
         throw ServerException(message: 'Échec de connexion');
       }
 
-      debugPrint(
+      LogService.debug(
           '✅ DEBUG AuthAPI: Firebase user récupéré: ${credential.user!.uid}');
 
       // Vérifier que l'email est vérifié (sauf pour les utilisateurs de test)
@@ -146,15 +161,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           email.contains('test@');
 
       if (!credential.user!.emailVerified && !isTestUser) {
-        debugPrint(
+        LogService.debug(
             '❌ DEBUG AuthAPI: Email non vérifié pour utilisateur non-test');
         throw EmailNotVerifiedException();
       }
 
-      debugPrint('✅ DEBUG AuthAPI: Vérification email OK');
+      LogService.debug('✅ DEBUG AuthAPI: Vérification email OK');
 
       try {
-        debugPrint('🔥 DEBUG AuthAPI: Tentative accès Firestore...');
+        LogService.debug('🔥 DEBUG AuthAPI: Tentative accès Firestore...');
         // Récupérer les données utilisateur depuis Firestore
         final doc = await _firestore
             .collection('users')
@@ -164,25 +179,26 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         UserModel userModel;
 
         if (doc.exists) {
-          debugPrint('✅ DEBUG AuthAPI: Document Firestore existant trouvé');
+          LogService.debug(
+              '✅ DEBUG AuthAPI: Document Firestore existant trouvé');
           // Utilisateur existe dans Firestore
           userModel = UserModel.fromFirestore(doc);
 
           // Mettre à jour lastActive
           try {
-            debugPrint('🔥 DEBUG AuthAPI: Mise à jour lastActive...');
+            LogService.debug('🔥 DEBUG AuthAPI: Mise à jour lastActive...');
             await doc.reference.update({
               'lastActive': FieldValue.serverTimestamp(),
             });
-            debugPrint('✅ DEBUG AuthAPI: lastActive mis à jour');
+            LogService.debug('✅ DEBUG AuthAPI: lastActive mis à jour');
           } catch (updateError) {
-            debugPrint(
+            LogService.debug(
                 '❌ DEBUG AuthAPI: Erreur mise à jour lastActive: $updateError');
             // Continue sans bloquer
           }
         } else {
           // Utilisateur n'existe pas dans Firestore, créer un document
-          debugPrint(
+          LogService.debug(
               '🔥 DEBUG AuthAPI: Création nouveau document Firestore pour: ${credential.user!.email}');
 
           userModel = UserModel(
@@ -206,24 +222,26 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           );
 
           try {
-            debugPrint('🔥 DEBUG AuthAPI: Sauvegarde document Firestore...');
+            LogService.debug(
+                '🔥 DEBUG AuthAPI: Sauvegarde document Firestore...');
             await _firestore
                 .collection('users')
                 .doc(credential.user!.uid)
                 .set(userModel.toFirestore());
-            debugPrint('✅ DEBUG AuthAPI: Document Firestore créé avec succès');
+            LogService.debug(
+                '✅ DEBUG AuthAPI: Document Firestore créé avec succès');
           } catch (createError) {
-            debugPrint(
+            LogService.debug(
                 '❌ DEBUG AuthAPI: Erreur création document Firestore: $createError');
             // Continue avec l'utilisateur minimal
           }
         }
 
-        debugPrint('✅ DEBUG AuthAPI: UserModel créé, retour...');
+        LogService.debug('✅ DEBUG AuthAPI: UserModel créé, retour...');
         return userModel;
       } catch (firestoreError) {
         // Si Firestore n'est pas configuré, retourner un utilisateur minimal
-        debugPrint(
+        LogService.debug(
             '❌ DEBUG AuthAPI: Erreur Firestore, création utilisateur minimal: $firestoreError');
 
         return UserModel(
@@ -247,12 +265,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       }
     } on firebase_auth.FirebaseAuthException catch (e) {
-      debugPrint(
+      LogService.debug(
           '❌ DEBUG AuthAPI: FirebaseAuthException: ${e.code} - ${e.message}');
       throw _handleFirebaseAuthException(e);
     } catch (e) {
-      debugPrint('❌ DEBUG AuthAPI: Exception générale: $e');
-      debugPrint('Type exception: ${e.runtimeType}');
+      LogService.debug('❌ DEBUG AuthAPI: Exception générale: $e');
+      LogService.debug('Type exception: ${e.runtimeType}');
       throw ServerException(message: e.toString());
     }
   }
@@ -293,7 +311,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         return UserModel.fromFirestore(doc);
       } catch (e) {
         // Gestion d'erreur si Firestore n'est pas configuré ou indisponible
-        debugPrint('Erreur Firestore dans authStateChanges: $e');
+        LogService.debug('Erreur Firestore dans authStateChanges: $e');
 
         // Retourner un utilisateur minimal basé sur FirebaseAuth seulement
         return UserModel(
@@ -519,7 +537,7 @@ class AuthApi {
   }) async {
     final data = {
       'fcm_token': fcmToken,
-      'device_type': deviceType,
+      'platform': deviceType,
     };
 
     if (deviceId != null) {
@@ -534,7 +552,7 @@ class AuthApi {
   Future<Response<Map<String, dynamic>>> removeFCMToken({
     required String fcmToken,
   }) async {
-    return await _apiClient.delete('/auth/fcm-token', queryParameters: {
+    return await _apiClient.delete('/auth/fcm-token', data: {
       'fcm_token': fcmToken,
     });
   }

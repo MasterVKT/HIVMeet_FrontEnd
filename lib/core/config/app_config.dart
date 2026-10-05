@@ -27,7 +27,7 @@ class AppConfig {
 
     configure();
 
-    if (kDebugMode && !kIsWeb) {
+    if ((kDebugMode || kProfileMode) && !kIsWeb) {
       try {
         final deviceInfo = DeviceInfoPlugin();
         if (Platform.isAndroid) {
@@ -78,8 +78,8 @@ class AppConfig {
           .replaceAll(RegExp(r'/+$'), '')
           .replaceAll(RegExp(r'/api/v\d+$'), '');
     }
-    if (kDebugMode) {
-      // Mode développement
+    if (kDebugMode || kProfileMode) {
+      // Mode développement / recette (profile) : même backend LAN que le debug.
       if (kIsWeb) {
         return 'http://localhost:8000';
       }

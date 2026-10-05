@@ -11,7 +11,15 @@ class ChatInitial extends ChatState {}
 
 class ChatLoading extends ChatState {}
 
-enum ChatUserAction { block, report }
+enum ChatUserAction {
+  block,
+  report,
+  hide,
+  restore,
+  edit,
+  deleteForMe,
+  deleteForEveryone,
+}
 
 const Object _chatStateUnset = Object();
 
@@ -21,6 +29,11 @@ class ChatLoaded extends ChatState {
   final bool isTyping;
   final bool isLoadingMore;
   final bool showPremiumPrompt;
+
+  /// Updated from a server-side entitlement denial so the composer does not
+  /// keep offering sends that the server has correctly refused.
+  final bool canSendMessages;
+  final bool? otherPresenceVisible;
   final bool? otherIsOnline;
   final DateTime? otherLastActive;
   final ChatUserAction? completedAction;
@@ -32,6 +45,8 @@ class ChatLoaded extends ChatState {
     required this.isTyping,
     required this.isLoadingMore,
     this.showPremiumPrompt = false,
+    this.canSendMessages = true,
+    this.otherPresenceVisible,
     this.otherIsOnline,
     this.otherLastActive,
     this.completedAction,
@@ -44,6 +59,8 @@ class ChatLoaded extends ChatState {
     bool? isTyping,
     bool? isLoadingMore,
     bool? showPremiumPrompt,
+    bool? canSendMessages,
+    Object? otherPresenceVisible = _chatStateUnset,
     Object? otherIsOnline = _chatStateUnset,
     Object? otherLastActive = _chatStateUnset,
     Object? completedAction = _chatStateUnset,
@@ -55,6 +72,10 @@ class ChatLoaded extends ChatState {
       isTyping: isTyping ?? this.isTyping,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       showPremiumPrompt: showPremiumPrompt ?? this.showPremiumPrompt,
+      canSendMessages: canSendMessages ?? this.canSendMessages,
+      otherPresenceVisible: identical(otherPresenceVisible, _chatStateUnset)
+          ? this.otherPresenceVisible
+          : otherPresenceVisible as bool?,
       otherIsOnline: identical(otherIsOnline, _chatStateUnset)
           ? this.otherIsOnline
           : otherIsOnline as bool?,
@@ -77,6 +98,8 @@ class ChatLoaded extends ChatState {
         isTyping,
         isLoadingMore,
         showPremiumPrompt,
+        canSendMessages,
+        otherPresenceVisible,
         otherIsOnline,
         otherLastActive,
         completedAction,

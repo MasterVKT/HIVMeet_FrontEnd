@@ -12,9 +12,20 @@ class Profile extends Equatable {
   final DateTime birthDate;
   final String bio;
   final String gender;
+
+  /// Set only for migrated accounts that must explicitly confirm an identity
+  /// gender before returning to Discovery.
+  final bool genderConfirmationRequired;
   final Location location;
   final String city;
   final String country;
+  final bool locationEnabled;
+  final String locationMode;
+  final int? geoCityId;
+  final String? countryCode;
+  final DateTime? locationUpdatedAt;
+  final String preferredCurrency;
+  final String effectiveCurrency;
   final List<String> interests;
   final String relationshipType;
   final List<String> relationshipTypesSought;
@@ -27,6 +38,8 @@ class Profile extends Equatable {
   final PrivacySettings privacySettings;
   final PremiumProfileStatus? premiumStatus;
   final double? distanceFromMeKm;
+  final bool? distanceEstimated;
+  final bool sameCity;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -38,9 +51,17 @@ class Profile extends Equatable {
     required this.birthDate,
     required this.bio,
     this.gender = '',
+    this.genderConfirmationRequired = false,
     required this.location,
     required this.city,
     required this.country,
+    this.locationEnabled = true,
+    this.locationMode = 'manual',
+    this.geoCityId,
+    this.countryCode,
+    this.locationUpdatedAt,
+    this.preferredCurrency = 'AUTO',
+    this.effectiveCurrency = 'EUR',
     required this.interests,
     required this.relationshipType,
     this.relationshipTypesSought = const [],
@@ -53,6 +74,8 @@ class Profile extends Equatable {
     required this.privacySettings,
     this.premiumStatus,
     this.distanceFromMeKm,
+    this.distanceEstimated,
+    this.sameCity = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -73,9 +96,11 @@ class Profile extends Equatable {
     return difference.inMinutes < 10;
   }
 
-  String get displayLocation {
-    return privacySettings.showExactLocation ? city : country;
-  }
+  /// Own-profile responses use `city, country`; public responses have already
+  /// had city removed by the server when the owner opted out of precision.
+  String get displayLocation => city.isNotEmpty && country.isNotEmpty
+      ? '$city, $country'
+      : (city.isNotEmpty ? city : country);
 
   String get mainPhotoUrl => photos.main;
   bool get hasMultiplePhotos =>
@@ -91,9 +116,17 @@ class Profile extends Equatable {
     DateTime? birthDate,
     String? bio,
     String? gender,
+    bool? genderConfirmationRequired,
     Location? location,
     String? city,
     String? country,
+    bool? locationEnabled,
+    String? locationMode,
+    int? geoCityId,
+    String? countryCode,
+    DateTime? locationUpdatedAt,
+    String? preferredCurrency,
+    String? effectiveCurrency,
     List<String>? interests,
     String? relationshipType,
     List<String>? relationshipTypesSought,
@@ -106,6 +139,8 @@ class Profile extends Equatable {
     PrivacySettings? privacySettings,
     PremiumProfileStatus? premiumStatus,
     double? distanceFromMeKm,
+    bool? distanceEstimated,
+    bool? sameCity,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -117,9 +152,18 @@ class Profile extends Equatable {
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
       gender: gender ?? this.gender,
+      genderConfirmationRequired:
+          genderConfirmationRequired ?? this.genderConfirmationRequired,
       location: location ?? this.location,
       city: city ?? this.city,
       country: country ?? this.country,
+      locationEnabled: locationEnabled ?? this.locationEnabled,
+      locationMode: locationMode ?? this.locationMode,
+      geoCityId: geoCityId ?? this.geoCityId,
+      countryCode: countryCode ?? this.countryCode,
+      locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
+      preferredCurrency: preferredCurrency ?? this.preferredCurrency,
+      effectiveCurrency: effectiveCurrency ?? this.effectiveCurrency,
       interests: interests ?? this.interests,
       relationshipType: relationshipType ?? this.relationshipType,
       relationshipTypesSought:
@@ -133,6 +177,8 @@ class Profile extends Equatable {
       privacySettings: privacySettings ?? this.privacySettings,
       premiumStatus: premiumStatus ?? this.premiumStatus,
       distanceFromMeKm: distanceFromMeKm ?? this.distanceFromMeKm,
+      distanceEstimated: distanceEstimated ?? this.distanceEstimated,
+      sameCity: sameCity ?? this.sameCity,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -147,9 +193,17 @@ class Profile extends Equatable {
         birthDate,
         bio,
         gender,
+        genderConfirmationRequired,
         location,
         city,
         country,
+        locationEnabled,
+        locationMode,
+        geoCityId,
+        countryCode,
+        locationUpdatedAt,
+        preferredCurrency,
+        effectiveCurrency,
         interests,
         relationshipType,
         relationshipTypesSought,
@@ -162,6 +216,8 @@ class Profile extends Equatable {
         privacySettings,
         premiumStatus,
         distanceFromMeKm,
+        distanceEstimated,
+        sameCity,
         createdAt,
         updatedAt,
       ];
@@ -704,6 +760,7 @@ class NotificationPreferences extends Equatable {
   final bool newMatchNotifications;
   final bool newMessageNotifications;
   final bool profileLikeNotifications;
+  final bool messageReadNotifications;
   final bool appUpdateNotifications;
   final bool promotionalNotifications;
   final Map<String, dynamic> doNotDisturbSettings;
@@ -712,6 +769,7 @@ class NotificationPreferences extends Equatable {
     this.newMatchNotifications = true,
     this.newMessageNotifications = true,
     this.profileLikeNotifications = false,
+    this.messageReadNotifications = true,
     this.appUpdateNotifications = true,
     this.promotionalNotifications = false,
     this.doNotDisturbSettings = const {
@@ -725,6 +783,7 @@ class NotificationPreferences extends Equatable {
         'new_match_notifications': newMatchNotifications,
         'new_message_notifications': newMessageNotifications,
         'profile_like_notifications': profileLikeNotifications,
+        'message_read_notifications': messageReadNotifications,
         'app_update_notifications': appUpdateNotifications,
         'promotional_notifications': promotionalNotifications,
         'do_not_disturb_settings': doNotDisturbSettings,
@@ -734,6 +793,7 @@ class NotificationPreferences extends Equatable {
     bool? newMatchNotifications,
     bool? newMessageNotifications,
     bool? profileLikeNotifications,
+    bool? messageReadNotifications,
     bool? appUpdateNotifications,
     bool? promotionalNotifications,
     Map<String, dynamic>? doNotDisturbSettings,
@@ -745,6 +805,8 @@ class NotificationPreferences extends Equatable {
           newMessageNotifications ?? this.newMessageNotifications,
       profileLikeNotifications:
           profileLikeNotifications ?? this.profileLikeNotifications,
+      messageReadNotifications:
+          messageReadNotifications ?? this.messageReadNotifications,
       appUpdateNotifications:
           appUpdateNotifications ?? this.appUpdateNotifications,
       promotionalNotifications:
@@ -758,6 +820,7 @@ class NotificationPreferences extends Equatable {
         newMatchNotifications,
         newMessageNotifications,
         profileLikeNotifications,
+        messageReadNotifications,
         appUpdateNotifications,
         promotionalNotifications,
         doNotDisturbSettings,

@@ -45,7 +45,7 @@ class HIVFullScreenLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       color: showBackground
           ? Colors.black.withValues(alpha: 0.5)
@@ -105,7 +105,7 @@ class _HIVShimmerState extends State<HIVShimmer>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
-    
+
     _animation = Tween<double>(
       begin: -1.0,
       end: 2.0,
@@ -124,7 +124,7 @@ class _HIVShimmerState extends State<HIVShimmer>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -182,7 +182,7 @@ class ProfileCardSkeleton extends StatelessWidget {
             height: 600,
             borderRadius: BorderRadius.circular(24),
           ),
-          
+
           // Bottom info section
           Positioned(
             bottom: AppSpacing.lg,
@@ -228,7 +228,7 @@ class MatchCardSkeleton extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
           ),
           SizedBox(width: AppSpacing.md),
-          
+
           // Content shimmer
           Expanded(
             child: Column(
@@ -248,7 +248,7 @@ class MatchCardSkeleton extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Time shimmer
           HIVShimmer(
             width: 40,
@@ -288,7 +288,7 @@ class _HIVPulseLoaderState extends State<HIVPulseLoader>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _animation = Tween<double>(
       begin: 1.0,
       end: 0.4,
@@ -296,7 +296,7 @@ class _HIVPulseLoaderState extends State<HIVPulseLoader>
       parent: _controller,
       curve: Curves.easeInOut,
     ));
-    
+
     if (widget.isLoading) {
       _controller.repeat(reverse: true);
     }
@@ -322,7 +322,7 @@ class _HIVPulseLoaderState extends State<HIVPulseLoader>
   @override
   Widget build(BuildContext context) {
     if (!widget.isLoading) return widget.child;
-    
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {

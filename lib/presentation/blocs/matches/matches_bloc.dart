@@ -3,12 +3,17 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/domain/usecases/match/get_matches.dart';
 import 'package:hivmeet/domain/usecases/match/delete_match.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received_count.dart';
+import 'package:hivmeet/domain/usecases/match/unlock_free_match.dart';
+import 'package:hivmeet/domain/usecases/match/reveal_received_like.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'matches_event.dart';
 import 'matches_state.dart';
 
@@ -27,29 +32,51 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
   final DeleteMatch _deleteMatch;
   final GetLikesReceived _getLikesReceived;
   final GetLikesReceivedCount _getLikesReceivedCount;
+  final UnlockFreeMatch _unlockFreeMatch;
+  final RevealReceivedLike _revealReceivedLike;
+  final RealtimeEventBus _realtimeBus;
 
   // State management
   List<Match> _allMatches = [];
   String? _lastMatchId;
   bool _hasMore = true;
+  int _actionSequence = 0;
+  StreamSubscription<RealtimeEvent>? _realtimeSubscription;
 
   MatchesBloc({
     required GetMatches getMatches,
     required DeleteMatch deleteMatch,
     required GetLikesReceived getLikesReceived,
     required GetLikesReceivedCount getLikesReceivedCount,
+    required UnlockFreeMatch unlockFreeMatch,
+    required RevealReceivedLike revealReceivedLike,
+    required RealtimeEventBus realtimeBus,
   })  : _getMatches = getMatches,
         _deleteMatch = deleteMatch,
         _getLikesReceived = getLikesReceived,
         _getLikesReceivedCount = getLikesReceivedCount,
+        _unlockFreeMatch = unlockFreeMatch,
+        _revealReceivedLike = revealReceivedLike,
+        _realtimeBus = realtimeBus,
         super(MatchesInitial()) {
     on<LoadMatches>(_onLoadMatches);
     on<LoadMoreMatches>(_onLoadMoreMatches);
     on<DeleteMatchEvent>(_onDeleteMatch);
+    on<UnlockFreeMatchEvent>(_onUnlockFreeMatch);
+    on<MatchRemovedRemotely>(_onMatchRemovedRemotely);
     on<LoadLikesReceived>(_onLoadLikesReceived);
+    on<RevealReceivedLikeEvent>(_onRevealReceivedLike);
     on<MarkMatchAsSeen>(_onMarkMatchAsSeen);
     on<FilterMatches>(_onFilterMatches);
     on<SearchMatches>(_onSearchMatches);
+
+    _realtimeSubscription = _realtimeBus.events.listen((event) {
+      if (event.type == RealtimeEventType.matchRemoved &&
+          event.matchId != null &&
+          !isClosed) {
+        add(MatchRemovedRemotely(matchId: event.matchId!));
+      }
+    });
   }
 
   /// Charge les matches initiaux
@@ -146,13 +173,15 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
     if (currentState is! MatchesLoaded) return;
 
     // Optimistic update: retirer immédiatement de l'UI
-    final optimisticMatches = List<Match>.from(_allMatches)
-      ..removeWhere((match) => match.id == event.matchId);
+    if (currentState.deletingMatchId == event.matchId) return;
+    final optimisticMatches = List<Match>.from(_allMatches);
 
     emit(currentState.copyWith(
       matches: optimisticMatches,
       allMatches: optimisticMatches,
       newMatchesCount: optimisticMatches.where((m) => m.isNew).length,
+      deletingMatchId: event.matchId,
+      clearActionMessage: true,
     ));
 
     // Appeler le use case
@@ -166,11 +195,74 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
           matches: List.from(_allMatches),
           allMatches: List.from(_allMatches),
         ));
-        emit(MatchesError(message: failure.message, code: failure.code));
+        emit(currentState.copyWith(
+          clearDeletingMatchId: true,
+          actionMessage: failure.message,
+          actionSucceeded: false,
+          actionSequence: ++_actionSequence,
+        ));
       },
       (_) {
         // Succès: mettre à jour le state persistant
-        _allMatches = optimisticMatches;
+        _allMatches = List<Match>.from(_allMatches)
+          ..removeWhere((match) => match.id == event.matchId);
+        emit(currentState.copyWith(
+          matches: _allMatches,
+          allMatches: _allMatches,
+          newMatchesCount: _allMatches.where((m) => m.isNew).length,
+          clearDeletingMatchId: true,
+          actionMessage: LocalizationService.translate('chat.match_removed'),
+          actionSucceeded: true,
+          actionSequence: ++_actionSequence,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onMatchRemovedRemotely(
+    MatchRemovedRemotely event,
+    Emitter<MatchesState> emit,
+  ) async {
+    _allMatches = List<Match>.from(_allMatches)
+      ..removeWhere((match) => match.id == event.matchId);
+    final currentState = state;
+    if (currentState is! MatchesLoaded) return;
+
+    emit(currentState.copyWith(
+      matches: _allMatches,
+      allMatches: _allMatches,
+      newMatchesCount: _allMatches.where((m) => m.isNew).length,
+      clearDeletingMatchId: true,
+    ));
+  }
+
+  Future<void> _onUnlockFreeMatch(
+    UnlockFreeMatchEvent event,
+    Emitter<MatchesState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! MatchesLoaded) return;
+
+    final result = await _unlockFreeMatch(UnlockFreeMatchParams(event.matchId));
+    result.fold(
+      (failure) => emit(currentState.copyWith(
+        actionMessage: failure.message,
+        actionSucceeded: false,
+        actionSequence: ++_actionSequence,
+      )),
+      (updatedMatch) {
+        _allMatches = _allMatches
+            .map((match) => match.id == updatedMatch.id ? updatedMatch : match)
+            .toList(growable: false);
+        emit(currentState.copyWith(
+          matches: _allMatches,
+          allMatches: _allMatches,
+          actionMessage: updatedMatch.isLocked
+              ? LocalizationService.translate('matches.access_still_locked')
+              : LocalizationService.translate('matches.access_unlocked'),
+          actionSucceeded: !updatedMatch.isLocked,
+          actionSequence: ++_actionSequence,
+        ));
       },
     );
   }
@@ -194,6 +286,23 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
           hasMore: profiles.length >= 20,
         ));
       },
+    );
+  }
+
+  Future<void> _onRevealReceivedLike(
+    RevealReceivedLikeEvent event,
+    Emitter<MatchesState> emit,
+  ) async {
+    emit(LikesReceivedLoading());
+    final result = await _revealReceivedLike(NoParams());
+    result.fold(
+      (failure) =>
+          emit(MatchesError(message: failure.message, code: failure.code)),
+      (profile) => emit(LikesReceivedLoaded(
+        profiles: [profile],
+        hasMore: false,
+        isFreeReveal: true,
+      )),
     );
   }
 
@@ -244,5 +353,11 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
     emit(currentState.copyWith(
       searchQuery: event.query,
     ));
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeSubscription?.cancel();
+    return super.close();
   }
 }

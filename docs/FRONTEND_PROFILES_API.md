@@ -243,47 +243,23 @@ is_main: Boolean (optionnel)
 
 ## ✅ Système de Vérification
 
-### 7. Demande de Vérification
-
-**Endpoint :** `POST /user-profiles/verification/request`
-
-**Principe d'Implémentation :**
-1. Utilisateur initie le processus de vérification
-2. Backend génère un code unique pour le selfie
-3. Utilisateur doit fournir : document d'identité, document médical, selfie avec code
-4. Processus de modération par l'équipe
-
-**Réponse Succès (201) :**
-```json
-{
-  "verification_id": "uuid",
-  "verification_code": "ABC123",
-  "status": "pending_documents",
-  "instructions": {
-    "id_document": "Téléchargez une photo claire de votre pièce d'identité",
-    "medical_document": "Téléchargez un document médical récent",
-    "selfie": "Prenez un selfie en tenant un papier avec le code ABC123"
-  }
-}
-```
-
-### 8. Upload de Documents de Vérification
-
-**Endpoint :** `POST /user-profiles/verification/upload`
-
-**Données Requises :**
-```
-document_type: "id_document|medical_document|selfie"
-file: File (image)
-verification_id: UUID
-```
-
-**Logique d'Implémentation Frontend :**
-- Guider l'utilisateur étape par étape
-- Valider la qualité des images (netteté, lisibilité)
-- Crypter les documents avant envoi
-- Afficher le statut de progression
-- Permettre le re-upload en cas de problème
+> **Contrat KYC v1 canonique :** consulter le contrat backend
+> `env/hivmeet_backend/docs/kyc/KYC_V1_CONTRACT.openapi.yaml` et son cadrage
+> de phase 0. Le serveur expose `GET /me/verification/` sans effet de bord,
+> puis `POST start/`, `POST upload-intents/`,
+> `POST upload-intents/complete/` et `POST submit/`.
+> L'URL PUT émise par une intention est éphémère, ne porte pas de bearer token
+> et ne doit jamais être journalisée, analysée, notifiée ou mise en cache.
+> Le client ne transmet que les identifiants opaques d'upload à `complete` et
+> `submit`; il ne transmet jamais de chemin de stockage. Les routes historiques
+> `generate-upload-url/` et `submit-documents/` répondent `410`
+> `kyc_legacy_endpoint_deprecated` et ne doivent jamais être intégrées.
+>
+> Seuls une identité officielle, un document médical ou sérologique de moins
+> de 90 jours et un selfie au défi à usage unique sont admis. La revue est
+> humaine et interne, sans biométrie ni fournisseur externe. La réalisation
+> Flutter complète appartient à la phase 4; ce guide ne constitue pas une
+> activation de production.
 
 ## 🎯 Préférences et Paramètres
 

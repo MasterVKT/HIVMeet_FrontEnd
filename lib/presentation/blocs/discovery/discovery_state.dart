@@ -27,18 +27,20 @@ class DiscoveryLoaded extends DiscoveryState {
   final DiscoveryProfile currentProfile;
   final List<DiscoveryProfile> nextProfiles;
   final bool canRewind;
+  final bool isRewinding;
   final DailyLikeLimit? dailyLimit;
 
   const DiscoveryLoaded({
     required this.currentProfile,
     required this.nextProfiles,
     required this.canRewind,
+    this.isRewinding = false,
     this.dailyLimit,
   });
 
   @override
   List<Object?> get props =>
-      [currentProfile, nextProfiles, canRewind, dailyLimit];
+      [currentProfile, nextProfiles, canRewind, isRewinding, dailyLimit];
 }
 
 class ProfileSwiping extends DiscoveryState {
@@ -74,14 +76,16 @@ class NoMoreProfiles extends DiscoveryState {}
 class DailyLimitReached extends DiscoveryState {
   final DiscoveryLoaded previousState;
   final DailyLikeLimit limitInfo;
+  final int promptSequence;
 
   const DailyLimitReached({
     required this.previousState,
     required this.limitInfo,
+    this.promptSequence = 0,
   });
 
   @override
-  List<Object> get props => [previousState, limitInfo];
+  List<Object> get props => [previousState, limitInfo, promptSequence];
 }
 
 class DiscoveryError extends DiscoveryState {

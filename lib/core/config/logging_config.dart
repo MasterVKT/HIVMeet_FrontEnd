@@ -4,14 +4,28 @@ import 'package:flutter/foundation.dart';
 import '../../core/utils/log_service.dart';
 
 class LoggingConfig {
+  static bool _initialized = false;
+
   static void init() {
-    // Désactiver les logs Flutter verbeux en mode release
-    if (!kDebugMode) {
-      debugPrint = (String? message, {int? wrapWidth}) {};
+    if (!_initialized) {
+      _initialized = true;
+      // Top-level Dart variables are initialized lazily. Capturing debugPrint
+      // in a top-level `final` and reading it only inside the replacement made
+      // it resolve to the replacement itself, causing infinite recursion on
+      // the first framework diagnostic. Capture it eagerly before assignment.
+      final platformDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (!kDebugMode) return;
+        platformDebugPrint(
+          PrivacyLogSanitizer.sanitize(message),
+          wrapWidth: wrapWidth,
+        );
+      };
     }
 
     // Initialiser le service de logging
-    LogService.info('Logging configuration initialized', name: 'HIVMeet.Config');
+    LogService.info('Logging configuration initialized',
+        name: 'HIVMeet.Config');
   }
 
   static void logInfo(String message, {String? name}) {

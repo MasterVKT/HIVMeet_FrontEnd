@@ -1,6 +1,5 @@
-// lib/presentation/blocs/interaction_history/interaction_history_event.dart
-
 import 'package:equatable/equatable.dart';
+import 'package:hivmeet/domain/entities/interaction_history.dart';
 
 abstract class InteractionHistoryEvent extends Equatable {
   const InteractionHistoryEvent();
@@ -9,37 +8,41 @@ abstract class InteractionHistoryEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Charger les likes
 class LoadLikes extends InteractionHistoryEvent {
   final bool refresh;
-  final bool includeMatched;
+  final String query;
+  final InteractionMatchFilter matchFilter;
 
   const LoadLikes({
     this.refresh = false,
-    this.includeMatched = false,
+    this.query = '',
+    this.matchFilter = InteractionMatchFilter.all,
   });
 
   @override
-  List<Object?> get props => [refresh, includeMatched];
+  List<Object?> get props => [refresh, query, matchFilter];
 }
 
-/// Charger plus de likes (pagination)
 class LoadMoreLikes extends InteractionHistoryEvent {}
 
-/// Charger les profils passés
 class LoadPasses extends InteractionHistoryEvent {
   final bool refresh;
+  final String query;
+  final InteractionMatchFilter matchFilter;
 
-  const LoadPasses({this.refresh = false});
+  const LoadPasses({
+    this.refresh = false,
+    this.query = '',
+    this.matchFilter = InteractionMatchFilter.all,
+  });
 
   @override
-  List<Object?> get props => [refresh];
+  List<Object?> get props => [refresh, query, matchFilter];
 }
 
-/// Charger plus de passes (pagination)
 class LoadMorePasses extends InteractionHistoryEvent {}
 
-/// Révoquer une interaction
+/// Compatibility event for the existing single-action affordance.
 class RevokeInteractionEvent extends InteractionHistoryEvent {
   final String interactionId;
   final bool isLike;
@@ -53,8 +56,56 @@ class RevokeInteractionEvent extends InteractionHistoryEvent {
   List<Object?> get props => [interactionId, isLike];
 }
 
-/// Charger les statistiques
-class LoadStats extends InteractionHistoryEvent {}
+class ToggleInteractionSelection extends InteractionHistoryEvent {
+  final bool isLike;
+  final String interactionId;
+  final bool selected;
 
-/// Basculer le filtre "Inclure matchés"
-class ToggleIncludeMatched extends InteractionHistoryEvent {}
+  const ToggleInteractionSelection({
+    required this.isLike,
+    required this.interactionId,
+    required this.selected,
+  });
+
+  @override
+  List<Object?> get props => [isLike, interactionId, selected];
+}
+
+class SelectHistoryPage extends InteractionHistoryEvent {
+  final bool isLike;
+  final bool selected;
+
+  const SelectHistoryPage({required this.isLike, required this.selected});
+
+  @override
+  List<Object?> get props => [isLike, selected];
+}
+
+class SelectAllHistoryResults extends InteractionHistoryEvent {
+  final bool isLike;
+
+  const SelectAllHistoryResults({required this.isLike});
+
+  @override
+  List<Object?> get props => [isLike];
+}
+
+class ClearHistorySelection extends InteractionHistoryEvent {
+  final bool isLike;
+
+  const ClearHistorySelection({required this.isLike});
+
+  @override
+  List<Object?> get props => [isLike];
+}
+
+class RevokeSelectedInteractions extends InteractionHistoryEvent {
+  final bool isLike;
+
+  const RevokeSelectedInteractions({required this.isLike});
+
+  @override
+  List<Object?> get props => [isLike];
+}
+
+class LoadStats extends InteractionHistoryEvent {}

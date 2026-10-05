@@ -15,6 +15,12 @@ class SubscriptionsApi {
     return await _apiClient.get('/subscriptions/plans/');
   }
 
+  /// Récupérer la disponibilité non sensible du paiement MyCoolPay.
+  /// GET /api/v1/subscriptions/payment-capabilities/
+  Future<Response<Map<String, dynamic>>> getPaymentCapabilities() async {
+    return await _apiClient.get('/subscriptions/payment-capabilities/');
+  }
+
   /// Récupérer l'abonnement actuel
   /// GET /api/v1/subscriptions/current/
   Future<Response<Map<String, dynamic>>> getCurrentSubscription() async {
@@ -25,12 +31,25 @@ class SubscriptionsApi {
   /// POST /api/v1/subscriptions/purchase/
   Future<Response<Map<String, dynamic>>> purchaseSubscription({
     required String planId,
-    required String paymentMethodId,
+    required String phoneNumber,
+    required String language,
+    required String idempotencyKey,
   }) async {
-    return await _apiClient.post('/subscriptions/purchase/', data: {
-      'plan_id': planId,
-      'payment_method_id': paymentMethodId,
-    });
+    return await _apiClient.post(
+      '/subscriptions/purchase/',
+      data: {
+        'plan_id': planId,
+        'phone_number': phoneNumber,
+        'language': language,
+      },
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
+  }
+
+  /// Statut backend d'un paiement. Le frontend ne confirme jamais lui-mÃªme.
+  Future<Response<Map<String, dynamic>>> getPaymentStatus(
+      String paymentId) async {
+    return await _apiClient.get('/subscriptions/payments/$paymentId/');
   }
 
   /// Annuler l'abonnement actuel
@@ -81,20 +100,29 @@ class SubscriptionsApi {
 
   /// Modifier l'abonnement actuel (changement de plan / upgrade / downgrade)
   /// POST /api/v1/subscriptions/current/modify/
+  ///
+  /// `phoneNumber`/`language` ne sont utiles que si le changement s'avère
+  /// nécessiter un vrai paiement (montant net positif) — le backend crée
+  /// alors un nouveau Paylink, exactement comme pour un achat. `idempotencyKey`
+  /// permet un retry sûr côté serveur sur ce même Paylink.
   Future<Response<Map<String, dynamic>>> modifySubscription({
     required String newPlanId,
     bool proration = true,
+    String? phoneNumber,
+    String? language,
+    String? idempotencyKey,
   }) async {
-    return await _apiClient.post('/subscriptions/current/modify/', data: {
-      'new_plan_id': newPlanId,
-      'proration': proration,
-    });
-  }
-
-  /// Valider un paiement
-  /// GET /api/v1/subscriptions/validate-payment/{session_id}
-  Future<Response<Map<String, dynamic>>> validatePayment(
-      String sessionId) async {
-    return await _apiClient.get('/subscriptions/validate-payment/$sessionId');
+    return await _apiClient.post(
+      '/subscriptions/current/modify/',
+      data: {
+        'new_plan_id': newPlanId,
+        'proration': proration,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (language != null) 'language': language,
+      },
+      options: idempotencyKey == null
+          ? null
+          : Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
   }
 }

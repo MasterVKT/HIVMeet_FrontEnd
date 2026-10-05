@@ -29,7 +29,29 @@ class DeleteMatchEvent extends MatchesEvent {
   List<Object> get props => [matchId];
 }
 
+class UnlockFreeMatchEvent extends MatchesEvent {
+  final String matchId;
+
+  const UnlockFreeMatchEvent({required this.matchId});
+
+  @override
+  List<Object> get props => [matchId];
+}
+
+/// Backend-confirmed removal received through the personal realtime channel.
+class MatchRemovedRemotely extends MatchesEvent {
+  final String matchId;
+
+  const MatchRemovedRemotely({required this.matchId});
+
+  @override
+  List<Object> get props => [matchId];
+}
+
 class LoadLikesReceived extends MatchesEvent {}
+
+/// The explicit Free action that can consume the one monthly allowance.
+class RevealReceivedLikeEvent extends MatchesEvent {}
 
 class MarkMatchAsSeen extends MatchesEvent {
   final String matchId;
@@ -62,7 +84,7 @@ class SearchMatches extends MatchesEvent {
 
 /// Enum pour les filtres de matches
 enum MatchFilter {
-  all,    // Tous les matches
-  newMatches,  // Nouveaux matches uniquement
+  all, // Tous les matches
+  newMatches, // Nouveaux matches uniquement
   active, // Matches avec conversations actives
 }

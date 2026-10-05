@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/match.dart';
@@ -259,7 +258,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                     children: [
                       Text(
                         '${widget.profile.displayName}, ${widget.profile.age}',
-                        style: GoogleFonts.openSans(
+                        style: TextStyle(
+                          fontFamily: 'OpenSans',
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: AppColors.charcoal,
@@ -283,7 +283,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                                       ? '${widget.profile.city}, ${widget.profile.country}'
                                       : widget.profile.country
                                   : widget.profile.city,
-                              style: GoogleFonts.openSans(
+                              style: TextStyle(
+                                fontFamily: 'OpenSans',
                                 fontSize: 14,
                                 color: AppColors.slate,
                               ),
@@ -296,7 +297,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (widget.profile.distance != null)
+                    if (widget.profile.sameCity ||
+                        widget.profile.distance != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -316,8 +318,12 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${widget.profile.distance!.round()} km',
-                              style: GoogleFonts.openSans(
+                              widget.profile.sameCity
+                                  ? LocalizationService.translate(
+                                      'profile.same_city')
+                                  : '${widget.profile.distance!.round()} km',
+                              style: TextStyle(
+                                fontFamily: 'OpenSans',
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primaryPurple,
@@ -334,7 +340,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
               const SizedBox(height: 16),
               Text(
                 widget.profile.bio,
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 16,
                   color: AppColors.slate,
                   height: 1.5,
@@ -366,7 +373,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                               .toString()
                         },
                       ),
-                      style: GoogleFonts.openSans(
+                      style: TextStyle(
+                        fontFamily: 'OpenSans',
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.success,
@@ -393,7 +401,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
           children: [
             Text(
               LocalizationService.translate('profile.interests'),
-              style: GoogleFonts.openSans(
+              style: TextStyle(
+                fontFamily: 'OpenSans',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppColors.charcoal,
@@ -418,7 +427,8 @@ class _ProfileDetailPageState extends State<ProfileDetailPage>
                   ),
                   child: Text(
                     interest,
-                    style: GoogleFonts.openSans(
+                    style: TextStyle(
+                      fontFamily: 'OpenSans',
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.primaryPurple,

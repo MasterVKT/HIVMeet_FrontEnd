@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/premium.dart';
 import 'package:hivmeet/presentation/blocs/premium/premium_bloc.dart';
 import 'package:hivmeet/presentation/blocs/premium/premium_event.dart';
@@ -101,7 +102,7 @@ class _BoostDialogState extends State<BoostDialog>
           _handleBoostSuccess(state.result);
         }
         if (state is PremiumError) {
-          _handleError(state.message);
+          _handleError();
         }
       },
       child: Dialog(
@@ -487,7 +488,7 @@ class _BoostDialogState extends State<BoostDialog>
     _sparkleController.forward();
   }
 
-  void _handleError(String error) {
+  void _handleError() {
     setState(() {
       _isActivating = false;
     });
@@ -496,7 +497,9 @@ class _BoostDialogState extends State<BoostDialog>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(error),
+        content: Text(
+          LocalizationService.translate('premium.feature_action_error'),
+        ),
         backgroundColor: AppColors.error,
       ),
     );

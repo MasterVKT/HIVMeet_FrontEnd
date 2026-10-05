@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/core/config/app_config.dart';
 
 /// Événements reçus depuis le serveur WebSocket.
@@ -11,6 +12,8 @@ enum WsEventType {
   messageCreated,
   messageRead,
   messageDelivered,
+  messageUpdated,
+  messageDeleted,
   typingIndicator,
   presenceUpdate,
   pong,
@@ -67,6 +70,7 @@ class ChatWebSocketService {
   Future<String?> Function()? _tokenProvider;
 
   Timer? _reconnectTimer;
+  Timer? _presenceHeartbeatTimer;
   int _reconnectAttempts = 0;
   bool _hadSuccessfulConnection = false;
   static const _maxReconnectDelay = Duration(seconds: 30);
@@ -107,7 +111,7 @@ class ChatWebSocketService {
     final uri = '$baseWs/ws/conversations/$conversationId/?token=$token';
 
     if (kDebugMode) {
-      debugPrint(
+      LogService.debug(
           '[WS] Connecting to $baseWs/ws/conversations/$conversationId/');
     }
 
@@ -127,8 +131,9 @@ class ChatWebSocketService {
         cancelOnError: false,
       );
 
-      // Ping initial pour valider la connexion
-      _sendRaw({'type': 'ping'});
+      // Application-level heartbeat: protocol pings are not visible to the
+      // Django consumer, so they cannot maintain the server presence lease.
+      _startPresenceHeartbeat();
 
       if (wasReconnect && !_controller.isClosed) {
         _controller.add(const WsEvent(type: WsEventType.reconnected, data: {}));
@@ -155,6 +160,8 @@ class ChatWebSocketService {
     _reconnectTimer = null;
     _reconnectAttempts = 0;
     _hadSuccessfulConnection = false;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     _socket?.close();
     _socket = null;
   }
@@ -183,6 +190,15 @@ class ChatWebSocketService {
     _sendRaw({'type': 'ping'});
   }
 
+  void _startPresenceHeartbeat() {
+    _presenceHeartbeatTimer?.cancel();
+    _sendRaw({'type': 'presence.heartbeat'});
+    _presenceHeartbeatTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _sendRaw({'type': 'presence.heartbeat'}),
+    );
+  }
+
   // ─── Internal ────────────────────────────────────────────────────────────
 
   void _sendRaw(Map<String, dynamic> payload) {
@@ -191,7 +207,7 @@ class ChatWebSocketService {
       _socket!.add(jsonEncode(payload));
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[WS] Send error: $e');
+        LogService.warning('[WS] Send error: $e', name: 'ChatWebSocketService');
       }
     }
   }
@@ -214,7 +230,7 @@ class ChatWebSocketService {
 
   void _onError(Object error) {
     if (kDebugMode) {
-      debugPrint('[WS] Error: $error');
+      LogService.warning('[WS] Error: $error', name: 'ChatWebSocketService');
     }
     if (!_controller.isClosed) {
       _controller.add(WsEvent(
@@ -226,9 +242,12 @@ class ChatWebSocketService {
 
   void _onDone() {
     if (kDebugMode) {
-      debugPrint('[WS] Connection closed (intentional: $_intentionalClose)');
+      LogService.debug(
+          '[WS] Connection closed (intentional: $_intentionalClose)');
     }
     _socket = null;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     if (!_intentionalClose) {
       if (!_controller.isClosed) {
         _controller
@@ -242,12 +261,17 @@ class ChatWebSocketService {
     if (_intentionalClose || _conversationId == null) return;
     _reconnectTimer?.cancel();
 
-    final delay = _initialReconnectDelay * (1 << _reconnectAttempts);
+    // Voir notification_websocket_service.dart : `_reconnectAttempts` n'est
+    // pas borné et ne doit pas servir tel quel d'exposant de décalage
+    // binaire (`1 << n` déborde et redevient 0 au-delà du décalage 63,
+    // ce qui ferait retomber le délai à `Duration.zero` en boucle serrée).
+    final exponent = _reconnectAttempts.clamp(0, 10);
+    final delay = _initialReconnectDelay * (1 << exponent);
     final cappedDelay = delay > _maxReconnectDelay ? _maxReconnectDelay : delay;
     _reconnectAttempts++;
 
     if (kDebugMode) {
-      debugPrint(
+      LogService.debug(
           '[WS] Reconnecting in ${cappedDelay.inSeconds}s (attempt $_reconnectAttempts)');
     }
 
@@ -274,6 +298,10 @@ class ChatWebSocketService {
         return WsEventType.messageRead;
       case 'message.delivered':
         return WsEventType.messageDelivered;
+      case 'message.updated':
+        return WsEventType.messageUpdated;
+      case 'message_deleted':
+        return WsEventType.messageDeleted;
       case 'typing.indicator':
         return WsEventType.typingIndicator;
       case 'presence.update':
@@ -292,6 +320,8 @@ class ChatWebSocketService {
     _intentionalClose = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     _socket?.close();
     _socket = null;
     _controller.close();

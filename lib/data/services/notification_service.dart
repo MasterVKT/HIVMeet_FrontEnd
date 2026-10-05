@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/notifications/foreground_notification_policy.dart';
+import 'package:hivmeet/core/notifications/read_receipt_notification_copy.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
@@ -15,6 +17,13 @@ import 'package:hivmeet/domain/entities/message.dart';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Background messages are stored when the app resumes via onMessageOpenedApp.
   // Nothing to do in the isolate itself.
+}
+
+/// Bounded exponential backoff shared by initial FCM token registration and
+/// token-refresh registration. Attempts 1, 2 and 3 wait 2, 4 and 8 seconds.
+Duration fcmTokenRegistrationRetryDelay(int attempt) {
+  assert(attempt > 0);
+  return Duration(seconds: (1 << attempt).clamp(2, 30));
 }
 
 class NotificationService {
@@ -125,9 +134,32 @@ class NotificationService {
       }
       _currentToken = token;
       await _registerToken(token, sessionGeneration: sessionGeneration);
-    } catch (_) {
-      // Not fatal — app works without push
+    } catch (e) {
+      // LOG-06 : retry borné avec backoff exponentiel au lieu d'un échec silencieux.
+      // SERVICE_NOT_AVAILABLE ou une erreur transitoire ne doit pas être avalée
+      // sans tentative de reprise. On ne logue jamais la valeur du token.
+      _scheduleTokenRetry(sessionGeneration);
     }
+  }
+
+  /// LOG-06 : retry borné avec backoff exponentiel plafonné.
+  /// Maximum 3 tentatives, délai exponentiel : 2s, 4s, 8s (plafond 30s).
+  /// Annulable via sessionGeneration : si l'utilisateur se déconnecte
+  /// pendant le retry, la tentative est abandonnée.
+  int _tokenRetryCount = 0;
+  static const int _maxTokenRetries = 3;
+
+  void _scheduleTokenRetry(int sessionGeneration) {
+    if (_tokenRetryCount >= _maxTokenRetries) return;
+    if (!_sessionActive || sessionGeneration != _sessionGeneration) return;
+
+    _tokenRetryCount++;
+    final delay = fcmTokenRegistrationRetryDelay(_tokenRetryCount);
+
+    Future.delayed(delay, () {
+      if (!_sessionActive || sessionGeneration != _sessionGeneration) return;
+      registerTokenWithBackend();
+    });
   }
 
   Future<void> removeTokenFromBackend() async {
@@ -171,9 +203,13 @@ class NotificationService {
       );
       if (_sessionActive && sessionGeneration == _sessionGeneration) {
         _registeredToken = token;
+        _tokenRetryCount = 0; // Reset retry counter on success
       }
     } catch (_) {
-      // Not fatal; a later registration or token refresh may retry.
+      // Do not register a failed token optimistically. Reuse the bounded,
+      // session-aware retry path so a temporary backend/network failure does
+      // not leave an otherwise valid device token unregistered.
+      _scheduleTokenRetry(sessionGeneration);
     }
   }
 
@@ -191,10 +227,30 @@ class NotificationService {
     if (!_sessionActive || sessionGeneration != _sessionGeneration) return;
     _publishRealtimeEvent(message.data);
 
+    // Targeted local popup suppression:
+    // only a new message in the exact open conversation is hidden.
+    // Lists and every other screen remain eligible for a system alert.
+    if (_shouldSuppressLocalNotification(message.data)) {
+      return;
+    }
+
+    final isReadAlert = notification.type == AppNotificationType.messageRead;
     _showLocalNotification(
-      title: message.notification?.title ?? notification.title,
-      body: message.notification?.body ?? notification.body,
+      title: isReadAlert
+          ? notification.title
+          : message.notification?.title ?? notification.title,
+      body: isReadAlert
+          ? notification.body
+          : message.notification?.body ?? notification.body,
       payload: _payloadFromData(message.data),
+    );
+  }
+
+  /// Supprime seulement l?alerte au premier plan de la conversation exacte ouverte.
+  bool _shouldSuppressLocalNotification(Map<String, dynamic> data) {
+    return ForegroundNotificationPolicy.shouldSuppress(
+      data: data,
+      activeConversationId: _realtimeBus.activeConversationId,
     );
   }
 
@@ -226,9 +282,25 @@ class NotificationService {
           source: RealtimeSource.fcm,
           conversationId: data['conversation_id'] as String?,
           fromUserId: data['from_user_id'] as String?,
+          senderName: data['sender_name'] as String?,
           preview: data['body'] as String?,
           messageId: data['message_id'] as String?,
           notificationId: data['notification_id'] as String?,
+        ));
+        break;
+      case 'message_read':
+        final notificationId = data['notification_id'] as String?;
+        if (notificationId == null || notificationId.isEmpty) break;
+        _realtimeBus.publish(RealtimeEvent(
+          type: RealtimeEventType.messageReadAlert,
+          source: RealtimeSource.fcm,
+          conversationId: data['conversation_id'] as String?,
+          fromUserId: data['reader_id'] as String?,
+          readerName: data['reader_name'] as String?,
+          messageId: data['representative_message_id'] as String?,
+          messageCount: int.tryParse(data['message_count']?.toString() ?? ''),
+          readAt: data['read_at'] as String?,
+          notificationId: notificationId,
         ));
         break;
       case 'new_match':
@@ -256,6 +328,25 @@ class NotificationService {
           notificationId: data['notification_id'] as String?,
         ));
         break;
+      case 'subscription_expiring':
+        _realtimeBus.publish(RealtimeEvent(
+          type: RealtimeEventType.subscriptionExpiring,
+          source: RealtimeSource.fcm,
+          notificationId: data['notification_id'] as String?,
+          daysRemaining: int.tryParse(data['days_remaining'] as String? ?? ''),
+          expiryDate: data['expiry_date'] as String?,
+        ));
+        break;
+      case 'report_resolved':
+        _realtimeBus.publish(RealtimeEvent(
+          type: RealtimeEventType.reportResolved,
+          source: RealtimeSource.fcm,
+          notificationId: data['notification_id'] as String?,
+          reportId: data['report_id'] as String?,
+          reportStatus: data['status'] as String?,
+          resolutionSummary: data['resolution_summary'] as String?,
+        ));
+        break;
     }
   }
 
@@ -280,10 +371,14 @@ class NotificationService {
     final data = message.data;
     final type = _typeFromData(data);
     final id = _stableNotificationId(data, type);
-    final title = message.notification?.title ??
-        data['title'] as String? ??
-        _localizedDefaultTitle(type);
-    final body = message.notification?.body ?? data['body'] as String? ?? '';
+    final title = type == AppNotificationType.messageRead
+        ? ReadReceiptNotificationCopy.title()
+        : message.notification?.title ??
+            data['title'] as String? ??
+            _localizedDefaultTitle(type);
+    final body = type == AppNotificationType.messageRead
+        ? ReadReceiptNotificationCopy.body(data)
+        : message.notification?.body ?? data['body'] as String? ?? '';
 
     return AppNotification(
       id: id,
@@ -301,10 +396,16 @@ class NotificationService {
         return AppNotificationType.newMatch;
       case 'new_message':
         return AppNotificationType.newMessage;
+      case 'message_read':
+        return AppNotificationType.messageRead;
       case 'like':
         return AppNotificationType.like;
       case 'super_like':
         return AppNotificationType.superLike;
+      case 'subscription_expiring':
+        return AppNotificationType.subscriptionExpiring;
+      case 'report_resolved':
+        return AppNotificationType.reportResolved;
       default:
         return AppNotificationType.system;
     }
@@ -314,6 +415,13 @@ class NotificationService {
     Map<String, dynamic> data,
     AppNotificationType type,
   ) {
+    // L'UUID persistant du backend est prioritaire. Il permet aux actions
+    // read/delete d'adresser exactement l'objet REST correspondant.
+    final notificationId = data['notification_id'] as String?;
+    if (notificationId != null && notificationId.isNotEmpty) {
+      return notificationId;
+    }
+
     final messageId = data['message_id'] as String?;
     if (type == AppNotificationType.newMessage &&
         messageId != null &&
@@ -338,11 +446,6 @@ class NotificationService {
       return '${prefix}_$fromUserId';
     }
 
-    final notificationId = data['notification_id'] as String?;
-    if (notificationId != null && notificationId.isNotEmpty) {
-      return notificationId;
-    }
-
     final conversationId = data['conversation_id'] as String?;
     if (type == AppNotificationType.newMessage &&
         conversationId != null &&
@@ -359,10 +462,16 @@ class NotificationService {
         return 'Nouveau match !';
       case AppNotificationType.newMessage:
         return 'Nouveau message';
+      case AppNotificationType.messageRead:
+        return 'Message lu';
       case AppNotificationType.like:
         return 'Quelqu\'un vous a liké';
       case AppNotificationType.superLike:
         return 'Vous avez reçu un super like !';
+      case AppNotificationType.subscriptionExpiring:
+        return 'Votre abonnement expire bientôt';
+      case AppNotificationType.reportResolved:
+        return 'Votre signalement a été traité';
       case AppNotificationType.system:
         return 'HIVMeet';
     }
@@ -372,8 +481,13 @@ class NotificationService {
     final key = switch (type) {
       AppNotificationType.newMatch => 'notifications.new_match_title',
       AppNotificationType.newMessage => 'notifications.new_message_title',
+      AppNotificationType.messageRead => 'notifications.message_read_title',
       AppNotificationType.like => 'notifications.new_like_title',
       AppNotificationType.superLike => 'notifications.new_super_like_title',
+      AppNotificationType.subscriptionExpiring =>
+        'notifications.subscription_expiring_title',
+      AppNotificationType.reportResolved =>
+        'notifications.report_resolved_title',
       AppNotificationType.system => 'notifications.app_name',
     };
     final translated = LocalizationService.translate(key);
@@ -385,12 +499,15 @@ class NotificationService {
     final conversationId = data['conversation_id'] as String? ?? '';
     final matchId = data['match_id'] as String? ?? '';
     final target = conversationId.isNotEmpty ? conversationId : matchId;
-    if (type != 'new_message') return '$type|$target';
-    final fromUserId = data['from_user_id'] as String? ?? '';
+    final fromUserId =
+        data['from_user_id'] as String? ?? data['reader_id'] as String? ?? '';
     final senderName = data['sender_name'] as String? ??
+        data['reader_name'] as String? ??
         data['from_user_name'] as String? ??
         data['title'] as String? ??
         '';
+    // Format: type|target|fromUserId|senderName (fromUserId et senderName
+    // vides si non pertinents ou inconnus)
     return '$type|$target|$fromUserId|${Uri.encodeComponent(senderName)}';
   }
 
@@ -400,8 +517,10 @@ class NotificationService {
     _navigateFromType(
       type ?? '',
       conversationId ?? '',
-      fromUserId: data['from_user_id'] as String? ?? '',
+      fromUserId:
+          data['from_user_id'] as String? ?? data['reader_id'] as String? ?? '',
       senderName: data['sender_name'] as String? ??
+          data['reader_name'] as String? ??
           data['from_user_name'] as String? ??
           data['title'] as String? ??
           '',
@@ -417,7 +536,21 @@ class NotificationService {
     final router = AppRouter.router;
     switch (type) {
       case 'new_match':
-        router.push('/matches');
+        // Aller à la conversation du match si disponible, sinon à la liste
+        if (extra.isNotEmpty) {
+          final conversation = fromUserId.isEmpty
+              ? null
+              : Conversation(
+                  id: extra,
+                  participantIds: [fromUserId],
+                  otherUserId: fromUserId,
+                  otherUserName: senderName.isEmpty ? null : senderName,
+                  updatedAt: DateTime.now(),
+                );
+          router.push('/chat/$extra', extra: conversation);
+        } else {
+          router.push('/matches');
+        }
         break;
       case 'new_message':
         if (extra.isNotEmpty) {
@@ -435,8 +568,38 @@ class NotificationService {
           router.push('/conversations');
         }
         break;
+      case 'message_read':
+        if (extra.isNotEmpty) {
+          final conversation = fromUserId.isEmpty
+              ? null
+              : Conversation(
+                  id: extra,
+                  participantIds: [fromUserId],
+                  otherUserId: fromUserId,
+                  otherUserName: senderName.isEmpty ? null : senderName,
+                  updatedAt: DateTime.now(),
+                );
+          router.push('/chat/$extra', extra: conversation);
+        } else {
+          router.push('/conversations');
+        }
+        break;
       case 'like':
       case 'super_like':
+        // Premium : fromUserId non vide → profil du liker
+        // Non-premium : fromUserId vide → page d'upsell likes-received
+        if (fromUserId.isNotEmpty) {
+          router.push('/profile/$fromUserId');
+        } else {
+          router.push('/likes-received');
+        }
+        break;
+      case 'subscription_expiring':
+        router.push(AppRoutes.premium);
+        break;
+      case 'report_resolved':
+        // Le frontend affiche la décision dans un dialog au tap —
+        // pas besoin de navigation, la notification contient déjà les détails.
         router.push('/notifications');
         break;
       default:

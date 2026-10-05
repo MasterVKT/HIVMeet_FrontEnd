@@ -1,17 +1,23 @@
 // lib/presentation/pages/chat/chat_page.dart
 
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/services/media_download_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/chat/chat_bloc.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_state.dart';
 // Events/States sont des parts de ChatBloc, on n'importe que le bloc
 import 'package:hivmeet/presentation/widgets/chat/message_bubble.dart';
 import 'package:hivmeet/presentation/widgets/chat/message_input.dart';
@@ -42,6 +48,7 @@ class _ChatPageState extends State<ChatPage>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _typingAnimation;
+  StreamSubscription<RealtimeEvent>? _matchRemovedSubscription;
 
   Conversation? _conversation;
   String? _hydratingParticipantId;
@@ -49,6 +56,7 @@ class _ChatPageState extends State<ChatPage>
 
   bool _isKeyboardVisible = false;
   bool _showScrollToBottom = false;
+  final Set<String> _selectedMessageIds = <String>{};
   static const double _bottomTolerance = 24;
 
   // Auto-scroll conditionnel (F1/F2): on ne force le scroll-to-bottom que si
@@ -82,6 +90,23 @@ class _ChatPageState extends State<ChatPage>
     // redondant pendant qu'on la regarde déjà (voir
     // ConversationsBloc._onConversationRealtimeSignal).
     getIt<RealtimeEventBus>().setActiveConversation(widget.conversationId);
+    _matchRemovedSubscription =
+        getIt<RealtimeEventBus>().events.listen((event) {
+      if (event.type != RealtimeEventType.matchRemoved ||
+          event.matchId != widget.conversationId ||
+          !mounted) {
+        return;
+      }
+      HIVToast.showInfo(
+        context: context,
+        message: LocalizationService.translate('chat.match_removed'),
+      );
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/conversations');
+      }
+    });
 
     // Marquer automatiquement les messages comme lus après le premier chargement.
     _scrollController = ScrollController();
@@ -137,6 +162,7 @@ class _ChatPageState extends State<ChatPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _matchRemovedSubscription?.cancel();
     getIt<RealtimeEventBus>().setActiveConversation(null);
     _scrollController.dispose();
     _appearanceController.dispose();
@@ -163,6 +189,7 @@ class _ChatPageState extends State<ChatPage>
       case AppLifecycleState.resumed:
         _chatBloc
           ..add(const ConnectToWebSocket())
+          ..add(const RefreshPresence())
           // La reconnexion volontaire ci-dessus ne déclenche pas
           // automatiquement de resync (elle succède à une déconnexion
           // intentionnelle, pas à une coupure détectée) : on le fait
@@ -233,21 +260,38 @@ class _ChatPageState extends State<ChatPage>
   void _scrollToFirstUnread() {
     if (!_scrollController.hasClients) return;
 
-    // Try to find first unread message and scroll to it
-    // Fallback to bottom if no unread messages
+    // Scroller vers le premier message non lu s'il existe, sinon vers le
+    // bas (messages les plus récents). Le calcul proportionnel précédent
+    // (maxScrollExtent * index/length) était incorrect car les messages
+    // ont des hauteurs variables — la position réelle ne correspond pas à
+    // une fraction linéaire de la liste.
     final state = _chatBloc.state;
     if (state is ChatLoaded) {
       final unreadIndex = state.messages.indexWhere((m) => !m.isRead);
       if (unreadIndex != -1 && unreadIndex < state.messages.length) {
-        // Scroll to first unread message
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent *
-              (unreadIndex / state.messages.length),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        // Estimer la position: si le message non lu est proche de la fin,
+        // scroller vers le bas; sinon scroller vers une position
+        // approximative en partant du bas (les messages récents sont en
+        // bas, et les non-lus sont généralement récents).
+        // On utilise une heuristique simple: scroller vers le bas si le
+        // message non lu est dans le dernier quart, sinon scroller vers
+        // le milieu.
+        final ratio = unreadIndex / state.messages.length;
+        if (ratio > 0.75) {
+          _scrollToBottom();
+        } else {
+          // Position approximative: on sait que les messages non lus
+          // sont généralement vers la fin de la conversation. Scroller
+          // vers une position qui montre le message non lu avec un peu
+          // de contexte au-dessus.
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent * 0.7,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       } else {
-        // No unread messages, scroll to bottom
+        // Pas de messages non lus, scroller vers le bas
         _scrollToBottom();
       }
     } else {
@@ -290,15 +334,40 @@ class _ChatPageState extends State<ChatPage>
                       if (state.completedAction != null) {
                         final completedAction = state.completedAction!;
                         _chatBloc.add(const ClearChatActionFeedback());
+                        if (completedAction == ChatUserAction.edit ||
+                            completedAction == ChatUserAction.deleteForMe ||
+                            completedAction ==
+                                ChatUserAction.deleteForEveryone) {
+                          _clearSelection();
+                        }
+
+                        if (completedAction == ChatUserAction.hide) {
+                          _showConversationHiddenSnackBar();
+                          return;
+                        }
+
+                        final actionMessage = switch (completedAction) {
+                          ChatUserAction.block =>
+                            LocalizationService.translate('chat.block_success'),
+                          ChatUserAction.report =>
+                            LocalizationService.translate(
+                                'chat.report_success'),
+                          ChatUserAction.restore =>
+                            LocalizationService.translate(
+                                'chat.conversation_restored'),
+                          ChatUserAction.edit => LocalizationService.translate(
+                              'chat.message_edited'),
+                          ChatUserAction.deleteForMe =>
+                            LocalizationService.translate(
+                                'chat.messages_deleted_for_me'),
+                          ChatUserAction.deleteForEveryone =>
+                            LocalizationService.translate(
+                                'chat.messages_deleted_for_everyone'),
+                          ChatUserAction.hide => '',
+                        };
                         HIVToast.showSuccess(
                           context: context,
-                          message: completedAction == ChatUserAction.block
-                              ? LocalizationService.translate(
-                                  'chat.block_success',
-                                )
-                              : LocalizationService.translate(
-                                  'chat.report_success',
-                                ),
+                          message: actionMessage,
                         );
                         if (completedAction == ChatUserAction.block) {
                           if (context.canPop()) {
@@ -310,12 +379,25 @@ class _ChatPageState extends State<ChatPage>
                         return;
                       }
                       if (state.actionError != null) {
+                        final actionError = state.actionError!;
                         _chatBloc.add(const ClearChatActionFeedback());
+                        if (actionError == 'free_message_limit_reached' ||
+                            actionError == 'free_match_locked') {
+                          _showFreeMatchPremiumDialog(
+                            actionError == 'free_message_limit_reached'
+                                ? 'matches.free_message_limit'
+                                : 'matches.locked_message',
+                          );
+                          return;
+                        }
+                        if (actionError == 'premium-required' ||
+                            actionError == 'premium_required') {
+                          _showPremiumActionDialog('chat.premium_edit_message');
+                          return;
+                        }
                         HIVToast.showError(
                           context: context,
-                          message: LocalizationService.translate(
-                            'chat.action_error',
-                          ),
+                          message: _messageActionError(actionError),
                         );
                         return;
                       }
@@ -521,6 +603,9 @@ class _ChatPageState extends State<ChatPage>
   }
 
   PreferredSizeWidget _buildAppBar() {
+    if (_selectedMessageIds.isNotEmpty) {
+      return _buildSelectionAppBar();
+    }
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 1,
@@ -594,14 +679,17 @@ class _ChatPageState extends State<ChatPage>
                       );
                     }
 
-                    final isOnline = state is ChatLoaded
-                        ? state.otherIsOnline ??
-                            _conversation?.isOnline ??
-                            false
-                        : _conversation?.isOnline ?? false;
-                    final lastActive = state is ChatLoaded
-                        ? state.otherLastActive ?? _conversation?.lastActive
-                        : _conversation?.lastActive;
+                    // Presence is displayed only after a privacy-safe server
+                    // snapshot. Never infer it from an old profile timestamp.
+                    if (state is! ChatLoaded ||
+                        state.otherPresenceVisible != true) {
+                      return const SizedBox.shrink();
+                    }
+                    final isOnline = state.otherIsOnline == true;
+                    final lastActive = state.otherLastActive;
+                    if (!isOnline && lastActive == null) {
+                      return const SizedBox.shrink();
+                    }
 
                     return Text(
                       isOnline
@@ -642,7 +730,7 @@ class _ChatPageState extends State<ChatPage>
           icon: Icon(Icons.more_vert, color: AppColors.charcoal),
           // Évite toute action sur un expéditeur encore inconnu pendant
           // l'hydratation d'une ouverture par notification.
-          onSelected: _otherUserId == null ? null : _handleMenuAction,
+          onSelected: _handleMenuAction,
           itemBuilder: (context) => [
             PopupMenuItem(
               value: 'profile',
@@ -651,6 +739,16 @@ class _ChatPageState extends State<ChatPage>
                   Icon(Icons.person, color: AppColors.slate),
                   const SizedBox(width: 8),
                   Text(LocalizationService.translate('chat.view_profile')),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'hide',
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_off_outlined, color: AppColors.slate),
+                  const SizedBox(width: 8),
+                  Text(LocalizationService.translate('chat.hide_conversation')),
                 ],
               ),
             ),
@@ -677,6 +775,28 @@ class _ChatPageState extends State<ChatPage>
           ],
         ),
       ],
+    );
+  }
+
+  PreferredSizeWidget _buildSelectionAppBar() {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: _clearSelection,
+        tooltip: LocalizationService.translate('common.cancel'),
+      ),
+      title: Semantics(
+        button: true,
+        label: LocalizationService.translate('chat.message_actions'),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: _showSelectionActions,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Text('${_selectedMessageIds.length}'),
+          ),
+        ),
+      ),
     );
   }
 
@@ -708,8 +828,12 @@ class _ChatPageState extends State<ChatPage>
               MessageBubble(
                 message: message,
                 isOwnMessage: isMe,
+                mediaDownloadService: getIt<MediaDownloadService>(),
                 onDelete: () => _deleteMessage(message),
                 onRetry: () => _retryMessage(message),
+                selectionMode: _selectedMessageIds.isNotEmpty,
+                isSelected: _selectedMessageIds.contains(message.id),
+                onSelectionToggle: () => _toggleMessageSelection(message),
               ),
             ],
           );
@@ -881,27 +1005,36 @@ class _ChatPageState extends State<ChatPage>
   }
 
   Widget _buildInputArea() {
-    return BlocBuilder<ChatBloc, ChatState>(
-      builder: (context, state) {
-        return MessageInput(
-          // MessageInput n'appelle onSendMessage que pour le texte (le média
-          // passe systématiquement par onSendMediaMessage) — pas de branche
-          // morte à gérer ici.
-          onSendMessage: (content, type) {
-            _chatBloc.add(SendTextMessageEvent(content: content));
-          },
-          onSendMediaMessage: (file, type) {
-            _chatBloc.add(SendMediaMessageEvent(
-              mediaFile: file,
-              type: type,
-            ));
-          },
-          onStartTyping: () {
-            _chatBloc.add(const SetTypingStatus(isTyping: true));
-          },
-          onStopTyping: () {
-            _chatBloc.add(const SetTypingStatus(isTyping: false));
-          },
+    return BlocBuilder<AuthBlocSimple, AuthState>(
+      builder: (context, authState) {
+        final isPremium =
+            authState is Authenticated && authState.user.isPremiumActive;
+        return BlocBuilder<ChatBloc, ChatState>(
+          builder: (context, state) => MessageInput(
+            // Passer le statut premium de l'utilisateur courant pour activer
+            // les fonctionnalités premium (GIF, stickers) dans l'input.
+            isPremium: isPremium,
+            canSendMessages: (_conversation?.canSendMessages ?? true) &&
+                (state is! ChatLoaded || state.canSendMessages),
+            // MessageInput n'appelle onSendMessage que pour le texte (le média
+            // passe systématiquement par onSendMediaMessage) — pas de branche
+            // morte à gérer ici.
+            onSendMessage: (content, type) {
+              _chatBloc.add(SendTextMessageEvent(content: content));
+            },
+            onSendMediaMessage: (file, type) {
+              _chatBloc.add(SendMediaMessageEvent(
+                mediaFile: file,
+                type: type,
+              ));
+            },
+            onStartTyping: () {
+              _chatBloc.add(const SetTypingStatus(isTyping: true));
+            },
+            onStopTyping: () {
+              _chatBloc.add(const SetTypingStatus(isTyping: false));
+            },
+          ),
         );
       },
     );
@@ -968,6 +1101,9 @@ class _ChatPageState extends State<ChatPage>
       case 'report':
         _showReportDialog();
         break;
+      case 'hide':
+        _showHideConversationDialog();
+        break;
     }
   }
 
@@ -975,24 +1111,345 @@ class _ChatPageState extends State<ChatPage>
     _chatBloc.add(SendTextMessageEvent(content: message));
   }
 
+  void _toggleMessageSelection(Message message) {
+    final opensActionPanel = _selectedMessageIds.isEmpty;
+    setState(() {
+      if (!_selectedMessageIds.add(message.id)) {
+        _selectedMessageIds.remove(message.id);
+      }
+    });
+    if (opensActionPanel && _selectedMessageIds.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedMessageIds.isNotEmpty) {
+          _showSelectionActions();
+        }
+      });
+    }
+  }
+
+  List<Message> _selectedMessages() {
+    final currentState = _chatBloc.state;
+    if (currentState is! ChatLoaded) return const <Message>[];
+    final selected = currentState.messages
+        .where((message) => _selectedMessageIds.contains(message.id))
+        .toList(growable: false);
+    selected.sort((left, right) => left.createdAt.compareTo(right.createdAt));
+    return selected;
+  }
+
+  bool get _isPremium {
+    final authState = context.read<AuthBlocSimple>().state;
+    return authState is Authenticated && authState.user.isPremiumActive;
+  }
+
+  bool _isWithinMessageActionWindow(Message message) {
+    final age = DateTime.now().difference(message.createdAt);
+    return !age.isNegative && age <= const Duration(minutes: 15);
+  }
+
+  bool _canEditMessage(Message message) =>
+      message.isMine &&
+      message.type == MessageType.text &&
+      message.content.trim().isNotEmpty &&
+      !message.isDeletedForEveryone &&
+      _isWithinMessageActionWindow(message);
+
+  bool _canDeleteMessagesForEveryone(List<Message> messages) =>
+      messages.isNotEmpty &&
+      messages.every((message) =>
+          message.isMine &&
+          !message.isDeletedForEveryone &&
+          _isWithinMessageActionWindow(message));
+
+  void _showSelectionActions() {
+    final selected = _selectedMessages();
+    if (selected.isEmpty) return;
+
+    final copyable = selected
+        .where((message) =>
+            message.type == MessageType.text && !message.isDeletedForEveryone)
+        .toList(growable: false);
+    final selectedOne = selected.length == 1 ? selected.single : null;
+    final canEdit = selectedOne != null && _canEditMessage(selectedOne);
+    final canDeleteForEveryone = _canDeleteMessagesForEveryone(selected);
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy_outlined),
+                title: Text(LocalizationService.translate('chat.copy_message')),
+                enabled: copyable.isNotEmpty,
+                onTap: copyable.isEmpty
+                    ? null
+                    : () async {
+                        await Clipboard.setData(ClipboardData(
+                          text: copyable
+                              .map((message) => message.content)
+                              .join('\n'),
+                        ));
+                        if (!sheetContext.mounted) return;
+                        Navigator.pop(sheetContext);
+                        HIVToast.showSuccess(
+                          context: context,
+                          message: LocalizationService.translate(
+                              'chat.copied_to_clipboard'),
+                        );
+                      },
+              ),
+              if (selectedOne != null)
+                ListTile(
+                  leading: Icon(
+                    _isPremium ? Icons.edit_outlined : Icons.lock_outline,
+                    color: _isPremium ? null : AppColors.primaryPurple,
+                  ),
+                  title:
+                      Text(LocalizationService.translate('chat.edit_message')),
+                  subtitle: canEdit
+                      ? (!_isPremium
+                          ? Text(LocalizationService.translate(
+                              'profile.premium_only'))
+                          : null)
+                      : Text(LocalizationService.translate(
+                          'chat.edit_unavailable')),
+                  enabled: canEdit,
+                  onTap: !canEdit
+                      ? null
+                      : () {
+                          Navigator.pop(sheetContext);
+                          if (!_isPremium) {
+                            _showPremiumActionDialog(
+                                'chat.premium_edit_message');
+                            return;
+                          }
+                          _showEditMessageDialog(selectedOne);
+                        },
+                ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title:
+                    Text(LocalizationService.translate('chat.delete_for_me')),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _deleteSelected(MessageDeletionScope.forMe);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _isPremium
+                      ? Icons.delete_forever_outlined
+                      : Icons.lock_outline,
+                  color: _isPremium ? AppColors.error : AppColors.primaryPurple,
+                ),
+                title: Text(
+                    LocalizationService.translate('chat.delete_for_everyone')),
+                subtitle: canDeleteForEveryone
+                    ? (!_isPremium
+                        ? Text(LocalizationService.translate(
+                            'profile.premium_only'))
+                        : null)
+                    : Text(LocalizationService.translate(
+                        'chat.delete_for_everyone_unavailable')),
+                enabled: canDeleteForEveryone,
+                onTap: !canDeleteForEveryone
+                    ? null
+                    : () {
+                        Navigator.pop(sheetContext);
+                        if (!_isPremium) {
+                          _showPremiumActionDialog(
+                              'chat.premium_delete_message');
+                          return;
+                        }
+                        _deleteSelected(MessageDeletionScope.forEveryone);
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _clearSelection() {
+    if (_selectedMessageIds.isEmpty) return;
+    setState(_selectedMessageIds.clear);
+  }
+
+  void _deleteSelected(MessageDeletionScope scope) {
+    if (_selectedMessageIds.isEmpty) return;
+    if (scope == MessageDeletionScope.forEveryone && !_isPremium) {
+      _showPremiumActionDialog('chat.premium_delete_message');
+      return;
+    }
+    _chatBloc.add(DeleteMessagesEvent(
+      messageIds: Set<String>.from(_selectedMessageIds),
+      scope: scope,
+    ));
+  }
+
+  void _showEditMessageDialog(Message message) {
+    final controller = TextEditingController(text: message.content);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(LocalizationService.translate('chat.edit_message')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 1000,
+          minLines: 1,
+          maxLines: 4,
+          decoration: InputDecoration(
+            labelText: LocalizationService.translate('chat.edit_message'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(LocalizationService.translate('common.cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final content = controller.text.trim();
+              if (content.isEmpty || content == message.content) {
+                HIVToast.showError(
+                  context: dialogContext,
+                  message: LocalizationService.translate('chat.edit_invalid'),
+                );
+                return;
+              }
+              Navigator.pop(dialogContext);
+              _chatBloc.add(EditMessageEvent(
+                messageId: message.id,
+                content: content,
+              ));
+            },
+            child: Text(LocalizationService.translate('chat.edit_save')),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
+  }
+
+  void _showPremiumActionDialog(String messageKey) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(LocalizationService.translate('premium.upgrade_required')),
+        content: Text(LocalizationService.translate(messageKey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(LocalizationService.translate('common.cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push('/premium');
+            },
+            child: Text(LocalizationService.translate('premium.upgrade')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHideConversationDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(LocalizationService.translate('chat.hide_conversation')),
+        content: Text(LocalizationService.translate('chat.hide_confirmation')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(LocalizationService.translate('common.cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _chatBloc.add(const HideConversationEvent());
+            },
+            child:
+                Text(LocalizationService.translate('chat.hide_conversation')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConversationHiddenSnackBar() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content:
+              Text(LocalizationService.translate('chat.conversation_hidden')),
+          action: SnackBarAction(
+            label: LocalizationService.translate('chat.undo'),
+            onPressed: () => _chatBloc.add(const RestoreConversationEvent()),
+          ),
+        ),
+      );
+  }
+
+  String _messageActionError(String code) {
+    return switch (code) {
+      'edit_window_expired' =>
+        LocalizationService.translate('chat.edit_window_expired'),
+      'message_not_editable' =>
+        LocalizationService.translate('chat.edit_unavailable'),
+      'global_delete_not_allowed' =>
+        LocalizationService.translate('chat.delete_for_everyone_unavailable'),
+      _ => LocalizationService.translate('chat.action_error'),
+    };
+  }
+
+  void _showFreeMatchPremiumDialog(String messageKey) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(LocalizationService.translate('premium.upgrade_required')),
+        content: Text(LocalizationService.translate(messageKey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(LocalizationService.translate('common.cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push('/premium');
+            },
+            child: Text(LocalizationService.translate('premium.upgrade')),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _deleteMessage(Message message) {
     _chatBloc.add(DeleteMessageEvent(messageId: message.id));
   }
 
-  /// Réessaie l'envoi d'un message resté en statut `failed` (F15).
-  ///
-  /// Envoie une nouvelle tentative avec le même contenu plutôt que de tenter
-  /// un DELETE réseau sur l'ancien message : un envoi raté n'a en général
-  /// jamais existé côté serveur (id local `temp_...`), donc un DELETE
-  /// dessus 404 sans rien casser mais n'apporte rien. L'ancienne bulle
-  /// "échec" reste visible ; l'utilisateur peut la supprimer manuellement
-  /// via le menu long-press s'il le souhaite. Seul le texte est supporté :
-  /// le fichier local d'un média échoué n'est plus disponible depuis
-  /// l'entité Message une fois l'optimistic update en place.
+  /// Retries a failed message with a new request. Text keeps its content and
+  /// media retries only while its retained local source file is still present.
   void _retryMessage(Message message) {
     if (message.status != MessageStatus.failed) return;
     if (message.type == MessageType.text && message.content.isNotEmpty) {
       _chatBloc.add(SendTextMessageEvent(content: message.content));
+    } else if (message.localMediaPath != null &&
+        message.localMediaPath!.isNotEmpty) {
+      _chatBloc.add(SendMediaMessageEvent(
+        mediaFile: File(message.localMediaPath!),
+        type: message.type,
+      ));
     }
   }
 
@@ -1070,21 +1527,30 @@ class _ChatPageState extends State<ChatPage>
                   ),
                 ),
                 const SizedBox(height: 12),
-                for (final reason in reasons)
-                  RadioListTile<String>(
-                    value: reason,
-                    groupValue: selectedReason,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      LocalizationService.translate(
-                        'chat.report_reason_$reason',
-                      ),
-                    ),
-                    onChanged: (value) {
-                      if (value == null) return;
+                RadioGroup<String>(
+                  groupValue: selectedReason,
+                  onChanged: (value) {
+                    if (value != null) {
                       setDialogState(() => selectedReason = value);
-                    },
+                    }
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final reason in reasons)
+                        RadioListTile<String>(
+                          value: reason,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            LocalizationService.translate(
+                              'chat.report_reason_$reason',
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                ),
                 TextField(
                   controller: detailsController,
                   maxLines: 3,

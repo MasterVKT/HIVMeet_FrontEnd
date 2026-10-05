@@ -21,7 +21,7 @@ class ProfilePhotosPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<ProfileBloc>(),
+      create: (_) => getIt<ProfileBloc>()..add(LoadProfile()),
       child: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {
           if (state is ProfileError) {
@@ -39,7 +39,8 @@ class ProfilePhotosPage extends StatelessWidget {
               title: Text(_tr('profile.photos')),
               backgroundColor: AppColors.primaryWhite,
             ),
-            floatingActionButton: loaded == null
+            floatingActionButton: loaded == null ||
+                    loaded.profile.photoCount >= _photoLimit(loaded)
                 ? null
                 : FloatingActionButton.extended(
                     onPressed: () => _pickAndUpload(context, loaded),
@@ -47,8 +48,29 @@ class ProfilePhotosPage extends StatelessWidget {
                     label: Text(_tr('profile.add_photo')),
                   ),
             body: loaded == null
-                ? const Center(child: HIVLoader())
-                : _PhotoList(loaded: loaded),
+                ? state is ProfileError
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_tr('profile.photos_load_error')),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: () => context
+                                  .read<ProfileBloc>()
+                                  .add(LoadProfile()),
+                              child: Text(_tr('common.retry')),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const Center(child: HIVLoader())
+                : _PhotoList(
+                    loaded: loaded,
+                    canReorder: loaded.premiumStatus?.isPremium == true,
+                    canReplace:
+                        loaded.profile.photoCount >= _photoLimit(loaded),
+                  ),
           );
         },
       ),
@@ -97,8 +119,14 @@ class ProfilePhotosPage extends StatelessWidget {
 
 class _PhotoList extends StatelessWidget {
   final ProfileLoaded loaded;
+  final bool canReorder;
+  final bool canReplace;
 
-  const _PhotoList({required this.loaded});
+  const _PhotoList({
+    required this.loaded,
+    required this.canReorder,
+    required this.canReplace,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -114,69 +142,137 @@ class _PhotoList extends StatelessWidget {
         ),
       );
     }
-    return GridView.builder(
+    final ordered = [...photos]..sort((a, b) => a.order.compareTo(b.order));
+    return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+      itemCount: ordered.length,
+      buildDefaultDragHandles: canReorder,
+      onReorderItem: canReorder
+          ? (oldIndex, newIndex) {
+              final next = [...ordered];
+              final moved = next.removeAt(oldIndex);
+              next.insert(newIndex, moved);
+              context.read<ProfileBloc>().add(
+                    ReorderPhotos(
+                        photoIds: next.map((photo) => photo.id).toList()),
+                  );
+            }
+          : (_, __) {},
+      itemBuilder: (context, index) => _PhotoTile(
+        key: ValueKey(ordered[index].id),
+        photo: ordered[index],
+        canReorder: canReorder,
+        canReplace: canReplace,
+        canDelete: ordered.length > 1,
       ),
-      itemCount: photos.length,
-      itemBuilder: (context, index) => _PhotoTile(photo: photos[index]),
     );
   }
 }
 
 class _PhotoTile extends StatelessWidget {
   final ProfilePhoto photo;
+  final bool canReorder;
+  final bool canReplace;
+  final bool canDelete;
 
-  const _PhotoTile({required this.photo});
+  const _PhotoTile({
+    super.key,
+    required this.photo,
+    required this.canReorder,
+    required this.canReplace,
+    required this.canDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          OptimizedImage(imageUrl: photo.photoUrl, fit: BoxFit.cover),
-          Positioned(
-            left: 8,
-            top: 8,
-            child: Chip(
-              label: Text(photo.isMain
-                  ? _tr('profile.main_photo')
-                  : '${photo.order + 1}'),
-              backgroundColor: Colors.white,
-            ),
-          ),
-          Positioned(
-            right: 4,
-            bottom: 4,
-            child: Row(
-              children: [
-                if (!photo.isMain)
-                  IconButton.filledTonal(
-                    tooltip: _tr('profile.set_main_photo'),
-                    onPressed: () => context.read<ProfileBloc>().add(
-                          SetMainPhoto(
-                              photoUrl: photo.photoUrl, photoId: photo.id),
-                        ),
-                    icon: const Icon(Icons.star_outline),
-                  ),
-                const SizedBox(width: 4),
-                IconButton.filledTonal(
-                  tooltip: _tr('common.delete'),
-                  onPressed: () => _confirmDelete(context),
-                  icon: const Icon(Icons.delete_outline),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        height: 180,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              OptimizedImage(imageUrl: photo.photoUrl, fit: BoxFit.cover),
+              Positioned(
+                left: 8,
+                top: 8,
+                child: Chip(
+                  label: Text(photo.isMain
+                      ? _tr('profile.main_photo')
+                      : '${photo.order + 1}'),
+                  backgroundColor: Colors.white,
                 ),
-              ],
-            ),
+              ),
+              Positioned(
+                right: 4,
+                bottom: 4,
+                child: Row(
+                  children: [
+                    if (canReorder)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.drag_handle),
+                      ),
+                    if (!photo.isMain)
+                      IconButton.filledTonal(
+                        tooltip: _tr('profile.set_main_photo'),
+                        onPressed: () => context.read<ProfileBloc>().add(
+                              SetMainPhoto(
+                                  photoUrl: photo.photoUrl, photoId: photo.id),
+                            ),
+                        icon: const Icon(Icons.star_outline),
+                      ),
+                    if (canReplace) ...[
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        tooltip: _tr('profile.replace_photo'),
+                        onPressed: () => _pickAndReplace(context),
+                        icon: const Icon(Icons.photo_camera_back_outlined),
+                      ),
+                    ],
+                    const SizedBox(width: 4),
+                    if (canDelete)
+                      IconButton.filledTonal(
+                        tooltip: _tr('common.delete'),
+                        onPressed: () => _confirmDelete(context),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _pickAndReplace(BuildContext context) async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null || !context.mounted) return;
+    final file = File(picked.path);
+    final lowerPath = picked.path.toLowerCase();
+    final validType = lowerPath.endsWith('.jpg') ||
+        lowerPath.endsWith('.jpeg') ||
+        lowerPath.endsWith('.png');
+    if (!validType) {
+      HIVToast.showError(context: context, message: _tr('profile.photo_type_error'));
+      return;
+    }
+    if (await file.length() > 5 * 1024 * 1024) {
+      if (context.mounted) {
+        HIVToast.showError(context: context, message: _tr('profile.photo_size_error'));
+      }
+      return;
+    }
+    if (context.mounted) {
+      context.read<ProfileBloc>().add(ReplacePhoto(photoId: photo.id, photo: file));
+    }
   }
 
   void _confirmDelete(BuildContext context) {
@@ -206,8 +302,7 @@ class _PhotoTile extends StatelessWidget {
 }
 
 int _photoLimit(ProfileLoaded loaded) {
-  return loaded.premiumStatus?.isPremium == true ||
-          loaded.profile.user?.isPremium == true
+  return loaded.premiumStatus?.isPremium == true
       ? AppLimits.maxPhotosPremium
       : AppLimits.maxPhotosGratuit;
 }

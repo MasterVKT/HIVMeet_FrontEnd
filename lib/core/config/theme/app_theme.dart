@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   // Couleurs principales
@@ -70,47 +69,55 @@ class AppTheme {
 
       // Typographie
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.openSans(
+        displayLarge: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 28,
           fontWeight: FontWeight.bold,
           letterSpacing: -0.5,
           color: AppColors.charcoal,
         ),
-        displayMedium: GoogleFonts.openSans(
+        displayMedium: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 22,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
           color: AppColors.charcoal,
         ),
-        displaySmall: GoogleFonts.openSans(
+        displaySmall: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 18,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
           color: AppColors.charcoal,
         ),
-        headlineMedium: GoogleFonts.openSans(
+        headlineMedium: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 16,
           fontWeight: FontWeight.w500,
           letterSpacing: -0.1,
           color: AppColors.charcoal,
         ),
-        bodyLarge: GoogleFonts.openSans(
+        bodyLarge: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 15,
           fontWeight: FontWeight.normal,
           color: AppColors.charcoal,
         ),
-        bodyMedium: GoogleFonts.openSans(
+        bodyMedium: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: AppColors.slate,
         ),
-        labelSmall: GoogleFonts.openSans(
+        labelSmall: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 12,
           fontWeight: FontWeight.normal,
           letterSpacing: 0.2,
           color: AppColors.slate,
         ),
-        labelLarge: GoogleFonts.openSans(
+        labelLarge: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 16,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.1,
@@ -170,9 +177,9 @@ class AppTheme {
         ),
         contentPadding:
             const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        labelStyle: GoogleFonts.openSans(color: AppColors.slate),
-        hintStyle: GoogleFonts.openSans(color: AppColors.slate),
-        errorStyle: GoogleFonts.openSans(color: AppColors.error),
+        labelStyle: TextStyle(fontFamily: 'OpenSans', color: AppColors.slate),
+        hintStyle: TextStyle(fontFamily: 'OpenSans', color: AppColors.slate),
+        errorStyle: TextStyle(fontFamily: 'OpenSans', color: AppColors.error),
       ),
 
       // Cards
@@ -204,47 +211,55 @@ class AppTheme {
         onError: Colors.white,
       ),
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.openSans(
+        displayLarge: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 28,
           fontWeight: FontWeight.bold,
           letterSpacing: -0.5,
           color: Colors.white,
         ),
-        displayMedium: GoogleFonts.openSans(
+        displayMedium: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 22,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
           color: Colors.white,
         ),
-        displaySmall: GoogleFonts.openSans(
+        displaySmall: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 18,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
           color: Colors.white,
         ),
-        headlineMedium: GoogleFonts.openSans(
+        headlineMedium: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 16,
           fontWeight: FontWeight.w500,
           letterSpacing: -0.1,
           color: Colors.white,
         ),
-        bodyLarge: GoogleFonts.openSans(
+        bodyLarge: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 15,
           fontWeight: FontWeight.normal,
           color: Colors.white,
         ),
-        bodyMedium: GoogleFonts.openSans(
+        bodyMedium: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: const Color(0xFFB3B3B3), // Texte secondaire
         ),
-        labelSmall: GoogleFonts.openSans(
+        labelSmall: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 12,
           fontWeight: FontWeight.normal,
           letterSpacing: 0.2,
           color: const Color(0xFFB3B3B3),
         ),
-        labelLarge: GoogleFonts.openSans(
+        labelLarge: TextStyle(
+          fontFamily: 'OpenSans',
           fontSize: 16,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.1,
@@ -280,9 +295,11 @@ class AppTheme {
         ),
         contentPadding:
             const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        labelStyle: GoogleFonts.openSans(color: const Color(0xFFB3B3B3)),
-        hintStyle: GoogleFonts.openSans(color: const Color(0xFFB3B3B3)),
-        errorStyle: GoogleFonts.openSans(color: AppColors.error),
+        labelStyle:
+            TextStyle(fontFamily: 'OpenSans', color: const Color(0xFFB3B3B3)),
+        hintStyle:
+            TextStyle(fontFamily: 'OpenSans', color: const Color(0xFFB3B3B3)),
+        errorStyle: TextStyle(fontFamily: 'OpenSans', color: AppColors.error),
       ),
     );
   }

@@ -99,7 +99,8 @@ class _MatchesSearchBarState extends State<MatchesSearchBar> {
                 )
               : null,
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          fillColor:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -211,13 +212,12 @@ class _ExpandableSearchBarState extends State<ExpandableSearchBar>
       animation: _widthAnimation,
       builder: (context, child) {
         return Container(
-          width: _isExpanded
-              ? MediaQuery.of(context).size.width - 32
-              : 48,
+          width: _isExpanded ? MediaQuery.of(context).size.width - 32 : 48,
           height: 48,
           decoration: BoxDecoration(
             color: _isExpanded
-                ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                ? theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),
@@ -242,7 +242,8 @@ class _ExpandableSearchBarState extends State<ExpandableSearchBar>
                     decoration: InputDecoration(
                       hintText: 'Rechercher...',
                       hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                       border: InputBorder.none,
                       suffixIcon: _controller.text.isNotEmpty

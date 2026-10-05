@@ -5,8 +5,8 @@ import 'package:equatable/equatable.dart';
 import 'package:hivmeet/core/error/failures.dart';
 
 /// Interface de base pour tous les use cases
-abstract class UseCase<Type, Params> {
-  Future<Either<Failure, Type>> call(Params params);
+abstract class UseCase<T, Params> {
+  Future<Either<Failure, T>> call(Params params);
 }
 
 /// Classe utilisée quand un use case n'a pas de paramètres

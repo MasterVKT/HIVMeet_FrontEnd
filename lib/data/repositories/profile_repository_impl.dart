@@ -10,6 +10,7 @@ import 'package:hivmeet/data/datasources/remote/profile_api.dart';
 import 'package:hivmeet/data/datasources/remote/settings_api.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
+import 'package:hivmeet/domain/entities/location_catalog.dart';
 
 @LazySingleton(as: ProfileRepository)
 class ProfileRepositoryImpl implements ProfileRepository {
@@ -46,8 +47,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<Either<Failure, Profile>> updateProfile({
     String? displayName,
     String? bio,
+    String? gender,
     String? city,
     String? country,
+    String? preferredCurrency,
     double? latitude,
     double? longitude,
     List<String>? interests,
@@ -55,13 +58,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
     List<String>? relationshipTypesSought,
     SearchPreferences? searchPreferences,
     PrivacySettings? privacySettings,
+    ProfileLocationUpdate? locationUpdate,
   }) async {
     final data = <String, dynamic>{
       if (bio != null) 'bio': bio,
+      if (gender != null) 'gender': gender,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (city != null) 'city': city,
       if (country != null) 'country': country,
+      if (preferredCurrency != null) 'preferred_currency': preferredCurrency,
       if (interests != null) 'interests': interests,
       if (relationshipTypesSought != null)
         'relationship_types_sought': relationshipTypesSought,
@@ -81,6 +87,20 @@ class ProfileRepositoryImpl implements ProfileRepository {
         'allow_profile_in_discovery': privacySettings.profileDiscoverable,
       },
     };
+    if (locationUpdate != null) {
+      try {
+        final response = await _profileApi.updateProfileAndLocation(
+          profile: data,
+          location: locationUpdate.toJson(),
+        );
+        return Right(_mapJsonToProfile(response.data ?? {}));
+      } catch (e) {
+        return Left(_failureFromException(
+          e,
+          'Erreur lors de la mise à jour du profil et de la localisation',
+        ));
+      }
+    }
     return updateProfileFields(data);
   }
 
@@ -126,6 +146,20 @@ class ProfileRepositoryImpl implements ProfileRepository {
       return Right(_mapPhoto(response.data ?? {}));
     } catch (e) {
       return Left(_failureFromException(e, 'Erreur lors de l’upload'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ProfilePhoto>> replaceProfilePhoto({
+    required String photoId,
+    required File photo,
+  }) async {
+    try {
+      final response = await _profileApi.replacePhoto(photoId, photo.path);
+      return Right(_mapPhoto(response.data ?? {}));
+    } catch (e) {
+      return Left(
+          _failureFromException(e, 'Erreur lors du remplacement de la photo'));
     }
   }
 
@@ -508,6 +542,90 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
+  Future<Either<Failure, List<LocationCountry>>> getLocationCountries({
+    String? query,
+  }) async {
+    try {
+      final response = await _profileApi.getLocationCountries(query: query);
+      final results = response.data?['results'];
+      final countries = results is List
+          ? results
+              .whereType<Map<String, dynamic>>()
+              .map((json) {
+                return LocationCountry(
+                  code: json['code']?.toString() ?? '',
+                  label: json['label']?.toString() ?? '',
+                  catalogVersion: json['catalog_version']?.toString() ?? '',
+                );
+              })
+              .where((country) => country.code.isNotEmpty)
+              .toList()
+          : <LocationCountry>[];
+      return Right(countries);
+    } catch (e) {
+      return Left(
+          _failureFromException(e, 'Erreur lors du chargement des pays'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<LocationCity>>> getLocationCities({
+    required String countryCode,
+    String? query,
+  }) async {
+    try {
+      final response = await _profileApi.getLocationCities(
+        countryCode: countryCode,
+        query: query,
+      );
+      final results = response.data?['results'];
+      final cities = results is List
+          ? results
+              .whereType<Map<String, dynamic>>()
+              .map((json) {
+                return LocationCity(
+                  id: _toInt(json['geonames_id']) ?? 0,
+                  name: json['name']?.toString() ?? '',
+                  countryCode: json['country_code']?.toString() ?? countryCode,
+                  countryName: json['country_name']?.toString() ?? '',
+                );
+              })
+              .where((city) => city.id > 0 && city.name.isNotEmpty)
+              .toList()
+          : <LocationCity>[];
+      return Right(cities);
+    } catch (e) {
+      return Left(
+          _failureFromException(e, 'Erreur lors du chargement des villes'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Profile>> updateProfileLocation(
+    ProfileLocationUpdate update,
+  ) async {
+    try {
+      final response = await _profileApi.updateProfileLocation(update.toJson());
+      return Right(_mapJsonToProfile(response.data ?? {}));
+    } catch (e) {
+      return Left(_failureFromException(
+          e, 'Erreur lors de la mise à jour de la localisation'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> reorderPhotosByIds(
+      List<String> photoIds) async {
+    try {
+      await _profileApi.reorderPhotos(photoIds);
+      return const Right(null);
+    } catch (e) {
+      return Left(_failureFromException(
+          e, 'Erreur lors de la réorganisation des photos'));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<Profile>>> getRecommendedProfiles({
     int limit = 20,
     Profile? lastProfile,
@@ -618,6 +736,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
       birthDate: birthDate,
       bio: json['bio'] as String? ?? '',
       gender: json['gender'] as String? ?? '',
+      genderConfirmationRequired:
+          json['gender_confirmation_required'] as bool? ?? false,
       location: Location(
         latitude: lat ?? 0,
         longitude: lng ?? 0,
@@ -625,6 +745,15 @@ class ProfileRepositoryImpl implements ProfileRepository {
       ),
       city: json['city'] as String? ?? '',
       country: json['country'] as String? ?? '',
+      locationEnabled: json['location_enabled'] as bool? ?? false,
+      locationMode: json['location_mode']?.toString() ?? 'manual',
+      geoCityId: _toInt(json['geo_city_id']),
+      countryCode: json['country_code']?.toString(),
+      locationUpdatedAt: _parseDate(json['location_updated_at']),
+      preferredCurrency:
+          json['preferred_currency']?.toString().toUpperCase() ?? 'AUTO',
+      effectiveCurrency:
+          json['effective_currency']?.toString().toUpperCase() ?? 'EUR',
       interests: _stringList(json['interests']),
       relationshipType:
           relationshipTypes.isNotEmpty ? relationshipTypes.first : '',
@@ -649,6 +778,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
           ? _mapPremiumLimits(json['premium_limits'] as Map<String, dynamic>)
           : null,
       distanceFromMeKm: _toDouble(json['distance_from_me_km']),
+      distanceEstimated: json['distance_estimated'] as bool?,
+      sameCity: json['same_city'] as bool? ?? false,
       createdAt: _parseDate(json['created_at']) ?? DateTime.now(),
       updatedAt: _parseDate(json['updated_at']) ?? DateTime.now(),
     );
@@ -758,6 +889,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
           json['new_message_notifications'] as bool? ?? true,
       profileLikeNotifications:
           json['profile_like_notifications'] as bool? ?? false,
+      messageReadNotifications:
+          json['message_read_notifications'] as bool? ?? true,
       appUpdateNotifications: json['app_update_notifications'] as bool? ?? true,
       promotionalNotifications:
           json['promotional_notifications'] as bool? ?? false,
@@ -857,7 +990,18 @@ class ProfileRepositoryImpl implements ProfileRepository {
           return const PremiumRequiredFailure();
         }
       }
-      return ServerFailure(message: message ?? error.message ?? fallback);
+      final code =
+          data is Map<String, dynamic> ? data['error'] as String? : null;
+      if (code == 'photo_storage_unavailable') {
+        return const ServerFailure(
+          message: 'profile.photo_storage_unavailable',
+          code: 'photo_storage_unavailable',
+        );
+      }
+      return ServerFailure(
+        message: message ?? error.message ?? fallback,
+        code: code,
+      );
     }
     return ServerFailure(message: fallback);
   }

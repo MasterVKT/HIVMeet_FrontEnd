@@ -4,7 +4,7 @@ import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/services/token_manager.dart';
 import 'package:hivmeet/injection.dart';
-import 'dart:developer' as developer;
+import 'package:hivmeet/core/utils/log_service.dart' as developer;
 
 class ApiClient {
   static const _authRetryMarker = 'hivmeet.auth_retry_performed';
@@ -238,6 +238,7 @@ class ApiClient {
       'token',
       'id_token',
       'firebase_token',
+      'fcm_token',
       'email',
       'phone',
       'phone_number',
@@ -291,12 +292,14 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
+    ProgressCallback? onSendProgress,
   }) async {
     return await _dio.post<T>(
       path,
       data: data,
       queryParameters: queryParameters,
       options: options,
+      onSendProgress: onSendProgress,
     );
   }
 
@@ -342,6 +345,31 @@ class ApiClient {
       data: data,
       queryParameters: queryParameters,
       options: options,
+    );
+  }
+
+  /// Authenticated binary transfer used for explicit media downloads.
+  ///
+  /// The interceptors remain active, so the request has the same access token,
+  /// language and 401-refresh behaviour as REST calls. ``deleteOnError`` is
+  /// false because a cancelled download deliberately preserves its private
+  /// partial file for a later Range resume.
+  Future<Response<void>> download(
+    String path,
+    String savePath, {
+    Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onReceiveProgress,
+    FileAccessMode fileAccessMode = FileAccessMode.write,
+  }) async {
+    return _dio.download(
+      path,
+      savePath,
+      options: options,
+      cancelToken: cancelToken,
+      onReceiveProgress: onReceiveProgress,
+      deleteOnError: false,
+      fileAccessMode: fileAccessMode,
     );
   }
 }

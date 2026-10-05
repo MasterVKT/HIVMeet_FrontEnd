@@ -1,4 +1,4 @@
-﻿// lib/presentation/blocs/discovery/discovery_bloc.dart
+// lib/presentation/blocs/discovery/discovery_bloc.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +14,8 @@ import 'package:hivmeet/domain/usecases/match/get_search_filters.dart';
 import 'package:hivmeet/domain/usecases/match/get_daily_like_limit.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
 import 'package:hivmeet/core/events/app_events.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'discovery_event.dart';
 import 'discovery_state.dart';
 import 'dart:async';
@@ -39,13 +41,19 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
   final usecases.UpdateFilters _updateFilters;
   final GetSearchFilters _getSearchFilters;
   final GetDailyLikeLimit _getDailyLikeLimit;
-  final PremiumRepository? _premiumRepository;
 
   List<DiscoveryProfile> _profiles = [];
   final Set<String> _swipedProfileIds = {};
   int _currentIndex = 0;
   DailyLikeLimit? _dailyLimit;
+  DiscoveryProfile? _lastSwipedProfile;
+  String? _lastRewindableInteractionId;
+  DateTime? _rewindExpiresAt;
+  bool _isRewinding = false;
+  Timer? _rewindExpiryTimer;
+  int _dailyLimitPromptSequence = 0;
   StreamSubscription<String>? _revokeSubscription;
+  StreamSubscription<RealtimeEvent>? _subscriptionChanges;
   Timer? _rateLimitTimer;
 
   DiscoveryLoaded? _safePreviousState() {
@@ -67,8 +75,40 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
   }
 
   bool _isRateLimitFailure(Failure? failure) {
+    if (failure?.code == 'rate_limited') return true;
     final lower = failure?.message.toLowerCase() ?? '';
     return lower.contains('429') || lower.contains('too many requests');
+  }
+
+  bool _emitDailyLimitIfNeeded(
+    Emitter<DiscoveryState> emit,
+    Failure? failure,
+  ) {
+    if (failure?.code != 'daily_limit') return false;
+    final previousState = _safePreviousState();
+    if (previousState == null) return false;
+
+    _dailyLimit = (_dailyLimit ??
+            DailyLikeLimit(
+              remainingLikes: 0,
+              totalLikes: 10,
+              resetAt: DateTime.now().add(const Duration(days: 1)),
+            ))
+        .copyWith(remainingLikes: 0);
+    _emitDailyLimitReached(emit, previousState);
+    return true;
+  }
+
+  void _emitDailyLimitReached(
+    Emitter<DiscoveryState> emit,
+    DiscoveryLoaded previousState,
+  ) {
+    _dailyLimitPromptSequence += 1;
+    emit(DailyLimitReached(
+      previousState: previousState,
+      limitInfo: _dailyLimit!,
+      promptSequence: _dailyLimitPromptSequence,
+    ));
   }
 
   /// Émet une erreur transitoire avec retour automatique après [seconds] secondes
@@ -99,6 +139,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     required usecases.UpdateFilters updateFilters,
     required GetSearchFilters getSearchFilters,
     required GetDailyLikeLimit getDailyLikeLimit,
+    required RealtimeEventBus realtimeBus,
     PremiumRepository? premiumRepository,
   })  : _getDiscoveryProfiles = getDiscoveryProfiles,
         _likeProfile = likeProfile,
@@ -108,7 +149,6 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         _updateFilters = updateFilters,
         _getSearchFilters = getSearchFilters,
         _getDailyLikeLimit = getDailyLikeLimit,
-        _premiumRepository = premiumRepository,
         super(DiscoveryInitial()) {
     on<LoadDiscoveryProfiles>(_onLoadDiscoveryProfiles);
     on<SwipeProfile>(_onSwipeProfile);
@@ -132,12 +172,20 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       _debugLog('ðŸ”„ DiscoveryBloc: Rechargement forcÃ© des profils');
       add(const LoadDiscoveryProfiles(limit: 20, forceRefresh: true));
     });
+    _subscriptionChanges = realtimeBus.events.listen((event) {
+      if (event.type == RealtimeEventType.subscriptionChanged && !isClosed) {
+        _dailyLimit = null;
+        add(const LoadDiscoveryProfiles(limit: 20, forceRefresh: true));
+      }
+    });
   }
 
   @override
   Future<void> close() {
     _revokeSubscription?.cancel();
+    _subscriptionChanges?.cancel();
     _rateLimitTimer?.cancel();
+    _rewindExpiryTimer?.cancel();
     return super.close();
   }
 
@@ -159,8 +207,8 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
           : GetDiscoveryProfilesParams.initial(limit: event.limit);
       final result = await _getDiscoveryProfiles(params);
 
-      result.fold(
-        (failure) {
+      await result.fold<Future<void>>(
+        (failure) async {
           _debugLog(
               'âŒ DEBUG DiscoveryBloc: Ã‰chec rÃ©cupÃ©ration profils: ${failure.message}');
           emit(DiscoveryError(message: failure.message));
@@ -170,12 +218,24 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
               'âœ… DEBUG DiscoveryBloc: Profils rÃ©cupÃ©rÃ©s: ${profiles.length}');
           _profiles = profiles;
           _currentIndex = 0;
+          _lastSwipedProfile = null;
 
-          // Ã‰mettre immÃ©diatement l'Ã©tat chargÃ© avec les profils
+          final dailyLimitResult = await _getDailyLikeLimit.call();
+          dailyLimitResult.fold(
+            (failure) {
+              if (failure.code == 'unlimited') {
+                _dailyLimit = null;
+              }
+            },
+            (limit) => _dailyLimit = limit,
+          );
+
           _emitLoaded(emit);
 
-          // Note: _dailyLimit est mis à jour directement depuis les réponses
-          // de swipe (result.remainingLikes). Pas d'appel API séparé nécessaire.
+          if (_dailyLimit?.hasReachedLimit == true &&
+              state is DiscoveryLoaded) {
+            _emitDailyLimitReached(emit, state as DiscoveryLoaded);
+          }
         },
       );
     } catch (e) {
@@ -200,15 +260,10 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     _debugLog(
         'ðŸ‘‰ DEBUG DiscoveryBloc: Swiping profil: ${currentProfile.id} (${currentProfile.displayName})');
 
-    if (event.direction == SwipeDirection.right &&
-        _dailyLimit != null &&
-        _dailyLimit!.hasReachedLimit) {
+    if (_dailyLimit?.hasReachedLimit == true) {
       final previousLoadedState = _safePreviousState();
       if (previousLoadedState == null) return;
-      emit(DailyLimitReached(
-        previousState: previousLoadedState,
-        limitInfo: _dailyLimit!,
-      ));
+      _emitDailyLimitReached(emit, previousLoadedState);
       return;
     }
 
@@ -232,6 +287,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
           final failure = either.fold((l) => l, (r) => null);
           _debugLog(
               'âŒ DEBUG DiscoveryBloc: Like failed - ${failure?.toString()}');
+          if (_emitDailyLimitIfNeeded(emit, failure)) return;
           _emitSwipeError(
             emit,
             _mapFailureToMessage('Erreur like', failure),
@@ -253,6 +309,7 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
               (l) => l, (r) => const ServerFailure(message: 'Unknown'));
           _debugLog(
               'âŒ DEBUG DiscoveryBloc: Dislike failed - ${failure.toString()}');
+          if (_emitDailyLimitIfNeeded(emit, failure)) return;
           _emitSwipeError(
             emit,
             _mapFailureToMessage('Erreur dislike', failure),
@@ -265,63 +322,14 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         result = either.getOrElse(() => const SwipeResult(isMatch: false));
         break;
       case SwipeDirection.up:
-        // VÃ©rification optionnelle du quota de super likes
-        if (_premiumRepository != null) {
-          final subscriptionResult =
-              await _premiumRepository.getCurrentSubscription();
-          await subscriptionResult.fold(
-            (failure) {
-              // Log l'erreur mais continue (le backend fera la vraie vÃ©rification)
-              _debugLog(
-                  'âš ï¸ DEBUG: Could not check subscription: ${failure.message}');
-            },
-            (subscription) async {
-              if (subscription == null) {
-                _debugLog('âš ï¸ DEBUG: No active subscription found');
-                emit(DiscoveryError(
-                    message:
-                        'Vous devez avoir un abonnement actif pour envoyer des Super Likes',
-                    previousState: _safePreviousState()));
-                return;
-              }
-
-              if (!subscription.isActive) {
-                _debugLog(
-                    'âš ï¸ DEBUG: Subscription is not active: ${subscription.status}');
-                emit(DiscoveryError(
-                    message:
-                        'Votre abonnement n\'est plus actif. Veuillez renouveler votre abonnement.',
-                    previousState: _safePreviousState()));
-                return;
-              }
-
-              final usage = subscription.featuresUsage;
-              if (usage != null && usage.superLikesRemaining <= 0) {
-                _debugLog('âš ï¸ DEBUG: No super likes remaining');
-                emit(DiscoveryError(
-                    message:
-                        'Vous avez utilisÃ© tous vos Super Likes aujourd\'hui. Ils seront rÃ©initialisÃ©s demain.',
-                    previousState: _safePreviousState()));
-                return;
-              }
-
-              _debugLog(
-                  'âœ… DEBUG: Super likes available: ${usage?.superLikesRemaining ?? "unknown"}');
-            },
-          );
-
-          // Si emit a Ã©tÃ© appelÃ© (erreur), sortir
-          if (state is DiscoveryError) {
-            return;
-          }
-        }
-
         final params = SuperLikeProfileParams(profileId: currentProfile.id);
         final either = await _superLikeProfile(params);
         if (either.isLeft()) {
           final failure = either.fold((l) => l, (r) => null);
           _debugLog(
               'âŒ DEBUG DiscoveryBloc: SuperLike failed - ${failure?.toString()}');
+
+          if (_emitDailyLimitIfNeeded(emit, failure)) return;
 
           // Message d'erreur plus explicite basÃ© sur le type de failure
           String errorMessage =
@@ -371,6 +379,13 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
     // âœ… IMPORTANT: Retirer le profil immÃ©diatement de la liste pour l'UI
     // Cela Ã©vite de reswiper le mÃªme profil et de crÃ©er des doublons
     _swipedProfileIds.add(currentProfile.id);
+    _lastSwipedProfile = currentProfile;
+    _lastRewindableInteractionId =
+        result.canRewind ? result.interactionId : null;
+    _rewindExpiresAt =
+        result.canRewind ? result.rewindExpiresAt?.toUtc() : null;
+    _isRewinding = false;
+    _scheduleRewindExpiry();
     _profiles.removeAt(_currentIndex);
     _debugLog(
         'ðŸ—‘ï¸ DEBUG DiscoveryBloc: Profil ${currentProfile.id} retirÃ© de la liste. Reste ${_profiles.length} profils.');
@@ -432,26 +447,80 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
       }
     }
 
-    _emitLoaded(emit);
+    if (_dailyLimit?.hasReachedLimit == true) {
+      _emitDailyLimitReached(emit, previousLoadedState);
+    } else {
+      _emitLoaded(emit);
+    }
   }
 
   Future<void> _onRewindLastSwipe(
     RewindLastSwipe event,
     Emitter<DiscoveryState> emit,
   ) async {
-    if (_currentIndex > 0) {
-      final either = await _rewindSwipe(NoParams());
-      if (either.isLeft()) {
-        final msg = either
-            .swap()
-            .getOrElse(() => const ServerFailure(message: 'Erreur rewind'))
-            .message;
-        emit(DiscoveryError(message: msg));
-        return;
-      }
-      _currentIndex--;
+    final previousProfile = _lastSwipedProfile;
+    final interactionId = _lastRewindableInteractionId;
+    final expiresAt = _rewindExpiresAt;
+    if (previousProfile == null ||
+        interactionId == null ||
+        expiresAt == null ||
+        !DateTime.now().toUtc().isBefore(expiresAt)) {
+      _clearRewindCandidate();
       _emitLoaded(emit);
+      return;
     }
+    if (_isRewinding) return;
+
+    _isRewinding = true;
+    _emitLoaded(emit);
+    final either = await _rewindSwipe(
+      RewindSwipeParams(interactionId: interactionId),
+    );
+    if (either.isLeft()) {
+      _isRewinding = false;
+      final failure = either.swap().getOrElse(
+            () => const ServerFailure(
+                message: 'Impossible d annuler cette action'),
+          );
+      final msg = failure.code == 'match_exists_use_unmatch'
+          ? 'Ce swipe a créé un match. Supprimez le match pour arrêter la connexion.'
+          : failure.message;
+      _emitSwipeError(emit, msg);
+      return;
+    }
+
+    // An idempotent retry can return success after a delayed first response.
+    // Reinsert only when the local list does not already contain this profile.
+    _swipedProfileIds.remove(previousProfile.id);
+    if (!_profiles.any((profile) => profile.id == previousProfile.id)) {
+      _profiles.insert(_currentIndex, previousProfile);
+    }
+    AppEvents().notifyInteractionHistoryChanged();
+    _clearRewindCandidate();
+    _emitLoaded(emit);
+  }
+
+  void _scheduleRewindExpiry() {
+    _rewindExpiryTimer?.cancel();
+    final expiresAt = _rewindExpiresAt;
+    if (expiresAt == null) return;
+    final delay = expiresAt.difference(DateTime.now().toUtc());
+    _rewindExpiryTimer = Timer(
+      delay.isNegative ? Duration.zero : delay,
+      () {
+        _clearRewindCandidate();
+        add(const LoadMoreProfiles(limit: 0));
+      },
+    );
+  }
+
+  void _clearRewindCandidate() {
+    _rewindExpiryTimer?.cancel();
+    _rewindExpiryTimer = null;
+    _lastSwipedProfile = null;
+    _lastRewindableInteractionId = null;
+    _rewindExpiresAt = null;
+    _isRewinding = false;
   }
 
   Future<void> _onUpdateFilters(
@@ -529,7 +598,11 @@ class DiscoveryBloc extends Bloc<DiscoveryEvent, DiscoveryState> {
         _currentIndex + 1,
         (_currentIndex + 3).clamp(0, _profiles.length),
       ),
-      canRewind: _currentIndex > 0,
+      canRewind: _lastSwipedProfile != null &&
+          _lastRewindableInteractionId != null &&
+          _rewindExpiresAt != null &&
+          DateTime.now().toUtc().isBefore(_rewindExpiresAt!),
+      isRewinding: _isRewinding,
       dailyLimit: _dailyLimit,
     ));
   }

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/presentation/blocs/matches/unseen_matches_cubit.dart';
 import 'package:hivmeet/presentation/blocs/unread/unread_cubit.dart';
+import 'package:hivmeet/presentation/widgets/notifications/notification_bell_button.dart';
 import 'package:provider/provider.dart';
 
 const bool _enableVerboseLogs = false;
@@ -42,6 +44,11 @@ class AppScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
 
+  /// Si true (défaut), la cloche de notifications est automatiquement
+  /// ajoutée aux actions de l'AppBar. Mettre à false pour la masquer
+  /// (ex: sur la page Notifications elle-même pour éviter la récursion).
+  final bool showNotificationBell;
+
   const AppScaffold({
     super.key,
     required this.body,
@@ -49,6 +56,7 @@ class AppScaffold extends StatelessWidget {
     this.appBar,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
+    this.showNotificationBell = true,
   });
 
   void _onNavigationTap(BuildContext context, int index) {
@@ -77,11 +85,48 @@ class AppScaffold extends StatelessWidget {
         'DEBUG AppScaffold: build() appele - currentIndex: $currentIndex');
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: appBar,
+      appBar: _injectBell(appBar),
       body: body,
       floatingActionButton: floatingActionButton,
       floatingActionButtonLocation: floatingActionButtonLocation,
       bottomNavigationBar: _buildBottomNavigationBar(context),
+    );
+  }
+
+  /// Clone l'AppBar fournie par la page et y ajoute la cloche de
+  /// notifications si [showNotificationBell] est true.
+  /// Si la page ne fournit pas d'AppBar, retourne null (pas de cloche).
+  PreferredSizeWidget? _injectBell(PreferredSizeWidget? pageAppBar) {
+    if (!showNotificationBell || pageAppBar is! AppBar) return pageAppBar;
+
+    final existing = pageAppBar;
+    final actions = existing.actions ?? const <Widget>[];
+
+    // Évite la duplication si la cloche est déjà présente.
+    final hasBell = actions.any((w) => w is NotificationBellButton);
+    if (hasBell) return pageAppBar;
+
+    return AppBar(
+      key: existing.key,
+      leading: existing.leading,
+      automaticallyImplyLeading: existing.automaticallyImplyLeading,
+      title: existing.title,
+      titleSpacing: existing.titleSpacing,
+      centerTitle: existing.centerTitle,
+      toolbarHeight: existing.toolbarHeight,
+      backgroundColor: existing.backgroundColor,
+      foregroundColor: existing.foregroundColor,
+      elevation: existing.elevation,
+      scrolledUnderElevation: existing.scrolledUnderElevation,
+      shadowColor: existing.shadowColor,
+      surfaceTintColor: existing.surfaceTintColor,
+      shape: existing.shape,
+      iconTheme: existing.iconTheme,
+      actionsIconTheme: existing.actionsIconTheme,
+      primary: existing.primary,
+      excludeHeaderSemantics: existing.excludeHeaderSemantics,
+      bottom: existing.bottom,
+      actions: [...actions, const NotificationBellButton()],
     );
   }
 
@@ -96,7 +141,10 @@ class AppScaffold extends StatelessWidget {
           label: LocalizationService.translate('navigation.discovery'),
         ),
         BottomNavigationBarItem(
-          icon: const Icon(Icons.favorite),
+          icon: _BadgeIcon(
+            icon: const Icon(Icons.favorite),
+            badgeCount: _watchMatchesBadgeCount(context),
+          ),
           label: LocalizationService.translate('navigation.matches'),
         ),
         BottomNavigationBarItem(
@@ -121,6 +169,22 @@ class AppScaffold extends StatelessWidget {
       return 0;
     }
   }
+
+  /// Compte les nouveaux matches non lus pour afficher un badge sur l'onglet
+  /// Matches. Les likes/super-likes reçus ne sont PAS des matches (un match
+  /// exige un like réciproque) : ils restent visibles dans la cloche
+  /// Notifications et l'onglet Likes premium, mais ne doivent pas faire
+  /// gonfler ce badge.
+  /// Lit le compteur serveur par participant. Les notifications de match ne
+  /// sont pas utilisées : elles peuvent être supprimées sans modifier l'état
+  /// de consultation du match.
+  int _watchMatchesBadgeCount(BuildContext context) {
+    try {
+      return context.watch<UnseenMatchesCubit>().state;
+    } on ProviderNotFoundException {
+      return 0;
+    }
+  }
 }
 
 /// Icône de l'onglet Messages avec pastille de compteur non-lus.
@@ -139,6 +203,51 @@ class _MessagesTabIcon extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         const Icon(Icons.chat),
+        Positioned(
+          right: -8,
+          top: -4,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Icône générique avec pastille rouge affichant un compteur.
+/// Utilisé pour les onglets Discovery, Matches, Profile, etc.
+class _BadgeIcon extends StatelessWidget {
+  final Widget icon;
+  final int badgeCount;
+
+  const _BadgeIcon({required this.icon, required this.badgeCount});
+
+  @override
+  Widget build(BuildContext context) {
+    if (badgeCount <= 0) {
+      return icon;
+    }
+    final label = badgeCount > 99 ? '99+' : '$badgeCount';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
         Positioned(
           right: -8,
           top: -4,

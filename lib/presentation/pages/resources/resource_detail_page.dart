@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/resource.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/resource_detail/resource_detail_bloc.dart';
@@ -475,14 +477,18 @@ class ResourceDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Contenu Premium',
+                LocalizationService.translate(
+                  'premium.resource_locked_title',
+                ),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Cette ressource est réservée aux membres Premium',
+                LocalizationService.translate(
+                  'premium.resource_locked_message',
+                ),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppColors.slate,
                     ),
@@ -490,8 +496,12 @@ class ResourceDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton(
-                onPressed: () => context.push('/premium'),
-                child: const Text('Découvrir Premium'),
+                onPressed: () => context.push(AppRoutes.premium),
+                child: Text(
+                  LocalizationService.translate(
+                    'premium.resource_locked_action',
+                  ),
+                ),
               ),
             ],
           ),

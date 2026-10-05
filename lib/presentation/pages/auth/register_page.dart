@@ -29,6 +29,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _displayNameController = TextEditingController();
   final _phoneController = TextEditingController();
   DateTime? _selectedBirthDate;
+  String? _selectedGender;
   bool _acceptTerms = false;
 
   @override
@@ -43,7 +44,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 HIVDialog.show(
                   context: context,
                   title: 'Inscription réussie',
-                  content: 'Un email de vérification a été envoyé à ${state.email}. Veuillez vérifier votre boîte de réception.',
+                  content:
+                      'Un email de vérification a été envoyé à ${state.email}. Veuillez vérifier votre boîte de réception.',
                   actions: [
                     DialogAction(
                       label: 'OK',
@@ -55,8 +57,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   ],
                 );
               }
-              
-              if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+
+              if (state.errorMessage != null &&
+                  state.errorMessage!.isNotEmpty) {
                 HIVToast.showError(
                   context: context,
                   message: state.errorMessage!,
@@ -77,24 +80,25 @@ class _RegisterPageState extends State<RegisterPage> {
                         onPressed: () => context.go('/login'),
                       ),
                     ),
-                    
+
                     // Titre
                     Text(
                       'Créer un compte',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    
+
                     Text(
                       'Rejoignez notre communauté bienveillante',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.slate,
-                      ),
+                            color: AppColors.slate,
+                          ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    
+
                     // Formulaire
                     Form(
                       key: _formKey,
@@ -109,8 +113,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             prefixIcon: Icons.email_outlined,
                             onChanged: (value) {
                               context.read<RegisterBloc>().add(
-                                EmailChanged(email: value),
-                              );
+                                    EmailChanged(email: value),
+                                  );
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -123,7 +127,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
                           // Mot de passe
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,14 +140,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                 prefixIcon: Icons.lock_outline,
                                 onChanged: (value) {
                                   context.read<RegisterBloc>().add(
-                                    PasswordChanged(password: value),
-                                  );
+                                        PasswordChanged(password: value),
+                                      );
                                 },
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
                                     return 'Le mot de passe est requis';
                                   }
-                                  if (!state.passwordValid && value.isNotEmpty) {
+                                  if (!state.passwordValid &&
+                                      value.isNotEmpty) {
                                     return 'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
                                   }
                                   return null;
@@ -158,7 +163,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             ],
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
                           // Confirmation mot de passe
                           AppTextField(
                             controller: _confirmPasswordController,
@@ -168,11 +173,11 @@ class _RegisterPageState extends State<RegisterPage> {
                             prefixIcon: Icons.lock_outline,
                             onChanged: (value) {
                               context.read<RegisterBloc>().add(
-                                ConfirmPasswordChanged(
-                                  confirmPassword: value,
-                                  password: _passwordController.text,
-                                ),
-                              );
+                                    ConfirmPasswordChanged(
+                                      confirmPassword: value,
+                                      password: _passwordController.text,
+                                    ),
+                                  );
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -185,7 +190,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
                           // Nom d'affichage
                           AppTextField(
                             controller: _displayNameController,
@@ -204,7 +209,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
                           // Date de naissance
                           InkWell(
                             onTap: () async {
@@ -235,18 +240,46 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                               child: Text(
                                 _selectedBirthDate != null
-                                    ? DateFormat('dd/MM/yyyy').format(_selectedBirthDate!)
+                                    ? DateFormat('dd/MM/yyyy')
+                                        .format(_selectedBirthDate!)
                                     : 'Sélectionner votre date de naissance',
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: _selectedBirthDate != null
-                                      ? null
-                                      : AppColors.slate,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: _selectedBirthDate != null
+                                          ? null
+                                          : AppColors.slate,
+                                    ),
                               ),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
+                          DropdownButtonFormField<String>(
+                            initialValue: _selectedGender,
+                            decoration: const InputDecoration(
+                              labelText: 'Genre',
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'male',
+                                child: Text('Homme'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'female',
+                                child: Text('Femme'),
+                              ),
+                            ],
+                            onChanged: (value) =>
+                                setState(() => _selectedGender = value),
+                            validator: (value) => value == null
+                                ? 'Veuillez sélectionner votre genre'
+                                : null,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+
                           // Téléphone (optionnel)
                           AppTextField(
                             controller: _phoneController,
@@ -256,7 +289,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             prefixIcon: Icons.phone_outlined,
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
                           // Conditions d'utilisation
                           Row(
                             children: [
@@ -278,14 +311,17 @@ class _RegisterPageState extends State<RegisterPage> {
                                   },
                                   child: RichText(
                                     text: TextSpan(
-                                      style: Theme.of(context).textTheme.bodyMedium,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
                                       children: [
                                         const TextSpan(text: 'J\'accepte les '),
                                         TextSpan(
                                           text: 'conditions d\'utilisation',
                                           style: TextStyle(
                                             color: AppColors.primaryPurple,
-                                            decoration: TextDecoration.underline,
+                                            decoration:
+                                                TextDecoration.underline,
                                           ),
                                         ),
                                         const TextSpan(text: ' et la '),
@@ -293,7 +329,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                           text: 'politique de confidentialité',
                                           style: TextStyle(
                                             color: AppColors.primaryPurple,
-                                            decoration: TextDecoration.underline,
+                                            decoration:
+                                                TextDecoration.underline,
                                           ),
                                         ),
                                       ],
@@ -304,47 +341,68 @@ class _RegisterPageState extends State<RegisterPage> {
                             ],
                           ),
                           const SizedBox(height: AppSpacing.xl),
-                          
+
                           // Bouton d'inscription
                           AppButton(
-                            onPressed: state.isSubmitting ? null : () {
-                              if (_formKey.currentState!.validate() &&
-                                  _selectedBirthDate != null &&
-                                  _acceptTerms) {
-                                context.read<RegisterBloc>().add(
-                                  RegisterSubmitted(
-                                    email: _emailController.text.trim(),
-                                    password: _passwordController.text,
-                                    confirmPassword: _confirmPasswordController.text,
-                                    displayName: _displayNameController.text.trim(),
-                                    birthDate: _selectedBirthDate!,
-                                    phoneNumber: _phoneController.text.isEmpty
-                                        ? null
-                                        : _phoneController.text.trim(),
-                                    acceptTerms: _acceptTerms,
-                                  ),
-                                );
-                              } else {
-                                if (_selectedBirthDate == null) {
-                                  HIVToast.showError(
-                                    context: context,
-                                    message: 'Veuillez sélectionner votre date de naissance',
-                                  );
-                                }
-                                if (!_acceptTerms) {
-                                  HIVToast.showError(
-                                    context: context,
-                                    message: 'Veuillez accepter les conditions d\'utilisation',
-                                  );
-                                }
-                              }
-                            },
+                            onPressed: state.isSubmitting
+                                ? null
+                                : () {
+                                    if (_formKey.currentState!.validate() &&
+                                        _selectedBirthDate != null &&
+                                        _selectedGender != null &&
+                                        _acceptTerms) {
+                                      context.read<RegisterBloc>().add(
+                                            RegisterSubmitted(
+                                              email:
+                                                  _emailController.text.trim(),
+                                              password:
+                                                  _passwordController.text,
+                                              confirmPassword:
+                                                  _confirmPasswordController
+                                                      .text,
+                                              displayName:
+                                                  _displayNameController.text
+                                                      .trim(),
+                                              birthDate: _selectedBirthDate!,
+                                              phoneNumber:
+                                                  _phoneController.text.isEmpty
+                                                      ? null
+                                                      : _phoneController.text
+                                                          .trim(),
+                                              gender: _selectedGender!,
+                                              acceptTerms: _acceptTerms,
+                                            ),
+                                          );
+                                    } else {
+                                      if (_selectedBirthDate == null) {
+                                        HIVToast.showError(
+                                          context: context,
+                                          message:
+                                              'Veuillez sélectionner votre date de naissance',
+                                        );
+                                      }
+                                      if (_selectedGender == null) {
+                                        HIVToast.showError(
+                                          context: context,
+                                          message:
+                                              'Veuillez sélectionner votre genre',
+                                        );
+                                      }
+                                      if (!_acceptTerms) {
+                                        HIVToast.showError(
+                                          context: context,
+                                          message:
+                                              'Veuillez accepter les conditions d\'utilisation',
+                                        );
+                                      }
+                                    }
+                                  },
                             text: 'Créer mon compte',
                             isLoading: state.isSubmitting,
                             type: ButtonType.primary,
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          
+
                           // Lien vers connexion
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -439,9 +497,9 @@ class _PasswordStrengthIndicator extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ],
         ),

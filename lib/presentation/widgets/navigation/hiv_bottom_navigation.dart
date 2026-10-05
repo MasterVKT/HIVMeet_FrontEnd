@@ -19,7 +19,7 @@ class HIVBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       decoration: BoxDecoration(
         color: theme.bottomNavigationBarTheme.backgroundColor,
@@ -41,7 +41,7 @@ class HIVBottomNavigation extends StatelessWidget {
               final index = entry.key;
               final item = entry.value;
               final isSelected = currentIndex == index;
-              
+
               return Expanded(
                 child: _NavItemWidget(
                   item: item,
@@ -72,7 +72,7 @@ class _NavItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = isSelected ? AppColors.primaryPurple : AppColors.slate;
-    
+
     return InkWell(
       onTap: onTap,
       child: Container(

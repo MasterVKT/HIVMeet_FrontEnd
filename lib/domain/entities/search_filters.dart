@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:hivmeet/domain/entities/discovery_preference_catalog.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 
 /// Entity representing search filter criteria for matching
@@ -51,12 +52,13 @@ class SearchFilters extends Equatable {
   }
 
   SearchFilters normalized() {
-    final normalizedGenders = (genders ?? const <String>[])
-        .where((g) => g != 'all')
-        .toList(growable: false);
-    final normalizedRelationshipTypes = (relationshipTypes ?? const <String>[])
-        .where((r) => r != 'all')
-        .toList(growable: false);
+    final normalizedGenders = DiscoveryPreferenceCatalog.genderPayload(
+      DiscoveryPreferenceCatalog.genderSelection(genders),
+    );
+    final normalizedRelationshipTypes =
+        DiscoveryPreferenceCatalog.relationshipPayload(
+      DiscoveryPreferenceCatalog.relationshipSelection(relationshipTypes),
+    );
 
     return SearchFilters(
       minAge: minAge,
@@ -90,8 +92,14 @@ class SearchFilters extends Equatable {
       minAge: preferences.minAge,
       maxAge: preferences.maxAge,
       maxDistance: preferences.maxDistance.round(),
-      genders: List<String>.from(preferences.interestedIn),
-      relationshipTypes: List<String>.from(preferences.relationshipTypes),
+      genders: DiscoveryPreferenceCatalog.genderPayload(
+        DiscoveryPreferenceCatalog.genderSelection(preferences.interestedIn),
+      ),
+      relationshipTypes: DiscoveryPreferenceCatalog.relationshipPayload(
+        DiscoveryPreferenceCatalog.relationshipSelection(
+          preferences.relationshipTypes,
+        ),
+      ),
       verifiedOnly: preferences.showVerifiedOnly,
       onlineOnly: preferences.showOnlineOnly,
     );

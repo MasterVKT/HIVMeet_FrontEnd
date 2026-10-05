@@ -26,35 +26,37 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
   ) async {
     // Validation finale
     final Map<String, String> errors = {};
-    
+
     if (!Validators.isValidEmail(event.email)) {
       errors['email'] = 'Email invalide';
     }
-    
+
     if (!Validators.isValidPassword(event.password)) {
-      errors['password'] = 'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
+      errors['password'] =
+          'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
     }
-    
+
     if (event.password != event.confirmPassword) {
       errors['confirmPassword'] = 'Les mots de passe ne correspondent pas';
     }
-    
+
     if (!Validators.isValidDisplayName(event.displayName)) {
       errors['displayName'] = 'Le nom doit contenir entre 3 et 30 caractères';
     }
-    
+
     if (!Validators.isAdult(event.birthDate)) {
       errors['birthDate'] = 'Vous devez avoir au moins 18 ans';
     }
-    
-    if (event.phoneNumber != null && !Validators.isValidPhoneNumber(event.phoneNumber!)) {
+
+    if (event.phoneNumber != null &&
+        !Validators.isValidPhoneNumber(event.phoneNumber!)) {
       errors['phoneNumber'] = 'Numéro de téléphone invalide';
     }
-    
+
     if (!event.acceptTerms) {
       errors['terms'] = 'Vous devez accepter les conditions d\'utilisation';
     }
-    
+
     if (errors.isNotEmpty) {
       emit(state.copyWith(
         fieldErrors: errors,
@@ -69,6 +71,9 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
       email: event.email,
       password: event.password,
       displayName: event.displayName,
+      birthDate: event.birthDate,
+      phoneNumber: event.phoneNumber,
+      gender: event.gender,
     );
 
     if (result.success) {
@@ -102,11 +107,11 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
   ) {
     final isValid = Validators.isValidPassword(event.password);
     final strength = Validators.getPasswordStrength(event.password);
-    
+
     // Revalider la confirmation si elle existe
-    final confirmValid = state.confirmPassword.isEmpty || 
-                        event.password == state.confirmPassword;
-    
+    final confirmValid = state.confirmPassword.isEmpty ||
+        event.password == state.confirmPassword;
+
     emit(state.copyWith(
       password: event.password,
       passwordValid: isValid,

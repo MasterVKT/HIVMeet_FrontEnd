@@ -9,25 +9,40 @@ abstract class PremiumRepository {
   // Plans et abonnements
   Future<Either<Failure, List<PremiumPlan>>> getAvailablePlans();
 
+  Future<Either<Failure, PaymentCapabilities>> getPaymentCapabilities();
+
   Future<Either<Failure, UserSubscription?>> getCurrentSubscription();
 
   // Gestion des paiements MyCoolPay
-  Future<Either<Failure, PaymentSession>> createPaymentSession(String planId);
+  Future<Either<Failure, PaymentSession>> createPaymentSession({
+    required String planId,
+    required String phoneNumber,
+    required String language,
+    String? returnTo,
+  });
 
   Future<Either<Failure, PaymentResult>> verifyPayment(String sessionId);
 
-  Future<Either<Failure, PaymentResult>> validatePayment(String sessionId);
+  Future<Either<Failure, PendingPaymentAttempt?>> getPendingPayment();
 
-  Future<Either<Failure, PaymentResult>> purchasePlan(String planId);
+  Future<Either<Failure, void>> clearPendingPayment();
+
+  Future<Either<Failure, PaymentResult>> validatePayment(String sessionId);
 
   Future<Either<Failure, void>> updateAutoRenew(bool autoRenew);
 
   Future<Either<Failure, List<PaymentHistory>>> getPaymentHistory();
 
   // Modification et annulation
-  Future<Either<Failure, UserSubscription>> modifySubscription({
+  //
+  // `phoneNumber`/`language` are only needed when the immediate (prorated)
+  // change turns out to require a real charge — see
+  // [ModifySubscriptionOutcome].
+  Future<Either<Failure, ModifySubscriptionOutcome>> modifySubscription({
     required String newPlanId,
     bool proration = true,
+    String? phoneNumber,
+    String language = 'fr',
   });
 
   Future<Either<Failure, CancellationResult>> cancelSubscription();

@@ -109,19 +109,28 @@ class User extends Equatable {
 
   /// Crée une entité User depuis un Map JSON
   factory User.fromJson(Map<String, dynamic> json) {
+    // During a refresh, the backend snapshot (snake_case) is merged over the
+    // cached local JSON (camelCase). Prefer backend keys whenever both exist.
+    final premiumUntilValue = json['premium_until'] ?? json['premiumUntil'];
+    final lastActiveValue = json['last_active'] ?? json['lastActive'];
+    final createdAtValue = json['date_joined'] ?? json['createdAt'];
+    final updatedAtValue = json['updated_at'] ?? json['updatedAt'];
     return User(
       id: json['id'] as String,
       email: json['email'] as String,
-      displayName: json['displayName'] as String? ??
+      displayName: json['display_name'] as String? ??
+          json['displayName'] as String? ??
           json['username'] as String? ??
           'Utilisateur',
-      isVerified: json['isVerified'] as bool? ?? false,
-      isPremium: json['isPremium'] as bool? ?? false,
-      premiumUntil: json['premiumUntil'] != null
-          ? DateTime.parse(json['premiumUntil'] as String)
+      isVerified:
+          json['is_verified'] as bool? ?? json['isVerified'] as bool? ?? false,
+      isPremium:
+          json['is_premium'] as bool? ?? json['isPremium'] as bool? ?? false,
+      premiumUntil: premiumUntilValue != null
+          ? DateTime.tryParse(premiumUntilValue.toString())
           : null,
-      lastActive: json['lastActive'] != null
-          ? DateTime.parse(json['lastActive'] as String)
+      lastActive: lastActiveValue != null
+          ? DateTime.tryParse(lastActiveValue.toString()) ?? DateTime.now()
           : DateTime.now(),
       isEmailVerified: json['isEmailVerified'] as bool? ??
           json['email_verified'] as bool? ??
@@ -130,13 +139,16 @@ class User extends Equatable {
           ? NotificationSettings.fromJson(
               json['notificationSettings'] as Map<String, dynamic>)
           : const NotificationSettings(),
-      blockedUserIds:
-          (json['blockedUserIds'] as List<dynamic>?)?.cast<String>() ?? [],
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
+      blockedUserIds: ((json['blocked_user_ids'] ?? json['blockedUserIds'])
+                  as List<dynamic>?)
+              ?.map((value) => value.toString())
+              .toList() ??
+          [],
+      createdAt: createdAtValue != null
+          ? DateTime.tryParse(createdAtValue.toString()) ?? DateTime.now()
           : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+      updatedAt: updatedAtValue != null
+          ? DateTime.tryParse(updatedAtValue.toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }

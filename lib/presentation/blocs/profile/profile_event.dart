@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/location_catalog.dart';
 
 abstract class ProfileEvent extends Equatable {
   const ProfileEvent();
@@ -31,6 +32,7 @@ class CreateProfile extends ProfileEvent {
   final int maxAge;
   final double maxDistance;
   final List<String> interestedIn;
+  final ProfileLocationUpdate? locationUpdate;
 
   const CreateProfile({
     required this.mainPhoto,
@@ -46,6 +48,7 @@ class CreateProfile extends ProfileEvent {
     required this.maxAge,
     required this.maxDistance,
     required this.interestedIn,
+    this.locationUpdate,
   });
 
   @override
@@ -63,6 +66,7 @@ class CreateProfile extends ProfileEvent {
         maxAge,
         maxDistance,
         interestedIn,
+        locationUpdate,
       ];
 }
 
@@ -70,38 +74,58 @@ class CreateProfile extends ProfileEvent {
 class UpdateProfileEvent extends ProfileEvent {
   final String? displayName;
   final String? bio;
+  final String? gender;
   final String? city;
   final String? country;
+  final String? preferredCurrency;
   final List<String>? interests;
   final String? relationshipType;
   final List<String>? relationshipTypesSought;
   final SearchPreferences? searchPreferences;
   final PrivacySettings? privacySettings;
+  final ProfileLocationUpdate? locationUpdate;
 
   const UpdateProfileEvent({
     this.displayName,
     this.bio,
+    this.gender,
     this.city,
     this.country,
+    this.preferredCurrency,
     this.interests,
     this.relationshipType,
     this.relationshipTypesSought,
     this.searchPreferences,
     this.privacySettings,
+    this.locationUpdate,
   });
 
   @override
   List<Object?> get props => [
         displayName,
         bio,
+        gender,
         city,
         country,
+        preferredCurrency,
         interests,
         relationshipType,
         relationshipTypesSought,
         searchPreferences,
         privacySettings,
+        locationUpdate,
       ];
+}
+
+/// Applique le profil confirmé par l'écran d'édition au BLoC parent, sans
+/// recharger les autres sections déjà présentes.
+class ApplySavedProfile extends ProfileEvent {
+  final Profile profile;
+
+  const ApplySavedProfile(this.profile);
+
+  @override
+  List<Object?> get props => [profile];
 }
 
 /// Événement pour uploader une photo
@@ -120,6 +144,18 @@ class UploadPhoto extends ProfileEvent {
 
   @override
   List<Object?> get props => [photo, isMain, isPrivate, caption];
+}
+
+/// Remplace le fichier d'une photo existante en conservant son identité,
+/// son ordre et son statut de photo principale.
+class ReplacePhoto extends ProfileEvent {
+  final String photoId;
+  final File photo;
+
+  const ReplacePhoto({required this.photoId, required this.photo});
+
+  @override
+  List<Object?> get props => [photoId, photo];
 }
 
 /// Événement pour supprimer une photo
@@ -146,12 +182,12 @@ class SetMainPhoto extends ProfileEvent {
 
 /// Événement pour réorganiser les photos
 class ReorderPhotos extends ProfileEvent {
-  final List<String> photoUrls;
+  final List<String> photoIds;
 
-  const ReorderPhotos({required this.photoUrls});
+  const ReorderPhotos({required this.photoIds});
 
   @override
-  List<Object> get props => [photoUrls];
+  List<Object> get props => [photoIds];
 }
 
 /// Événement pour basculer la visibilité du profil

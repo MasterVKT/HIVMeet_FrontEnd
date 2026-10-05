@@ -71,6 +71,14 @@ class NotificationsLocalStore {
     });
   }
 
+  /// Supprime une notification par son ID.
+  Future<void> delete(String id) async {
+    return _serialize(() async {
+      final current = await _loadUnlocked();
+      await _save(current.where((n) => n.id != id));
+    });
+  }
+
   Future<int> unreadCount() async {
     final items = await load();
     return items.where((n) => !n.isRead).length;

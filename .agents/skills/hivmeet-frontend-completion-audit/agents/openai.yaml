@@ -1,0 +1,4 @@
+interface:
+  display_name: "HIVMeet Frontend Completion Audit"
+  short_description: "Contrôle la complétude et la non-régression Flutter."
+  default_prompt: "Audite cette intervention frontend HIVMeet avant livraison."

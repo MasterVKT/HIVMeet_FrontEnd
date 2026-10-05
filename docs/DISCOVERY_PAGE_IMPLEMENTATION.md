@@ -45,7 +45,7 @@ lib/presentation/widgets/common/
 ### 2. Actions utilisateur
 - **Like** : Swipe vers la droite ou bouton cœur
 - **Dislike** : Swipe vers la gauche ou bouton X
-- **Super Like** : Swipe vers le haut ou bouton étoile (premium)
+- **Super Like** : Swipe vers le haut ou bouton étoile (Premium, 5/jour)
 - **Voir profil** : Tap sur la carte pour voir les détails
 
 ### 3. Gestion des états
@@ -95,6 +95,20 @@ Le BLoC gère tous les états et événements de la page de découverte :
 - DailyLimitReached       // Limite atteinte
 - DiscoveryError          // Erreur
 ```
+
+### Actualisation d'une pile épuisée
+
+L'action « Actualiser les profils » relance la première page du service de
+recommandation avec les filtres enregistrés. Elle ne modifie ni les filtres, ni
+le quota quotidien, ni l'historique des interactions. Les profils déjà likés,
+super-likés ou passés restent donc exclus, sauf révocation explicite de
+l'interaction depuis l'historique. Le comportement est identique pour les
+comptes Free et Premium ; seule la politique de quota de swipe diffère entre
+ces deux statuts.
+
+Si aucun nouveau profil n'est devenu éligible, l'état `NoMoreProfiles` reste
+affiché. Le bouton utilise un chargement forcé de 20 profils afin de refaire une
+requête réseau complète sans annoncer prématurément qu'un profil a été trouvé.
 
 ### SwipeCard
 

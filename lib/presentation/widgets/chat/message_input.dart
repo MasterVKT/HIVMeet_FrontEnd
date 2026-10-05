@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/routes.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
@@ -18,6 +19,7 @@ class MessageInput extends StatefulWidget {
   final VoidCallback onStartTyping;
   final VoidCallback onStopTyping;
   final bool isPremium;
+  final bool canSendMessages;
 
   const MessageInput({
     super.key,
@@ -26,6 +28,7 @@ class MessageInput extends StatefulWidget {
     required this.onStartTyping,
     required this.onStopTyping,
     this.isPremium = false,
+    this.canSendMessages = true,
   });
 
   @override
@@ -84,6 +87,7 @@ class _MessageInputState extends State<MessageInput>
   }
 
   void _onTextChanged() {
+    if (!widget.canSendMessages) return;
     final hasText = _textController.text.isNotEmpty;
 
     if (hasText) {
@@ -158,19 +162,17 @@ class _MessageInputState extends State<MessageInput>
 
   Widget _buildInputRow() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       child: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Media button
             _buildMediaButton(),
-            const SizedBox(width: 8),
-
-            // Text input
+            const SizedBox(width: 4),
+            _buildEmojiButton(),
+            const SizedBox(width: 4),
             Expanded(
               child: Container(
-                constraints: const BoxConstraints(maxHeight: 120),
                 decoration: BoxDecoration(
                   color: AppColors.slate.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(24),
@@ -178,89 +180,52 @@ class _MessageInputState extends State<MessageInput>
                     color: AppColors.slate.withValues(alpha: 0.1),
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Emoji button
-                    IconButton(
-                      icon: Icon(
-                        _showEmojiPicker
-                            ? Icons.keyboard
-                            : Icons.emoji_emotions,
-                        color: AppColors.slate,
+                child: TextField(
+                  controller: _textController,
+                  focusNode: _focusNode,
+                  readOnly: !widget.canSendMessages,
+                  onTap: widget.canSendMessages ? null : _showPremiumDialog,
+                  minLines: 1,
+                  maxLines: 4,
+                  scrollPhysics: const ClampingScrollPhysics(),
+                  maxLength: AppLimits.maxMessageLength,
+                  buildCounter: (
+                    context, {
+                    required currentLength,
+                    required isFocused,
+                    maxLength,
+                  }) {
+                    if (!isFocused || maxLength == null) return null;
+                    final remaining = maxLength - currentLength;
+                    if (remaining > 100) return null;
+                    return Text(
+                      '$currentLength/$maxLength',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color:
+                            remaining <= 0 ? AppColors.error : AppColors.slate,
                       ),
-                      onPressed: _toggleEmojiPicker,
+                    );
+                  },
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: LocalizationService.translate(
+                      'chat.type_message',
+                      params: {},
                     ),
-
-                    // Text field
-                    Expanded(
-                      child: TextField(
-                        controller: _textController,
-                        focusNode: _focusNode,
-                        maxLines: null,
-                        // F48: limite alignée sur AppLimits.maxMessageLength
-                        // (déjà la limite serveur) — auparavant l'utilisateur
-                        // pouvait taper un texte trop long et se le voir
-                        // rejeté (400) sans explication au moment d'envoyer.
-                        maxLength: AppLimits.maxMessageLength,
-                        buildCounter: (
-                          context, {
-                          required currentLength,
-                          required isFocused,
-                          maxLength,
-                        }) {
-                          if (!isFocused || maxLength == null) return null;
-                          final remaining = maxLength - currentLength;
-                          if (remaining > 100) return null;
-                          return Text(
-                            '$currentLength/$maxLength',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: remaining <= 0
-                                  ? AppColors.error
-                                  : AppColors.slate,
-                            ),
-                          );
-                        },
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: InputDecoration(
-                          hintText: LocalizationService.translate(
-                              'chat.type_message',
-                              params: {}),
-                          hintStyle: TextStyle(color: AppColors.slate),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 12,
-                          ),
-                        ),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        onSubmitted: (_) => _sendTextMessage(),
-                      ),
+                    hintStyle: TextStyle(color: AppColors.slate),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
                     ),
-
-                    // Premium features (GIF, stickers)
-                    if (widget.isPremium) ...[
-                      IconButton(
-                        icon: Icon(Icons.gif, color: AppColors.warning),
-                        onPressed: _showGifPicker,
-                        tooltip: LocalizationService.translate('chat.gifs'),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.face_retouching_natural,
-                            color: AppColors.info),
-                        onPressed: _showStickerPicker,
-                        tooltip: LocalizationService.translate('chat.stickers'),
-                      ),
-                    ],
-                  ],
+                  ),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  onSubmitted: (_) => _sendTextMessage(),
                 ),
               ),
             ),
-
-            const SizedBox(width: 8),
-
-            // Send/Voice button
+            const SizedBox(width: 4),
             _buildSendButton(),
           ],
         ),
@@ -270,8 +235,8 @@ class _MessageInputState extends State<MessageInput>
 
   Widget _buildMediaButton() {
     return Container(
-      width: 40,
-      height: 40,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
         color: AppColors.primaryPurple.withValues(alpha: 0.1),
         shape: BoxShape.circle,
@@ -282,29 +247,36 @@ class _MessageInputState extends State<MessageInput>
           color: AppColors.primaryPurple,
           size: 20,
         ),
-        onPressed: _showMediaPicker,
+        onPressed: _showAttachmentMenu,
         tooltip: LocalizationService.translate('chat.attach_media', params: {}),
       ),
     );
   }
 
+  Widget _buildEmojiButton() => SizedBox(
+        width: 48,
+        height: 48,
+        child: IconButton(
+          icon: Icon(
+            _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions,
+            color: AppColors.slate,
+          ),
+          onPressed: _toggleEmojiPicker,
+        ),
+      );
   Widget _buildSendButton() {
     return AnimatedBuilder(
       animation: _sendButtonAnimation,
       builder: (context, child) {
         final hasText = _textController.text.isNotEmpty;
 
-        // Enregistrement vocal désactivé proprement (décision produit): le
-        // flux précédent était cassé (envoyait la chaîne littérale "0:00"
-        // comme contenu du message). Plutôt que de laisser un bouton qui
-        // semble fonctionner mais ne fait rien d'utile, le bouton micro
-        // affiche un message "bientôt disponible" — même traitement que
-        // GIF/stickers.
+        // Keep the send affordance fixed on every device. An empty draft is
+        // simply disabled instead of changing the layout into a microphone.
         return GestureDetector(
-          onTap: hasText ? _sendTextMessage : _showVoiceComingSoon,
+          onTap: hasText ? _sendTextMessage : null,
           child: Container(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: hasText
                   ? AppColors.primaryPurple
@@ -314,7 +286,7 @@ class _MessageInputState extends State<MessageInput>
             child: Transform.scale(
               scale: hasText ? _sendButtonAnimation.value : 1.0,
               child: Icon(
-                hasText ? Icons.send : Icons.mic,
+                Icons.send,
                 color: hasText ? Colors.white : AppColors.slate,
                 size: 20,
               ),
@@ -389,6 +361,10 @@ class _MessageInputState extends State<MessageInput>
   }
 
   void _sendTextMessage() {
+    if (!widget.canSendMessages) {
+      _showPremiumDialog();
+      return;
+    }
     final text = _textController.text.trim();
     if (text.isNotEmpty) {
       widget.onSendMessage(text, MessageType.text);
@@ -397,28 +373,51 @@ class _MessageInputState extends State<MessageInput>
     }
   }
 
-  void _showVoiceComingSoon() {
-    HIVToast.showInfo(
+  void _showAttachmentMenu() {
+    if (!widget.isPremium) {
+      _showPremiumDialog();
+      return;
+    }
+    showModalBottomSheet(
       context: context,
-      message:
-          LocalizationService.translate('chat.feature_coming_soon', params: {}),
-    );
-  }
-
-  void _showMediaPicker() {
-    MediaPicker.show(
-      context: context,
-      onMediaSelected: _sendMediaMessageFile,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.perm_media),
+              title: Text(LocalizationService.translate('chat.attach_media')),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                MediaPicker.show(
+                  context: context,
+                  onMediaSelected: _sendMediaMessageFile,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.gif),
+              title: Text(LocalizationService.translate('chat.gifs')),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showGifPicker();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.face_retouching_natural),
+              title: Text(LocalizationService.translate('chat.stickers')),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showStickerPicker();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _sendMediaMessageFile(File file, MessageType type) {
-    if (!widget.isPremium && type != MessageType.image) {
-      _showPremiumDialog();
-      return;
-    }
-
-    // Envoyer le fichier média via le callback approprié
     widget.onSendMediaMessage(file, type);
   }
 
@@ -458,7 +457,7 @@ class _MessageInputState extends State<MessageInput>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              context.push('/premium');
+              context.push(AppRoutes.premium);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPurple,

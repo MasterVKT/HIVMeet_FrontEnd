@@ -37,21 +37,23 @@ class FeedPage extends StatelessWidget {
             if (state is FeedLoading) {
               return const Center(child: HIVLoader());
             }
-            
+
             if (state is FeedError) {
               return Center(
                 child: Text(state.message),
               );
             }
-            
+
             if (state is FeedLoaded) {
               if (state.posts.isEmpty) {
                 return _buildEmptyState(context);
               }
-              
+
               return RefreshIndicator(
                 onRefresh: () async {
-                  context.read<FeedBloc>().add(const LoadFeedPosts(refresh: true));
+                  context
+                      .read<FeedBloc>()
+                      .add(const LoadFeedPosts(refresh: true));
                 },
                 child: ListView.builder(
                   padding: EdgeInsets.all(AppSpacing.md),
@@ -63,12 +65,14 @@ class FeedPage extends StatelessWidget {
                       }
                       return const Center(child: HIVLoader());
                     }
-                    
+
                     final post = state.posts[index];
                     return FeedPostCard(
                       post: post,
                       onLike: () {
-                        context.read<FeedBloc>().add(TogglePostLike(postId: post.id));
+                        context
+                            .read<FeedBloc>()
+                            .add(TogglePostLike(postId: post.id));
                       },
                       onComment: () => context.push('/feed/post/${post.id}'),
                       onReport: () {
@@ -79,7 +83,7 @@ class FeedPage extends StatelessWidget {
                 ),
               );
             }
-            
+
             return const SizedBox.shrink();
           },
         ),
@@ -103,15 +107,15 @@ class FeedPage extends StatelessWidget {
             Text(
               'Aucune publication',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Soyez le premier à partager avec la communauté',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.slate,
-              ),
+                    color: AppColors.slate,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -139,8 +143,8 @@ class FeedPage extends StatelessWidget {
               onTap: () {
                 Navigator.of(dialogContext).pop();
                 context.read<FeedBloc>().add(
-                  ReportPost(postId: postId, reason: 'inappropriate'),
-                );
+                      ReportPost(postId: postId, reason: 'inappropriate'),
+                    );
               },
             ),
             ListTile(
@@ -148,8 +152,8 @@ class FeedPage extends StatelessWidget {
               onTap: () {
                 Navigator.of(dialogContext).pop();
                 context.read<FeedBloc>().add(
-                  ReportPost(postId: postId, reason: 'spam'),
-                );
+                      ReportPost(postId: postId, reason: 'spam'),
+                    );
               },
             ),
             ListTile(
@@ -157,8 +161,8 @@ class FeedPage extends StatelessWidget {
               onTap: () {
                 Navigator.of(dialogContext).pop();
                 context.read<FeedBloc>().add(
-                  ReportPost(postId: postId, reason: 'misinformation'),
-                );
+                      ReportPost(postId: postId, reason: 'misinformation'),
+                    );
               },
             ),
           ],

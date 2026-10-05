@@ -2,7 +2,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 
 /// Service de gestion des événements globaux de l'application
 /// Permet la communication entre BLoCs sans créer de dépendances circulaires
@@ -12,6 +12,8 @@ class AppEvents {
   AppEvents._internal();
 
   final _interactionRevokedController = StreamController<String>.broadcast();
+  final _interactionHistoryChangedController =
+      StreamController<void>.broadcast();
 
   /// Stream émis quand une interaction (like ou pass) est annulée
   /// Contient l'ID du profil qui doit réapparaître dans la découverte
@@ -20,12 +22,25 @@ class AppEvents {
 
   /// Émettre un événement d'annulation d'interaction
   void notifyInteractionRevoked(String profileId) {
-    debugPrint('📢 AppEvents: Interaction révoquée pour profil $profileId');
+    LogService.debug(
+        '📢 AppEvents: Interaction révoquée pour profil $profileId');
     _interactionRevokedController.add(profileId);
+  }
+
+  /// Stream emitted after Discovery changes the canonical interaction history.
+  /// A mounted history page reloads from the server instead of preserving an
+  /// obsolete local card after a rewind.
+  Stream<void> get onInteractionHistoryChanged =>
+      _interactionHistoryChangedController.stream;
+
+  void notifyInteractionHistoryChanged() {
+    LogService.debug('Interaction history changed.');
+    _interactionHistoryChangedController.add(null);
   }
 
   /// Nettoyer les ressources
   void dispose() {
     _interactionRevokedController.close();
+    _interactionHistoryChangedController.close();
   }
 }

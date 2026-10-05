@@ -13,13 +13,15 @@ import 'package:hivmeet/domain/entities/match.dart';
 /// FEATURE PREMIUM: Nécessite un abonnement actif
 /// Permet de voir qui a liké avant de swiper
 @injectable
-class GetLikesReceived implements UseCase<List<DiscoveryProfile>, GetLikesReceivedParams> {
+class GetLikesReceived
+    implements UseCase<List<DiscoveryProfile>, GetLikesReceivedParams> {
   final MatchRepository repository;
 
   GetLikesReceived(this.repository);
 
   @override
-  Future<Either<Failure, List<DiscoveryProfile>>> call(GetLikesReceivedParams params) async {
+  Future<Either<Failure, List<DiscoveryProfile>>> call(
+      GetLikesReceivedParams params) async {
     return await repository.getLikesReceived(
       limit: params.limit,
       lastProfileId: params.lastProfileId,

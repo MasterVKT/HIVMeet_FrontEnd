@@ -82,8 +82,8 @@ class _ConversationsSearchBarState extends State<ConversationsSearchBar> {
         focusNode: _focusNode,
         onChanged: _onSearchChanged,
         decoration: InputDecoration(
-          hintText: LocalizationService.translate(
-              'conversations.search_placeholder'),
+          hintText:
+              LocalizationService.translate('conversations.search_placeholder'),
           hintStyle: TextStyle(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
@@ -101,7 +101,8 @@ class _ConversationsSearchBarState extends State<ConversationsSearchBar> {
                 )
               : null,
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          fillColor:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,

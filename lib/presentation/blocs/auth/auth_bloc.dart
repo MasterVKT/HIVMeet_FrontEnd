@@ -1,10 +1,10 @@
 // lib/presentation/blocs/auth/auth_bloc.dart
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/domain/usecases/auth/get_current_user.dart';
 import 'package:hivmeet/domain/usecases/auth/sign_out.dart';
 import 'package:hivmeet/domain/repositories/auth_repository.dart';
@@ -57,7 +57,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       result.fold(
         (failure) {
-          debugPrint('Erreur dans _onAppStarted: ${failure.message}');
+          LogService.debug('Erreur dans _onAppStarted: ${failure.message}');
           // En cas d'erreur, considérer l'utilisateur comme non authentifié
           emit(Unauthenticated());
         },
@@ -70,44 +70,44 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         },
       );
     } catch (e) {
-      debugPrint('Exception dans _onAppStarted: $e');
+      LogService.debug('Exception dans _onAppStarted: $e');
       // En cas d'exception, considérer l'utilisateur comme non authentifié
       emit(Unauthenticated());
     }
   }
 
   Future<void> _onLoggedIn(LoggedIn event, Emitter<AuthState> emit) async {
-    debugPrint(
+    LogService.debug(
         '🔄 DEBUG AuthBloc: _onLoggedIn DÉMARRÉ avec userId: ${event.userId}');
 
     try {
-      debugPrint('🔄 DEBUG AuthBloc: Récupération current user...');
+      LogService.debug('🔄 DEBUG AuthBloc: Récupération current user...');
       final result = await _getCurrentUser(NoParams());
 
       result.fold(
         (failure) {
-          debugPrint(
+          LogService.debug(
               '❌ DEBUG AuthBloc: Échec récupération user: ${failure.message}');
           emit(Unauthenticated());
         },
         (user) {
           if (user != null) {
-            debugPrint('✅ DEBUG AuthBloc: User récupéré: ${user.email}');
-            debugPrint('🔄 DEBUG AuthBloc: Émission Authenticated...');
+            LogService.debug('✅ DEBUG AuthBloc: User récupéré: ${user.email}');
+            LogService.debug('🔄 DEBUG AuthBloc: Émission Authenticated...');
             emit(Authenticated(user: user));
-            debugPrint('✅ DEBUG AuthBloc: Authenticated émis');
+            LogService.debug('✅ DEBUG AuthBloc: Authenticated émis');
           } else {
-            debugPrint('❌ DEBUG AuthBloc: User null reçu');
+            LogService.debug('❌ DEBUG AuthBloc: User null reçu');
             emit(Unauthenticated());
           }
         },
       );
     } catch (e) {
-      debugPrint('❌ DEBUG AuthBloc: Exception dans _onLoggedIn: $e');
+      LogService.debug('❌ DEBUG AuthBloc: Exception dans _onLoggedIn: $e');
       emit(Unauthenticated());
     }
 
-    debugPrint('✅ DEBUG AuthBloc: _onLoggedIn TERMINÉ');
+    LogService.debug('✅ DEBUG AuthBloc: _onLoggedIn TERMINÉ');
   }
 
   Future<void> _onLoggedOut(
@@ -120,14 +120,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final result = await _signOut(NoParams());
         result.fold(
           (failure) {
-            debugPrint('Erreur dans _onLoggedOut: ${failure.message}');
+            LogService.debug('Erreur dans _onLoggedOut: ${failure.message}');
             emit(
                 Unauthenticated()); // Même en cas d'erreur, considérer comme déconnecté
           },
           (_) => emit(Unauthenticated()),
         );
       } catch (e) {
-        debugPrint('Exception dans _onLoggedOut: $e');
+        LogService.debug('Exception dans _onLoggedOut: $e');
         emit(Unauthenticated());
       }
     } else {
@@ -153,7 +153,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           (_) => emit(currentState),
         );
       } catch (e) {
-        debugPrint('Exception dans _onRefreshToken: $e');
+        LogService.debug('Exception dans _onRefreshToken: $e');
         emit(Unauthenticated());
       }
     }
@@ -178,7 +178,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         },
       );
     } catch (e) {
-      debugPrint('Exception dans _onDeleteAccountRequested: $e');
+      LogService.debug('Exception dans _onDeleteAccountRequested: $e');
       emit(AuthError('Erreur lors de la suppression du compte'));
     }
   }

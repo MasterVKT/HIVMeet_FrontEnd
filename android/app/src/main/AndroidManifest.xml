@@ -6,9 +6,19 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Notifications push (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Foreground-only location, camera and photo-library access. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Opening an app-private attachment shares a FileProvider URI and does
+         not require access to the user's external video or audio library. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
 
     <!-- Alignement explicite du minSdk sur la valeur Flutter configurée dans gradle.properties -->
-    <uses-sdk android:minSdkVersion="23" tools:overrideLibrary="" />
+    <uses-sdk android:minSdkVersion="24" tools:overrideLibrary="" />
     
     <application
         android:label="hivmeet"
@@ -35,7 +45,24 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="hivmeet"
+                    android:host="payment"
+                    android:path="/result" />
+            </intent-filter>
         </activity>
+        <meta-data
+            android:name="flutter_deeplinking_enabled"
+            android:value="false" />
+        <!-- FCM emploie le même canal à priorité élevée que les notifications
+             locales lorsque l'application est en arrière-plan. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="hivmeet_channel" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

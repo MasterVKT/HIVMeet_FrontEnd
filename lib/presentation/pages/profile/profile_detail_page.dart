@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/config/premium_navigation.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
@@ -87,14 +89,24 @@ class ProfileDetailPage extends StatelessWidget {
             icon: Icons.edit_outlined,
             title: _tr('profile.edit_profile'),
             subtitle: _tr('profile.edit_profile_subtitle'),
-            onTap: () => context.push('/profile/edit'),
+            onTap: () async {
+              final updated = await context.push<Profile>('/profile/edit');
+              if (updated != null && context.mounted) {
+                context.read<ProfileBloc>().add(ApplySavedProfile(updated));
+              }
+            },
           ),
           _ActionTile(
             icon: Icons.photo_library_outlined,
             title: _tr('profile.photos'),
             subtitle: _tr('profile.photos_subtitle'),
             trailing: Text('${profile.photoCount}/${_photoLimit(loaded)}'),
-            onTap: () => context.push('/profile/photos'),
+            onTap: () async {
+              await context.push<void>('/profile/photos');
+              if (context.mounted) {
+                context.read<ProfileBloc>().add(LoadProfile());
+              }
+            },
           ),
           _ActionTile(
             icon: Icons.verified_user_outlined,
@@ -122,6 +134,20 @@ class ProfileDetailPage extends StatelessWidget {
             subtitle: _tr('profile.blocked_users_subtitle'),
             onTap: () => context.push('/profile/blocked-users'),
           ),
+          _ActionTile(
+            icon: Icons.currency_exchange,
+            title: _tr('profile.currency_title'),
+            subtitle: _tr(
+              'profile.currency_summary',
+              params: {
+                'preference': _currencyPreferenceLabel(
+                  profile.preferredCurrency,
+                ),
+                'currency': profile.effectiveCurrency,
+              },
+            ),
+            onTap: () => context.push(AppRoutes.profileCurrency),
+          ),
           const SizedBox(height: 16),
           _SectionTitle(_tr('profile.premium_data')),
           _ActionTile(
@@ -130,7 +156,9 @@ class ProfileDetailPage extends StatelessWidget {
                 ? _tr('profile.premium_active')
                 : _tr('profile.upgrade_premium'),
             subtitle: _tr('profile.premium_subtitle'),
-            onTap: () => context.push('/premium'),
+            onTap: () => context.push(PremiumNavigation.location(
+              returnTo: AppRoutes.profile,
+            )),
           ),
           _ActionTile(
             icon: Icons.favorite_outline,
@@ -140,8 +168,10 @@ class ProfileDetailPage extends StatelessWidget {
                 : _tr('profile.likes_premium_required'),
             onTap: () => context.push(
               loaded.premiumStatus?.canSeeLikers == true
-                  ? '/likes-received'
-                  : '/premium',
+                  ? AppRoutes.likesReceived
+                  : PremiumNavigation.location(
+                      returnTo: AppRoutes.likesReceived,
+                    ),
             ),
           ),
           _ActionTile(
@@ -369,15 +399,33 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // LOG-03 : Material remplace Container+DecoratedBox pour garantir
+    // que les ink splashes du ListTile soient visibles. L'ombre est
+    // conservée via boxShadow sur le Container externe (sans couleur
+    // de fond), et Material fournit le fond blanc + le clipping arrondi.
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: _cardDecoration(),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.primaryPurple),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: trailing ?? const Icon(Icons.chevron_right),
-        onTap: onTap,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacityValues(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Icon(icon, color: AppColors.primaryPurple),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: trailing ?? const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
       ),
     );
   }
@@ -487,4 +535,16 @@ BoxDecoration _cardDecoration() {
   );
 }
 
-String _tr(String key) => LocalizationService.translate(key);
+String _currencyPreferenceLabel(String preference) {
+  switch (preference.toUpperCase()) {
+    case 'XAF':
+      return _tr('profile.currency_xaf');
+    case 'EUR':
+      return _tr('profile.currency_eur');
+    default:
+      return _tr('profile.currency_auto');
+  }
+}
+
+String _tr(String key, {Map<String, String>? params}) =>
+    LocalizationService.translate(key, params: params);

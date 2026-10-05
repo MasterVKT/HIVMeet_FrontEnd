@@ -58,6 +58,7 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
     on<DeleteConversation>(_onDeleteConversation);
     on<ClearConversationActionError>(_onClearActionError);
     on<ConversationRealtimeSignal>(_onConversationRealtimeSignal);
+    on<ConversationRemovedRemotely>(_onConversationRemovedRemotely);
     on<ReconcileConversations>(_onReconcileConversations);
 
     // Abonnement au bus dans le constructeur (pas via un événement `Start`)
@@ -81,12 +82,25 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
         ));
       case RealtimeEventType.newMatch:
       case RealtimeEventType.messageRead:
+      case RealtimeEventType.messageReadAlert:
       case RealtimeEventType.messageDelivered:
       case RealtimeEventType.conversationRead:
+      case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
+      case RealtimeEventType.subscriptionChanged:
         add(const ReconcileConversations());
+      case RealtimeEventType.conversationHidden:
+        // La liste a déjà été modifiée localement par l'action de masquage.
+        // Seul UnreadCubit consomme ce signal pour son badge.
+        break;
+      case RealtimeEventType.matchRemoved:
+        final matchId = event.matchId;
+        if (matchId == null || matchId.isEmpty) return;
+        add(ConversationRemovedRemotely(conversationId: matchId));
       case RealtimeEventType.likeReceived:
       case RealtimeEventType.superLikeReceived:
+      case RealtimeEventType.subscriptionExpiring:
+      case RealtimeEventType.reportResolved:
         // Sans lien avec la liste des conversations.
         break;
     }
@@ -175,12 +189,45 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
   ) async {
     if (event.filter == _activeFilter) return;
     _loadGeneration++;
-    _activeFilter = event.filter;
-    _allConversations = [];
+    final generation = _loadGeneration;
+    final requestedFilter = event.filter;
+    _activeFilter = requestedFilter;
     _hasMore = true;
     _currentPage = 1;
-    emit(ConversationsLoading(activeFilter: _activeFilter));
-    add(const LoadConversations(refresh: true));
+
+    // Filtrer localement les conversations existantes pendant le
+    // rechargement serveur, au lieu de vider la liste et d'afficher
+    // l'écran de chargement (flash vide désagréable au changement de
+    // filtre).
+    // Un changement de filtre démarre une nouvelle vue serveur : conserver
+    // l'ancienne recherche produirait une combinaison invisible filtre +
+    // requête et pourrait masquer toute la deuxième page chargée ensuite.
+    const searchQuery = '';
+    // Pour le filtre "unread", filtrer localement les conversations non lues.
+    // Pour "all", retrouver toutes les conversations depuis allConversations.
+    if (event.filter == ConversationFilter.unread) {
+      _allConversations =
+          _allConversations.where((c) => c.unreadCount > 0).toList();
+    }
+    emit(_loaded(searchQuery: searchQuery));
+
+    final result = await _getConversations(
+      GetConversationsParams.initial(filter: requestedFilter),
+    );
+    if (generation != _loadGeneration) return;
+    if (requestedFilter != _activeFilter) return; // filtre changé entre-temps
+
+    result.fold(
+      (_) {
+        // Échec silencieux: garder le filtrage local
+      },
+      (page) {
+        _currentPage = 1;
+        _allConversations = _sortConversations(page.conversations);
+        _hasMore = page.hasMore;
+        emit(_loaded(searchQuery: searchQuery));
+      },
+    );
   }
 
   Future<void> _onMarkConversationAsRead(
@@ -229,8 +276,8 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
     Emitter<ConversationsState> emit,
   ) async {
     final currentState = state;
-    if (currentState is! ConversationsLoaded ||
-        _conversationById(event.conversationId) == null) {
+    final hiddenConversation = _conversationById(event.conversationId);
+    if (currentState is! ConversationsLoaded || hiddenConversation == null) {
       return;
     }
 
@@ -242,6 +289,12 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
         .where((conversation) => conversation.id != event.conversationId)
         .toList();
     emit(_loaded(searchQuery: currentState.searchQuery));
+    _realtimeBus.publish(RealtimeEvent(
+      type: RealtimeEventType.conversationHidden,
+      source: RealtimeSource.local,
+      conversationId: event.conversationId,
+      unreadCountDelta: -hiddenConversation.unreadCount,
+    ));
 
     final result = await _deleteConversation(
       delete_conversation.DeleteConversationParams(
@@ -258,6 +311,12 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
         emit(_loaded(
           searchQuery: currentState.searchQuery,
           actionError: _deleteFailureMessage(failure),
+        ));
+        _realtimeBus.publish(RealtimeEvent(
+          type: RealtimeEventType.conversationHidden,
+          source: RealtimeSource.local,
+          conversationId: event.conversationId,
+          unreadCountDelta: hiddenConversation.unreadCount,
         ));
       },
       (_) {},
@@ -328,6 +387,19 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
     }
 
     _scheduleReconcile();
+  }
+
+  void _onConversationRemovedRemotely(
+    ConversationRemovedRemotely event,
+    Emitter<ConversationsState> emit,
+  ) {
+    _allConversations = _allConversations
+        .where((conversation) => conversation.id != event.conversationId)
+        .toList();
+    final currentState = state;
+    if (currentState is ConversationsLoaded) {
+      emit(_loaded(searchQuery: currentState.searchQuery));
+    }
   }
 
   void _scheduleReconcile() {

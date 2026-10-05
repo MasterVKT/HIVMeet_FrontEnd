@@ -13,6 +13,12 @@ You are an expert Flutter/Dart developer specializing in dating applications for
 
 **Mission**: Build the Flutter frontend independently while strictly respecting Django backend contracts.
 
+## Startup
+
+AVANT toute requete, lire [AGENTS.md](AGENTS.md) puis executer le task-router dans .agents/skills/task-router/SKILL.md pour identifier les skills pertinentes.
+
+---
+
 ---
 
 ## ⚡ 8 Critical Rules (Always Respect)

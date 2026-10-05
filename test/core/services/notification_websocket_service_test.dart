@@ -70,12 +70,44 @@ void main() {
       expect(event.source, RealtimeSource.websocket);
     });
 
+    test('parses match_removed and keeps the match identifier', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final sub = WebSocketTransformer().bind(server).listen((socket) {
+        socket.add(jsonEncode({
+          'type': 'match_removed',
+          'match_id': 'match-removed-1',
+        }));
+      });
+      addTearDown(() async {
+        await sub.cancel();
+        await server.close(force: true);
+      });
+
+      when(() => authService.getAccessToken()).thenAnswer((_) async => 'jwt');
+      final service = NotificationWebSocketService(
+        authService,
+        bus,
+        websocketUrl: 'ws://${server.address.address}:${server.port}',
+      );
+      addTearDown(service.dispose);
+
+      final received = bus.events.firstWhere(
+        (event) => event.type == RealtimeEventType.matchRemoved,
+      );
+      await service.connect();
+
+      final event = await received.timeout(const Duration(seconds: 2));
+      expect(event.matchId, 'match-removed-1');
+      expect(event.source, RealtimeSource.websocket);
+    });
+
     test('parses like with string is_super field ignored, keeps fromUserId',
         () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final sub = WebSocketTransformer().bind(server).listen((socket) {
         socket.add(jsonEncode({
           'type': 'like',
+          'notification_id': '8b1a9953-c461-4f36-9c2b-2a2f9c379f10',
           'from_user_id': 'liker-1',
           'like_id': 'like-1',
           'is_super': 'false',
@@ -101,6 +133,10 @@ void main() {
 
       final event = await received.timeout(const Duration(seconds: 2));
       expect(event.fromUserId, 'liker-1');
+      expect(
+        event.notificationId,
+        '8b1a9953-c461-4f36-9c2b-2a2f9c379f10',
+      );
     });
 
     test('parses new_message with its stable message_id', () async {
@@ -111,7 +147,9 @@ void main() {
           'conversation_id': 'conv-1',
           'message_id': 'message-1',
           'from_user_id': 'sender-1',
+          'sender_name': 'Marie',
           'preview': 'Hello there',
+          'notification_id': '8b1a9953-c461-4f36-9c2b-2a2f9c379f10',
         }));
       });
       addTearDown(() async {
@@ -136,7 +174,48 @@ void main() {
       expect(event.conversationId, 'conv-1');
       expect(event.messageId, 'message-1');
       expect(event.fromUserId, 'sender-1');
+      expect(event.senderName, 'Marie');
       expect(event.preview, 'Hello there');
+      expect(event.notificationId, '8b1a9953-c461-4f36-9c2b-2a2f9c379f10');
+    });
+
+    test('distinguishes a persisted read alert from a receipt', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final sub = WebSocketTransformer().bind(server).listen((socket) {
+        socket.add(jsonEncode({
+          'type': 'message_read',
+          'notification_id': '8b1a9953-c461-4f36-9c2b-2a2f9c379f10',
+          'conversation_id': 'conv-1',
+          'reader_id': 'reader-1',
+          'reader_name': 'Reader',
+          'representative_message_id': 'message-1',
+          'message_count': 3,
+          'read_at': '2026-09-28T12:00:00Z',
+        }));
+      });
+      addTearDown(() async {
+        await sub.cancel();
+        await server.close(force: true);
+      });
+
+      when(() => authService.getAccessToken()).thenAnswer((_) async => 'jwt');
+      final service = NotificationWebSocketService(
+        authService,
+        bus,
+        websocketUrl: 'ws://${server.address.address}:${server.port}',
+      );
+      addTearDown(service.dispose);
+
+      final received = bus.events.firstWhere(
+        (event) => event.type == RealtimeEventType.messageReadAlert,
+      );
+      await service.connect();
+
+      final event = await received.timeout(const Duration(seconds: 2));
+      expect(event.notificationId, '8b1a9953-c461-4f36-9c2b-2a2f9c379f10');
+      expect(event.readerName, 'Reader');
+      expect(event.messageCount, 3);
+      expect(event.messageId, 'message-1');
     });
 
     test('connect is idempotent while already connected', () async {

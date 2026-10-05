@@ -1,7 +1,6 @@
 // lib/presentation/widgets/common/error_widget.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 
 class ErrorWidget extends StatelessWidget {
@@ -34,7 +33,8 @@ class ErrorWidget extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'Oops!',
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppColors.charcoal,
@@ -43,7 +43,8 @@ class ErrorWidget extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 message,
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 16,
                   color: AppColors.slate,
                 ),

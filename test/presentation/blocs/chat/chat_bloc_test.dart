@@ -10,6 +10,11 @@ import 'package:hivmeet/core/services/chat_websocket_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/entities/user.dart' as domain;
 import 'package:hivmeet/domain/usecases/chat/delete_message.dart';
+import 'package:hivmeet/domain/usecases/chat/delete_messages.dart';
+import 'package:hivmeet/domain/usecases/chat/edit_message.dart';
+import 'package:hivmeet/domain/usecases/chat/restore_conversation.dart';
+import 'package:hivmeet/domain/usecases/message/delete_conversation.dart'
+    as delete_conversation;
 import 'package:hivmeet/domain/usecases/chat/get_messages.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
 import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
@@ -33,6 +38,15 @@ class MockSetTypingStatusUseCase extends Mock
 
 class MockDeleteMessage extends Mock implements DeleteMessage {}
 
+class MockDeleteMessages extends Mock implements DeleteMessages {}
+
+class MockDeleteConversation extends Mock
+    implements delete_conversation.DeleteConversation {}
+
+class MockEditMessage extends Mock implements EditMessage {}
+
+class MockRestoreConversation extends Mock implements RestoreConversation {}
+
 class MockBlockUser extends Mock implements BlockUser {}
 
 class MockReportUser extends Mock implements ReportUser {}
@@ -49,6 +63,10 @@ void main() {
   late MockMarkMessageAsRead mockMarkMessageAsRead;
   late MockSetTypingStatusUseCase mockSetTypingStatus;
   late MockDeleteMessage mockDeleteMessage;
+  late MockDeleteMessages mockDeleteMessages;
+  late MockDeleteConversation mockDeleteConversation;
+  late MockEditMessage mockEditMessage;
+  late MockRestoreConversation mockRestoreConversation;
   late MockBlockUser mockBlockUser;
   late MockReportUser mockReportUser;
   late MockAuthenticationService mockAuthService;
@@ -101,6 +119,10 @@ void main() {
     mockMarkMessageAsRead = MockMarkMessageAsRead();
     mockSetTypingStatus = MockSetTypingStatusUseCase();
     mockDeleteMessage = MockDeleteMessage();
+    mockDeleteMessages = MockDeleteMessages();
+    mockDeleteConversation = MockDeleteConversation();
+    mockEditMessage = MockEditMessage();
+    mockRestoreConversation = MockRestoreConversation();
     mockBlockUser = MockBlockUser();
     mockReportUser = MockReportUser();
     mockAuthService = MockAuthenticationService();
@@ -114,6 +136,10 @@ void main() {
       markMessageAsRead: mockMarkMessageAsRead,
       setTypingStatus: mockSetTypingStatus,
       deleteMessage: mockDeleteMessage,
+      deleteMessages: mockDeleteMessages,
+      editMessage: mockEditMessage,
+      restoreConversation: mockRestoreConversation,
+      deleteConversation: mockDeleteConversation,
       blockUser: mockBlockUser,
       reportUser: mockReportUser,
       authService: mockAuthService,
@@ -137,6 +163,22 @@ void main() {
         const SetTypingStatusParams(conversationId: 'conv_1', isTyping: false));
     registerFallbackValue(const DeleteMessageParams(
         conversationId: 'conv_1', messageId: 'msg_1'));
+    registerFallbackValue(const DeleteMessagesParams(
+      conversationId: 'conv_1',
+      messageIds: ['msg_1'],
+      scope: MessageDeletionScope.forMe,
+    ));
+    registerFallbackValue(const EditMessageParams(
+      conversationId: 'conv_1',
+      messageId: 'msg_2',
+      content: 'edited',
+    ));
+    registerFallbackValue(const RestoreConversationParams(
+      conversationId: 'conv_1',
+    ));
+    registerFallbackValue(const delete_conversation.DeleteConversationParams(
+      conversationId: 'conv_1',
+    ));
     registerFallbackValue(const BlockUserParams(userId: 'user_2'));
     registerFallbackValue(
         const ReportUserParams(userId: 'user_2', reason: 'other'));
@@ -357,6 +399,102 @@ void main() {
       await emission;
     });
 
+    test(
+        'media keeps its local preview until the canonical server message arrives',
+        () async {
+      when(() => mockAuthService.currentUser).thenReturn(tUser);
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(
+          ConversationMessagesPage(
+              messages: tMessages, hasMore: false, showPremiumPrompt: false),
+        ),
+      );
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+
+      final upload = File('${Directory.systemTemp.path}/optimistic-video.mp4');
+      final completion = Completer<Either<Failure, Message>>();
+      when(() => mockSendMediaMessage(any())).thenAnswer((invocation) {
+        final params =
+            invocation.positionalArguments.single as SendMediaMessageParams;
+        params.onUploadProgress?.call(50, 100);
+        return completion.future;
+      });
+
+      bloc.add(SendMediaMessageEvent(
+        mediaFile: upload,
+        type: MessageType.video,
+      ));
+      await untilCalled(() => mockSendMediaMessage(any()));
+
+      final optimistic = (bloc.state as ChatLoaded).messages.last;
+      expect(optimistic.isSending, isTrue);
+      expect(optimistic.localMediaPath, upload.path);
+      expect(optimistic.mediaUrl, isNull);
+      expect(optimistic.uploadProgress, 50);
+
+      completion.complete(
+        Right(
+          Message(
+            id: 'server-video',
+            conversationId: 'conv_1',
+            senderId: 'user_1',
+            isMine: true,
+            content: '',
+            type: MessageType.video,
+            createdAt: DateTime.now(),
+            mediaUrl: 'https://cdn.example/video.mp4',
+            mediaDownloadUrl: 'https://api.example/download/video',
+            mediaMimeType: 'video/mp4',
+            mediaFileName: 'video.mp4',
+            mediaSizeBytes: 10,
+            status: MessageStatus.sent,
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final canonical = (bloc.state as ChatLoaded).messages.last;
+      expect(canonical.id, 'server-video');
+      expect(canonical.localMediaPath, isNull);
+      expect(canonical.mediaUrl, 'https://cdn.example/video.mp4');
+      expect(canonical.mediaDownloadUrl, 'https://api.example/download/video');
+    });
+
+    test('Free message limit disables the composer after the server refusal',
+        () async {
+      when(() => mockAuthService.currentUser).thenReturn(tUser);
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(
+          ConversationMessagesPage(
+              messages: tMessages, hasMore: false, showPremiumPrompt: false),
+        ),
+      );
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      when(() => mockSendTextMessage(any())).thenAnswer(
+        (_) async => const Left(PermissionFailure(
+          message: 'Free limit reached',
+          code: 'free_message_limit_reached',
+        )),
+      );
+
+      final emission = expectLater(
+        bloc.stream,
+        emitsThrough(
+          isA<ChatLoaded>()
+              .having(
+                  (state) => state.canSendMessages, 'composer enabled', false)
+              .having((state) => state.actionError, 'server code',
+                  'free_message_limit_reached'),
+        ),
+      );
+
+      bloc.add(const SendTextMessageEvent(content: 'Eleventh message'));
+      await untilCalled(() => mockSendTextMessage(any()));
+      await emission;
+    });
+
     test('MarkAsRead delegates to usecase', () async {
       when(() => mockGetMessages(any())).thenAnswer(
         (_) async => Right(
@@ -466,6 +604,216 @@ void main() {
       expect(state.isTyping, false);
     });
 
+    test('multi-delete for me removes sent and received messages after success',
+        () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      when(() => mockDeleteMessages(any()))
+          .thenAnswer((_) async => const Right(null));
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const DeleteMessagesEvent(
+        messageIds: {'msg_1', 'msg_2'},
+        scope: MessageDeletionScope.forMe,
+      ));
+      await untilCalled(() => mockDeleteMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      final params = verify(() => mockDeleteMessages(captureAny()))
+          .captured
+          .single as DeleteMessagesParams;
+      expect(params.conversationId, 'conv_1');
+      expect(params.messageIds.toSet(), {'msg_1', 'msg_2'});
+      expect(params.scope, MessageDeletionScope.forMe);
+      expect((bloc.state as ChatLoaded).messages, isEmpty);
+    });
+
+    test('global multi-delete keeps the ordered tombstone in the conversation',
+        () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      when(() => mockDeleteMessages(any()))
+          .thenAnswer((_) async => const Right(null));
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const DeleteMessagesEvent(
+        messageIds: {'msg_2'},
+        scope: MessageDeletionScope.forEveryone,
+      ));
+      await untilCalled(() => mockDeleteMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      final deleted = (bloc.state as ChatLoaded)
+          .messages
+          .firstWhere((message) => message.id == 'msg_2');
+      expect(deleted.content, isEmpty);
+      expect(deleted.isDeletedForEveryone, isTrue);
+      expect((bloc.state as ChatLoaded).messages.length, 2);
+    });
+
+    test('failed multi-delete preserves the visible conversation', () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      when(() => mockDeleteMessages(any())).thenAnswer(
+        (_) async => const Left(ServerFailure(message: 'premium_required')),
+      );
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const DeleteMessagesEvent(
+        messageIds: {'msg_2'},
+        scope: MessageDeletionScope.forEveryone,
+      ));
+      await untilCalled(() => mockDeleteMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      final state = bloc.state as ChatLoaded;
+      expect(state.messages.length, 2);
+      expect(state.messages.last.content, 'Hi!');
+      expect(state.actionError, 'premium_required');
+    });
+
+    test('hide conversation is only completed after the server confirms it',
+        () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      when(() => mockDeleteConversation(any()))
+          .thenAnswer((_) async => const Right(null));
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const HideConversationEvent());
+      await untilCalled(() => mockDeleteConversation(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      verify(() => mockDeleteConversation(
+            const delete_conversation.DeleteConversationParams(
+              conversationId: 'conv_1',
+            ),
+          )).called(1);
+      expect((bloc.state as ChatLoaded).completedAction, ChatUserAction.hide);
+    });
+
+    test('premium edit updates the canonical message and keeps chronology',
+        () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      final editedAt = DateTime.utc(2026, 9, 25, 14, 0);
+      when(() => mockEditMessage(any())).thenAnswer(
+        (_) async => Right(Message(
+          id: 'msg_2',
+          conversationId: 'conv_1',
+          senderId: 'user_1',
+          content: 'Edited text',
+          type: MessageType.text,
+          createdAt: tMessages.last.createdAt,
+          editedAt: editedAt,
+          reactions: const {},
+          status: MessageStatus.sent,
+        )),
+      );
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      bloc.add(
+          const EditMessageEvent(messageId: 'msg_2', content: 'Edited text'));
+      await untilCalled(() => mockEditMessage(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      verify(() => mockEditMessage(const EditMessageParams(
+            conversationId: 'conv_1',
+            messageId: 'msg_2',
+            content: 'Edited text',
+          ))).called(1);
+      final message = (bloc.state as ChatLoaded).messages.last;
+      expect(message.content, 'Edited text');
+      expect(message.editedAt, editedAt);
+      expect((bloc.state as ChatLoaded).completedAction, ChatUserAction.edit);
+    });
+
+    test('failed edit preserves the message and exposes the server code',
+        () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      when(() => mockEditMessage(any())).thenAnswer(
+        (_) async => const Left(PermissionFailure(
+          message: 'Expired',
+          code: 'edit_window_expired',
+        )),
+      );
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      bloc.add(const EditMessageEvent(messageId: 'msg_2', content: 'Too late'));
+      await untilCalled(() => mockEditMessage(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      final state = bloc.state as ChatLoaded;
+      expect(state.messages.last.content, 'Hi!');
+      expect(state.actionError, 'edit_window_expired');
+    });
+
+    test('restore hidden conversation is completed only after server success',
+        () async {
+      when(() => mockGetMessages(any())).thenAnswer(
+        (_) async => Right(ConversationMessagesPage(
+          messages: tMessages,
+          hasMore: false,
+          showPremiumPrompt: false,
+        )),
+      );
+      when(() => mockRestoreConversation(any()))
+          .thenAnswer((_) async => const Right(null));
+
+      bloc.add(const LoadConversation(conversationId: 'conv_1'));
+      await untilCalled(() => mockGetMessages(any()));
+      bloc.add(const RestoreConversationEvent());
+      await untilCalled(() => mockRestoreConversation(any()));
+      await Future<void>.delayed(Duration.zero);
+
+      verify(() => mockRestoreConversation(
+            const RestoreConversationParams(conversationId: 'conv_1'),
+          )).called(1);
+      expect(
+          (bloc.state as ChatLoaded).completedAction, ChatUserAction.restore);
+    });
+
     test('two rapid text sends produce distinct client_message_id', () async {
       when(() => mockAuthService.currentUser).thenReturn(tUser);
       when(() => mockGetMessages(any())).thenAnswer(
@@ -493,7 +841,8 @@ void main() {
       expect(captured[0].clientMessageId, isNot(captured[1].clientMessageId));
     });
 
-    test('websocket media messages preserve URL, type and thumbnail', () async {
+    test('websocket media messages preserve URLs, type and attachment metadata',
+        () async {
       final eventsController = StreamController<WsEvent>.broadcast();
       addTearDown(eventsController.close);
       await loadAndConnectWebSocket(eventsController, tMessages);
@@ -514,6 +863,12 @@ void main() {
           'media_url': 'https://cdn.example/media.jpg',
           'media_type': 'image/jpeg',
           'media_thumbnail_url': 'https://cdn.example/thumb.jpg',
+          'media_download_url':
+              '/api/v1/conversations/conv_1/messages/media_1/media/',
+          'media_mime_type': 'image/jpeg',
+          'media_size_bytes': 42,
+          'media_file_name': 'photo.jpg',
+          'media_duration_ms': null,
         },
       ));
 
@@ -522,6 +877,34 @@ void main() {
       expect(message.mediaUrl, 'https://cdn.example/media.jpg');
       expect(message.mediaType, 'image/jpeg');
       expect(message.mediaThumbnailUrl, 'https://cdn.example/thumb.jpg');
+      expect(message.mediaMimeType, 'image/jpeg');
+      expect(message.mediaSizeBytes, 42);
+      expect(message.mediaFileName, 'photo.jpg');
+    });
+
+    test('websocket edit updates content and renders the edited timestamp',
+        () async {
+      final eventsController = StreamController<WsEvent>.broadcast();
+      addTearDown(eventsController.close);
+      await loadAndConnectWebSocket(eventsController, tMessages);
+
+      final update = bloc.stream
+          .where((state) => state is ChatLoaded)
+          .cast<ChatLoaded>()
+          .first;
+      eventsController.add(const WsEvent(
+        type: WsEventType.messageUpdated,
+        data: {
+          'message_id': 'msg_2',
+          'content': 'Changed from another client',
+          'edited_at': '2026-09-25T14:00:00.000000Z',
+        },
+      ));
+
+      final state = await update;
+      final message = state.messages.firstWhere((item) => item.id == 'msg_2');
+      expect(message.content, 'Changed from another client');
+      expect(message.editedAt, DateTime.utc(2026, 9, 25, 14));
     });
 
     test('read receipt marks only the targeted local message as read',

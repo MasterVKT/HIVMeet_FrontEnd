@@ -96,8 +96,8 @@ class EmptyConversationsView extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onMatchesTap,
                 icon: const Icon(Icons.favorite),
-                label: Text(
-                    LocalizationService.translate('conversations.view_matches')),
+                label: Text(LocalizationService.translate(
+                    'conversations.view_matches')),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,

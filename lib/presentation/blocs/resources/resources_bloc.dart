@@ -7,6 +7,9 @@ import 'package:hivmeet/domain/entities/resource.dart';
 import 'package:hivmeet/domain/usecases/resources/get_resources.dart';
 import 'package:hivmeet/domain/usecases/resources/add_to_favorites.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
+import 'dart:async';
 
 part 'resources_event.dart';
 part 'resources_state.dart';
@@ -15,20 +18,36 @@ part 'resources_state.dart';
 class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
   final GetResources _getResources;
   final AddToFavorites _addToFavorites;
+  StreamSubscription<RealtimeEvent>? _subscriptionChanges;
+  String? _lastCategory;
+  String? _lastSearch;
 
   ResourcesBloc({
     required GetResources getResources,
     required AddToFavorites addToFavorites,
+    required RealtimeEventBus realtimeBus,
   })  : _getResources = getResources,
         _addToFavorites = addToFavorites,
         super(ResourcesInitial()) {
     on<LoadResources>(_onLoadResources);
     on<SearchResources>(_onSearchResources);
     on<AddFavorite>(_onAddFavorite);
+    _subscriptionChanges = realtimeBus.events.listen((event) {
+      if (event.type != RealtimeEventType.subscriptionChanged || isClosed) {
+        return;
+      }
+      if (_lastSearch != null) {
+        add(SearchResources(_lastSearch!));
+      } else {
+        add(LoadResources(_lastCategory));
+      }
+    });
   }
 
   void _onLoadResources(
       LoadResources event, Emitter<ResourcesState> emit) async {
+    _lastCategory = event.category;
+    _lastSearch = null;
     emit(ResourcesLoading());
 
     final params = event.category != null
@@ -45,6 +64,7 @@ class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
 
   void _onSearchResources(
       SearchResources event, Emitter<ResourcesState> emit) async {
+    _lastSearch = event.query;
     emit(ResourcesLoading());
 
     final params = GetResourcesParams.search(query: event.query);
@@ -54,6 +74,12 @@ class ResourcesBloc extends Bloc<ResourcesEvent, ResourcesState> {
       (failure) => emit(ResourcesError(message: _mapFailureToMessage(failure))),
       (resources) => emit(ResourcesLoaded(resources: resources)),
     );
+  }
+
+  @override
+  Future<void> close() async {
+    await _subscriptionChanges?.cancel();
+    return super.close();
   }
 
   void _onAddFavorite(AddFavorite event, Emitter<ResourcesState> emit) async {

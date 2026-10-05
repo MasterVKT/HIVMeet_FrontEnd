@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 
 /// Widget pour afficher une carte de match
@@ -161,7 +162,7 @@ class MatchCard extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            '$displayName, $age',
+            match.isLocked ? displayName : '$displayName, $age',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight:
                   match.hasUnreadMessages ? FontWeight.bold : FontWeight.w600,
@@ -177,6 +178,18 @@ class MatchCard extends StatelessWidget {
   Widget _buildMessagePreview(BuildContext context) {
     final theme = Theme.of(context);
     final lastMessage = match.lastMessage;
+
+    if (match.isLocked) {
+      return Text(
+        LocalizationService.translate('matches.locked_title'),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.primary,
+          fontStyle: FontStyle.italic,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
 
     if (lastMessage == null) {
       return Text(
@@ -223,6 +236,21 @@ class MatchCard extends StatelessWidget {
             fontSize: 11,
           ),
         ),
+
+        if (match.hasLimitedFreeMessages &&
+            match.freeMessagesRemaining != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            LocalizationService.translate(
+              'matches.free_messages_remaining',
+              params: {'count': match.freeMessagesRemaining},
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontSize: 11,
+            ),
+          ),
+        ],
 
         // Badge unread count
         if (match.hasUnreadMessages) ...[

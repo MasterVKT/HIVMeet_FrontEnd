@@ -12,6 +12,11 @@ class Match extends Equatable {
   final Message? lastMessage;
   final bool isNew;
   final Map<String, int> unreadCounts;
+  final String accessLevel;
+  final bool canViewProfile;
+  final bool canSendMessages;
+  final int? freeMessagesRemaining;
+  final String? accessLockedReason;
 
   const Match({
     required this.id,
@@ -20,11 +25,18 @@ class Match extends Equatable {
     this.lastMessage,
     this.isNew = false,
     this.unreadCounts = const {},
+    this.accessLevel = 'full',
+    this.canViewProfile = true,
+    this.canSendMessages = true,
+    this.freeMessagesRemaining,
+    this.accessLockedReason,
   });
 
   int get unreadCount => unreadCounts.values.fold(0, (a, b) => a + b);
   bool get hasUnreadMessages => unreadCount > 0;
   bool get isActive => true;
+  bool get isLocked => accessLevel == 'locked';
+  bool get hasLimitedFreeMessages => accessLevel == 'free_limited';
 
   // Propriétés de compatibilité pour résoudre les erreurs
   String? get lastMessageContent => lastMessage?.content;
@@ -37,6 +49,11 @@ class Match extends Equatable {
     Message? lastMessage,
     bool? isNew,
     Map<String, int>? unreadCounts,
+    String? accessLevel,
+    bool? canViewProfile,
+    bool? canSendMessages,
+    Object? freeMessagesRemaining = _matchUnset,
+    Object? accessLockedReason = _matchUnset,
   }) {
     return Match(
       id: id ?? this.id,
@@ -45,6 +62,15 @@ class Match extends Equatable {
       lastMessage: lastMessage ?? this.lastMessage,
       isNew: isNew ?? this.isNew,
       unreadCounts: unreadCounts ?? this.unreadCounts,
+      accessLevel: accessLevel ?? this.accessLevel,
+      canViewProfile: canViewProfile ?? this.canViewProfile,
+      canSendMessages: canSendMessages ?? this.canSendMessages,
+      freeMessagesRemaining: identical(freeMessagesRemaining, _matchUnset)
+          ? this.freeMessagesRemaining
+          : freeMessagesRemaining as int?,
+      accessLockedReason: identical(accessLockedReason, _matchUnset)
+          ? this.accessLockedReason
+          : accessLockedReason as String?,
     );
   }
 
@@ -56,8 +82,15 @@ class Match extends Equatable {
         lastMessage,
         isNew,
         unreadCounts,
+        accessLevel,
+        canViewProfile,
+        canSendMessages,
+        freeMessagesRemaining,
+        accessLockedReason,
       ];
 }
+
+const Object _matchUnset = Object();
 
 enum MatchStatus {
   active,
@@ -76,6 +109,8 @@ class DiscoveryProfile extends Equatable {
   final String city;
   final String country;
   final double? distance;
+  final bool distanceEstimated;
+  final bool sameCity;
   final List<String> interests;
   final List<String> relationshipTypesSought;
   final String relationshipType;
@@ -95,6 +130,8 @@ class DiscoveryProfile extends Equatable {
     required this.city,
     required this.country,
     this.distance,
+    this.distanceEstimated = false,
+    this.sameCity = false,
     required this.interests,
     this.relationshipTypesSought = const [],
     required this.relationshipType,
@@ -184,6 +221,8 @@ class DiscoveryProfile extends Equatable {
       country: json['country']?.toString() ?? 'FR',
       distance: (json['distance_km'] as num?)?.toDouble() ??
           (json['distance'] as num?)?.toDouble(),
+      distanceEstimated: json['distance_estimated'] == true,
+      sameCity: json['same_city'] == true,
       interests: interests,
       relationshipTypesSought: relationshipTypesSought,
       relationshipType: relationshipType,
@@ -267,6 +306,8 @@ class DiscoveryProfile extends Equatable {
         city,
         country,
         distance,
+        distanceEstimated,
+        sameCity,
         interests,
         relationshipTypesSought,
         relationshipType,
@@ -322,10 +363,13 @@ class DailyLikeLimit extends Equatable {
   });
 
   factory DailyLikeLimit.fromJson(Map<String, dynamic> json) {
+    final remaining = json['daily_likes_remaining'] ?? json['remaining_likes'];
+    final total = json['daily_likes_limit'] ?? json['total_likes'];
+    final resetAt = json['reset_at'];
     return DailyLikeLimit(
-      remainingLikes: json['remaining_likes'] as int,
-      totalLikes: json['total_likes'] as int,
-      resetAt: DateTime.parse(json['reset_at'] as String),
+      remainingLikes: remaining as int,
+      totalLikes: total as int,
+      resetAt: DateTime.parse(resetAt as String),
     );
   }
 
@@ -366,22 +410,43 @@ class SwipeResult extends Equatable {
   final int? remainingLikes;
   final int? remainingSuperLikes;
 
+  /// Canonical discovery action returned by the server. Rewind is always
+  /// addressed to this id, never to a mutable global "last swipe".
+  final String? interactionId;
+  final bool canRewind;
+  final DateTime? rewindExpiresAt;
+  final bool alreadyRewound;
+
   const SwipeResult({
     required this.isMatch,
     this.matchId,
     this.matchedProfile,
     this.remainingLikes,
     this.remainingSuperLikes,
+    this.interactionId,
+    this.canRewind = false,
+    this.rewindExpiresAt,
+    this.alreadyRewound = false,
   });
 
   factory SwipeResult.fromJson(Map<String, dynamic> json) {
+    final status = json['status'] as String?;
     return SwipeResult(
-      isMatch: json['is_match'] as bool,
+      isMatch: json['is_match'] as bool? ??
+          status == 'matched' || status == 'matched_with_superlike',
       matchId: json['match_id'] as String?,
       matchedProfile:
           null, // TODO: Implémenter la sérialisation Profile si nécessaire
-      remainingLikes: json['remaining_likes'] as int?,
-      remainingSuperLikes: json['remaining_super_likes'] as int?,
+      remainingLikes:
+          (json['daily_likes_remaining'] ?? json['remaining_likes']) as int?,
+      remainingSuperLikes: (json['super_likes_remaining'] ??
+          json['remaining_super_likes']) as int?,
+      interactionId: json['interaction_id']?.toString(),
+      canRewind: json['can_rewind'] as bool? ?? false,
+      rewindExpiresAt: json['rewind_expires_at'] is String
+          ? DateTime.tryParse(json['rewind_expires_at'] as String)
+          : null,
+      alreadyRewound: json['already_rewound'] as bool? ?? false,
     );
   }
 
@@ -393,12 +458,26 @@ class SwipeResult extends Equatable {
       if (remainingLikes != null) 'remaining_likes': remainingLikes,
       if (remainingSuperLikes != null)
         'remaining_super_likes': remainingSuperLikes,
+      if (interactionId != null) 'interaction_id': interactionId,
+      'can_rewind': canRewind,
+      if (rewindExpiresAt != null)
+        'rewind_expires_at': rewindExpiresAt!.toIso8601String(),
+      'already_rewound': alreadyRewound,
     };
   }
 
   @override
-  List<Object?> get props =>
-      [isMatch, matchId, matchedProfile, remainingLikes, remainingSuperLikes];
+  List<Object?> get props => [
+        isMatch,
+        matchId,
+        matchedProfile,
+        remainingLikes,
+        remainingSuperLikes,
+        interactionId,
+        canRewind,
+        rewindExpiresAt,
+        alreadyRewound,
+      ];
 }
 
 class BoostStatus extends Equatable {

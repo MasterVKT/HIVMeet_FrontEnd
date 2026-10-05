@@ -75,10 +75,6 @@ class AppConstants {
   static const String baseUrl = 'https://api.hivmeet.com';
   static const String websocketUrl = 'wss://api.hivmeet.com/ws';
 
-  // Clés API externes
-  static const String mycoolpayApiKey = 'your_mycoolpay_api_key_here';
-  static const String mycoolpayBaseUrl = 'https://api.mycoolpay.com';
-
   // Configuration de l'application
   static const String appName = 'HIVMeet';
   static const String appVersion = '1.0.0';

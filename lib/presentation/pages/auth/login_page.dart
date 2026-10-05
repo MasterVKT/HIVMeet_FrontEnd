@@ -1,6 +1,7 @@
 // lib/presentation/pages/auth/login_page.dart
 
 import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +30,30 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _isLoading = false;
+  bool _autoLoginAttempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-login en mode debug si DEBUG_EMAIL et DEBUG_PASSWORD sont fournis
+    // via --dart-define. Permet de tester sur émulateur et appareil physique
+    // avec des comptes différents sans interaction manuelle.
+    if (kDebugMode) {
+      const debugEmail = String.fromEnvironment('DEBUG_EMAIL');
+      const debugPassword = String.fromEnvironment('DEBUG_PASSWORD');
+      if (debugEmail.isNotEmpty && debugPassword.isNotEmpty) {
+        _emailController.text = debugEmail;
+        _passwordController.text = debugPassword;
+        // Auto-submit après le premier frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_autoLoginAttempted && mounted) {
+            _autoLoginAttempted = true;
+            _handleLogin();
+          }
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -38,25 +63,36 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    debugPrint('🔄 DEBUG: _handleLogin DÉMARRÉ avec AuthBlocSimple');
+    LogService.debug('🔄 DEBUG: _handleLogin DÉMARRÉ avec AuthBlocSimple');
 
     if (!_formKey.currentState!.validate()) {
-      debugPrint('❌ DEBUG: Validation formulaire échouée');
+      LogService.debug('❌ DEBUG: Validation formulaire échouée');
       return;
     }
 
-    debugPrint('✅ DEBUG: Validation formulaire OK');
-    debugPrint('Tentative de connexion pour: ${_emailController.text.trim()}');
+    LogService.debug('✅ DEBUG: Validation formulaire OK');
+    LogService.debug(
+        'Tentative de connexion pour: ${_emailController.text.trim()}');
 
-    // Utiliser le nouveau système AuthBlocSimple
-    context.read<AuthBlocSimple>().add(
-          LoginRequested(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          ),
-        );
+    // En mode debug, utiliser directement le login backend (bypass Firebase)
+    if (kDebugMode) {
+      context.read<AuthBlocSimple>().add(
+            BackendLoginRequested(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            ),
+          );
+    } else {
+      // Utiliser le nouveau système AuthBlocSimple
+      context.read<AuthBlocSimple>().add(
+            LoginRequested(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            ),
+          );
+    }
 
-    debugPrint('✅ DEBUG: LoginRequested envoyé au AuthBlocSimple');
+    LogService.debug('✅ DEBUG: LoginRequested envoyé au AuthBlocSimple');
   }
 
   // Méthodes de debug (à retirer en production)
@@ -165,30 +201,45 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _fillTestCredentials() {
-    _emailController.text = 'test@hivmeet.com';
-    _passwordController.text = 'Test123456!';
+    // En mode debug, détecter l'appareil pour choisir le bon compte de test
+    // Émulateur: Thomas (thomas.dupont@test.com)
+    // Appareil physique: Sophie (sophie.leroy@test.com)
+    if (kDebugMode) {
+      // Utiliser l'androidId pour distinguer: l'émulateur a un ID prédictible
+      // Plus simple: on utilise un compteur stocké en SecureStorage
+      // Pour les tests, on remplit avec Thomas par défaut (émulateur)
+      // L'utilisateur peut manuellement changer pour Sophie sur l'appareil physique
+      _emailController.text = 'thomas.dupont@test.com';
+      _passwordController.text = 'testpass123';
+    } else {
+      _emailController.text = 'test@hivmeet.com';
+      _passwordController.text = 'Test123456!';
+    }
 
     HIVToast.showInfo(
       context: context,
-      message: 'Identifiants de test remplis',
+      message: 'Identifiants de test remplis: ${_emailController.text}',
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🔄 DEBUG LoginPage: Début du build');
+    LogService.debug('🔄 DEBUG LoginPage: Début du build');
 
     return BlocListener<AuthBlocSimple, AuthState>(
       listener: (context, state) {
-        debugPrint('🔄 DEBUG LoginPage: BlocListener state change: $state');
+        LogService.debug(
+          '🔄 DEBUG LoginPage: BlocListener state: ${state.runtimeType}',
+        );
 
         if (state is AuthLoading) {
-          debugPrint('🔄 DEBUG LoginPage: AuthLoading détecté');
+          LogService.debug('🔄 DEBUG LoginPage: AuthLoading détecté');
           setState(() {
             _isLoading = true;
           });
         } else if (state is Authenticated) {
-          debugPrint('✅ DEBUG LoginPage: Authenticated détecté, navigation...');
+          LogService.debug(
+              '✅ DEBUG LoginPage: Authenticated détecté, navigation...');
 
           // Arrêter le loading
           setState(() {
@@ -197,9 +248,11 @@ class _LoginPageState extends State<LoginPage> {
 
           // Naviguer vers la découverte (page principale)
           context.go('/discovery');
-          debugPrint('✅ DEBUG LoginPage: Navigation vers /discovery effectuée');
+          LogService.debug(
+              '✅ DEBUG LoginPage: Navigation vers /discovery effectuée');
         } else if (state is AuthError) {
-          debugPrint('❌ DEBUG LoginPage: AuthError détecté: ${state.message}');
+          LogService.debug(
+              '❌ DEBUG LoginPage: AuthError détecté: ${state.message}');
 
           // Arrêter le loading
           setState(() {
@@ -223,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
             message: message,
           );
         } else if (state is Unauthenticated) {
-          debugPrint('❌ DEBUG LoginPage: Unauthenticated détecté');
+          LogService.debug('❌ DEBUG LoginPage: Unauthenticated détecté');
 
           // Arrêter le loading si nécessaire
           setState(() {

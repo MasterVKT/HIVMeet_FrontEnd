@@ -1,7 +1,6 @@
 // lib/presentation/widgets/modals/filters_modal.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
@@ -120,7 +119,8 @@ class _FiltersModalState extends State<FiltersModal> {
         children: [
           Text(
             LocalizationService.translate('discovery.filters'),
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppColors.charcoal,
@@ -145,7 +145,8 @@ class _FiltersModalState extends State<FiltersModal> {
       children: [
         Text(
           LocalizationService.translate('discovery.age_range'),
-          style: GoogleFonts.openSans(
+          style: TextStyle(
+            fontFamily: 'OpenSans',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: AppColors.charcoal,
@@ -171,7 +172,8 @@ class _FiltersModalState extends State<FiltersModal> {
             Text(
               _tr('discovery.age_value',
                   params: {'age': '${_ageRange.start.round()}'}),
-              style: GoogleFonts.openSans(
+              style: TextStyle(
+                fontFamily: 'OpenSans',
                 fontSize: 14,
                 color: AppColors.slate,
               ),
@@ -179,7 +181,8 @@ class _FiltersModalState extends State<FiltersModal> {
             Text(
               _tr('discovery.age_value',
                   params: {'age': '${_ageRange.end.round()}'}),
-              style: GoogleFonts.openSans(
+              style: TextStyle(
+                fontFamily: 'OpenSans',
                 fontSize: 14,
                 color: AppColors.slate,
               ),
@@ -196,7 +199,8 @@ class _FiltersModalState extends State<FiltersModal> {
       children: [
         Text(
           LocalizationService.translate('discovery.distance'),
-          style: GoogleFonts.openSans(
+          style: TextStyle(
+            fontFamily: 'OpenSans',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: AppColors.charcoal,
@@ -221,7 +225,8 @@ class _FiltersModalState extends State<FiltersModal> {
           children: [
             Text(
               _tr('discovery.distance_value', params: {'distance': '5'}),
-              style: GoogleFonts.openSans(
+              style: TextStyle(
+                fontFamily: 'OpenSans',
                 fontSize: 14,
                 color: AppColors.slate,
               ),
@@ -229,7 +234,8 @@ class _FiltersModalState extends State<FiltersModal> {
             Text(
               _tr('discovery.distance_value',
                   params: {'distance': '${_distance.round()}'}),
-              style: GoogleFonts.openSans(
+              style: TextStyle(
+                fontFamily: 'OpenSans',
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.primaryPurple,
@@ -237,7 +243,8 @@ class _FiltersModalState extends State<FiltersModal> {
             ),
             Text(
               _tr('discovery.distance_value', params: {'distance': '100'}),
-              style: GoogleFonts.openSans(
+              style: TextStyle(
+                fontFamily: 'OpenSans',
                 fontSize: 14,
                 color: AppColors.slate,
               ),
@@ -254,7 +261,8 @@ class _FiltersModalState extends State<FiltersModal> {
       children: [
         Text(
           LocalizationService.translate('discovery.relationship_type'),
-          style: GoogleFonts.openSans(
+          style: TextStyle(
+            fontFamily: 'OpenSans',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: AppColors.charcoal,
@@ -281,8 +289,11 @@ class _FiltersModalState extends State<FiltersModal> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          LocalizationService.translate('discovery.gender'),
-          style: GoogleFonts.openSans(
+          // LOG-04 : utilisation de la clé existante discovery.gender_title
+          // au lieu de discovery.gender qui n'existe pas dans les catalogues.
+          LocalizationService.translate('discovery.gender_title'),
+          style: TextStyle(
+            fontFamily: 'OpenSans',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: AppColors.charcoal,
@@ -349,7 +360,8 @@ class _FiltersModalState extends State<FiltersModal> {
         Expanded(
           child: Text(
             LocalizationService.translate('discovery.verified_only'),
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.charcoal,
@@ -375,7 +387,8 @@ class _FiltersModalState extends State<FiltersModal> {
         Expanded(
           child: Text(
             LocalizationService.translate('discovery.online_only'),
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.charcoal,

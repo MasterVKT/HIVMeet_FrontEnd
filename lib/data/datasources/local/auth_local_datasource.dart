@@ -11,18 +11,18 @@ abstract class AuthLocalDataSource {
   Future<void> cacheUser(UserModel user);
   Future<UserModel?> getCachedUser();
   Future<void> clearCachedUser();
-  
+
   Future<void> cacheAuthToken(String token);
   Future<String?> getCachedAuthToken();
   Future<void> clearAuthToken();
-  
+
   Future<void> cacheRefreshToken(String token);
   Future<String?> getCachedRefreshToken();
   Future<void> clearRefreshToken();
-  
+
   Future<void> setRememberMe(bool remember);
   Future<bool> getRememberMe();
-  
+
   Future<void> clearAllAuthData();
 }
 
@@ -56,11 +56,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     try {
       final userJson = await _secureStorage.read(key: _userKey);
       if (userJson == null) return null;
-      
+
       final userMap = json.decode(userJson) as Map<String, dynamic>;
       return UserModel.fromJson(userMap);
     } catch (e) {
-      throw CacheException(message: 'Échec de récupération de l\'utilisateur en cache');
+      throw CacheException(
+          message: 'Échec de récupération de l\'utilisateur en cache');
     }
   }
 
@@ -69,7 +70,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     try {
       await _secureStorage.delete(key: _userKey);
     } catch (e) {
-      throw CacheException(message: 'Échec de suppression du cache utilisateur');
+      throw CacheException(
+          message: 'Échec de suppression du cache utilisateur');
     }
   }
 
@@ -155,7 +157,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       ]);
       await _sharedPreferences.remove(_rememberMeKey);
     } catch (e) {
-      throw CacheException(message: 'Échec de suppression des données d\'authentification');
+      throw CacheException(
+          message: 'Échec de suppression des données d\'authentification');
     }
   }
 }

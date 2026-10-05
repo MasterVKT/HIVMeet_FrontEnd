@@ -5,8 +5,10 @@ import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/error/exceptions.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/data/datasources/remote/matching_api.dart';
 import 'package:hivmeet/domain/entities/match.dart';
+import 'package:hivmeet/domain/entities/discovery_preference_catalog.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/repositories/match_repository.dart';
@@ -105,15 +107,22 @@ class MatchRepositoryImpl implements MatchRepository {
       );
 
       final data = response.data!;
-      final result = data['result'] as String?;
-      final isMatch = result == 'match';
+      final interactionStatus = data['status'] as String?;
+      final isMatch = interactionStatus == 'matched';
 
       return Right(SwipeResult(
         isMatch: isMatch,
         matchId: isMatch ? (data['match_id'] as String?) : null,
         remainingLikes: data['daily_likes_remaining'] as int?,
         remainingSuperLikes: data['super_likes_remaining'] as int?,
+        interactionId: data['interaction_id']?.toString(),
+        canRewind: data['can_rewind'] as bool? ?? false,
+        rewindExpiresAt: data['rewind_expires_at'] is String
+            ? DateTime.tryParse(data['rewind_expires_at'] as String)
+            : null,
       ));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {
@@ -130,15 +139,22 @@ class MatchRepositoryImpl implements MatchRepository {
       );
 
       final data = response.data!;
-      final result = data['result'] as String?;
-      final isMatch = result == 'match';
+      final interactionStatus = data['status'] as String?;
+      final isMatch = interactionStatus == 'matched_with_superlike';
 
       return Right(SwipeResult(
         isMatch: isMatch,
         matchId: isMatch ? (data['match_id'] as String?) : null,
         remainingLikes: data['daily_likes_remaining'] as int?,
         remainingSuperLikes: data['super_likes_remaining'] as int?,
+        interactionId: data['interaction_id']?.toString(),
+        canRewind: data['can_rewind'] as bool? ?? false,
+        rewindExpiresAt: data['rewind_expires_at'] is String
+            ? DateTime.tryParse(data['rewind_expires_at'] as String)
+            : null,
       ));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {
@@ -167,7 +183,14 @@ class MatchRepositoryImpl implements MatchRepository {
         isMatch: false,
         remainingLikes: remainingLikes,
         remainingSuperLikes: remainingSuperLikes,
+        interactionId: data?['interaction_id']?.toString(),
+        canRewind: data?['can_rewind'] as bool? ?? false,
+        rewindExpiresAt: data?['rewind_expires_at'] is String
+            ? DateTime.tryParse(data!['rewind_expires_at'] as String)
+            : null,
       ));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {
@@ -176,13 +199,19 @@ class MatchRepositoryImpl implements MatchRepository {
   }
 
   @override
-  Future<Either<Failure, SwipeResult>> rewindLastSwipe() async {
+  Future<Either<Failure, SwipeResult>> rewindInteraction(
+    String interactionId,
+  ) async {
     try {
-      await _matchingApi.rewindLastSwipe();
+      final response = await _matchingApi.rewindInteraction(interactionId);
+      final data = response.data ?? const <String, dynamic>{};
       return Right(SwipeResult(
         isMatch: false,
-        matchId: null,
+        interactionId: data['interaction_id']?.toString() ?? interactionId,
+        alreadyRewound: data['already_rewound'] as bool? ?? false,
       ));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e, 'Impossible d annuler cette action'));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {
@@ -238,12 +267,66 @@ class MatchRepositoryImpl implements MatchRepository {
   @override
   Future<Either<Failure, void>> deleteMatch(String matchId) async {
     try {
+      await _matchingApi.deleteMatch(matchId);
       // TODO: ImplÃ©menter deleteMatch dans l'API
       return const Right(null);
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e, 'Impossible de supprimer ce match'));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {
       return Left(ServerFailure(message: 'Erreur lors de la suppression: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> getUnseenMatchCount() async {
+    try {
+      final response = await _matchingApi.getUnseenMatchCount();
+      return Right((response.data?['unseen_count'] as num?)?.toInt() ?? 0);
+    } on DioException catch (e) {
+      return Left(_failureFromDio(
+        e,
+        LocalizationService.translate('matches.sync_error'),
+      ));
+    } catch (_) {
+      return Left(ServerFailure(
+        code: 'unseen_matches_unavailable',
+        message: LocalizationService.translate('matches.sync_error'),
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> markMatchesSeen(List<String> matchIds) async {
+    if (matchIds.isEmpty) return getUnseenMatchCount();
+    try {
+      final response = await _matchingApi.markMatchesSeen(matchIds);
+      return Right((response.data?['unseen_count'] as num?)?.toInt() ?? 0);
+    } on DioException catch (e) {
+      return Left(_failureFromDio(
+        e,
+        LocalizationService.translate('matches.sync_error'),
+      ));
+    } catch (_) {
+      return Left(ServerFailure(
+        code: 'mark_matches_seen_failed',
+        message: LocalizationService.translate('matches.sync_error'),
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Match>> unlockFreeMatch(String matchId) async {
+    try {
+      final response = await _matchingApi.unlockFreeMatch(matchId);
+      return Right(_mapJsonToMatch(response.data!));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e, 'Impossible de réessayer ce match'));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Impossible de réessayer ce match: $e',
+      ));
     }
   }
 
@@ -269,9 +352,9 @@ class MatchRepositoryImpl implements MatchRepository {
       );
 
       final payload = response.data!;
-      final list = (payload['results'] ?? payload['data'] ?? []);
+      final list = (payload['results'] ?? payload['data'] ?? []) as List;
       final profiles = list
-          .map((json) =>
+          .map<DiscoveryProfile>((json) =>
               _mapJsonToDiscoveryProfile(json as Map<String, dynamic>))
           .toList();
 
@@ -311,17 +394,54 @@ class MatchRepositoryImpl implements MatchRepository {
   }
 
   @override
+  Future<Either<Failure, DiscoveryProfile>> revealReceivedLike() async {
+    try {
+      final response = await _matchingApi.revealReceivedLike();
+      final profile = response.data?['profile'];
+      if (profile is! Map<String, dynamic>) {
+        return const Left(ServerFailure(
+          message: 'Réponse de révélation invalide',
+          code: 'invalid_reveal_response',
+        ));
+      }
+      return Right(_mapJsonToDiscoveryProfile(profile));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e, 'Impossible de révéler ce like'));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Impossible de révéler ce like: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, DailyLikeLimit>> getDailyLikeLimit() async {
-    // Pas d'endpoint dédié : la limite est déduite des réponses de swipe
-    return Left(const ServerFailure(
-        message: 'Daily limit is derived from swipe responses'));
+    try {
+      final response = await _matchingApi.getInteractionStatus();
+      final data = response.data!;
+      if (data['is_premium'] == true || data['daily_likes_limit'] == null) {
+        return const Left(ServerFailure(
+          message: 'Unlimited discovery quota',
+          code: 'unlimited',
+        ));
+      }
+      return Right(DailyLikeLimit.fromJson(data));
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Erreur lors du chargement du compteur: $e',
+      ));
+    }
   }
 
   @override
   Future<Either<Failure, int>> getSuperLikesRemaining() async {
     try {
-      // TODO: Implement API call
-      return const Right(5);
+      final response = await _matchingApi.getInteractionStatus();
+      return Right(response.data!['super_likes_remaining'] as int? ?? 0);
+    } on DioException catch (e) {
+      return Left(_failureFromDio(e));
     } catch (e) {
       return Left(ServerFailure(
           message: 'Erreur lors du chargement des super likes: $e'));
@@ -418,17 +538,23 @@ class MatchRepositoryImpl implements MatchRepository {
           ? payload['filters'] as Map<String, dynamic>
           : payload;
 
+      final genders =
+          (rawFilters['genders'] as List?)?.map((e) => '$e').toList() ??
+              const <String>[];
+      final relationshipTypes = (rawFilters['relationship_types'] as List?)
+              ?.map((e) => '$e')
+              .toList() ??
+          const <String>[];
       final filters = SearchPreferences(
         minAge: (rawFilters['age_min'] as int?) ?? 18,
         maxAge: (rawFilters['age_max'] as int?) ?? 99,
         maxDistance: ((rawFilters['distance_max_km'] as num?) ?? 50).toDouble(),
-        interestedIn:
-            (rawFilters['genders'] as List?)?.map((e) => '$e').toList() ??
-                const <String>[],
-        relationshipTypes: (rawFilters['relationship_types'] as List?)
-                ?.map((e) => '$e')
-                .toList() ??
-            const <String>[],
+        interestedIn: DiscoveryPreferenceCatalog.genderPayload(
+          DiscoveryPreferenceCatalog.genderSelection(genders),
+        ),
+        relationshipTypes: DiscoveryPreferenceCatalog.relationshipPayload(
+          DiscoveryPreferenceCatalog.relationshipSelection(relationshipTypes),
+        ),
         showVerifiedOnly: (rawFilters['verified_only'] as bool?) ?? false,
         showOnlineOnly: (rawFilters['online_only'] as bool?) ?? false,
       );
@@ -443,7 +569,10 @@ class MatchRepositoryImpl implements MatchRepository {
 
   // Helper methods
 
-  Failure _failureFromDio(DioException error, String fallback) {
+  Failure _failureFromDio(
+    DioException error, [
+    String fallback = 'Erreur serveur',
+  ]) {
     final data = error.response?.data;
     if (error.response?.statusCode == 403 && data is Map<String, dynamic>) {
       final code = data['error']?.toString();
@@ -458,7 +587,14 @@ class MatchRepositoryImpl implements MatchRepository {
           data['detail']?.toString() ??
           data['error']?.toString();
     }
-    return ServerFailure(message: message ?? error.message ?? fallback);
+    final responseCode = data is Map<String, dynamic>
+        ? (data['code'] ?? data['error'])?.toString()
+        : null;
+    return ServerFailure(
+      message: message ?? error.message ?? fallback,
+      code: responseCode ??
+          (error.response?.statusCode == 429 ? 'rate_limited' : null),
+    );
   }
 
   /// Extrait une PhotoCollection Ã  partir des donnÃ©es JSON
@@ -626,6 +762,8 @@ class MatchRepositoryImpl implements MatchRepository {
       country: json['country'] as String? ?? '',
       distance: (json['distance'] as num?)?.toDouble() ??
           (json['distance_km'] as num?)?.toDouble(),
+      distanceEstimated: json['distance_estimated'] == true,
+      sameCity: json['same_city'] == true,
       interests: (json['interests'] as List?)?.cast<String>() ?? [],
       relationshipTypesSought: relationshipTypesSought,
       relationshipType: relationshipType,
@@ -666,11 +804,16 @@ class MatchRepositoryImpl implements MatchRepository {
         profileData['geohash'] as String? ??
         '';
 
+    final userId =
+        (profileData['user_id'] ?? json['matched_user_id'])?.toString();
+    final profileId = (profileData['id'] ?? userId)?.toString();
+    if (userId == null || profileId == null) {
+      throw const FormatException('Match response is missing the matched user');
+    }
+
     final profile = Profile(
-      id: profileData['id'] as String? ?? json['matched_user_id'] as String,
-      userId: profileData['user_id'] as String? ??
-          profileData['id'] as String? ??
-          json['matched_user_id'] as String,
+      id: profileId,
+      userId: userId,
       displayName: profileData['display_name'] as String,
       birthDate: birthDate,
       bio: profileData['bio'] as String? ?? '',
@@ -744,7 +887,14 @@ class MatchRepositoryImpl implements MatchRepository {
       matchedAt: DateTime.parse(json['created_at'] as String),
       lastMessage: lastMessage,
       isNew: json['is_new'] as bool? ?? false,
-      unreadCounts: Map<String, int>.from(json['unread_counts'] ?? {}),
+      unreadCounts: json['unread_counts'] is Map
+          ? Map<String, int>.from(json['unread_counts'] as Map)
+          : {'me': (json['unread_count_for_me'] as num?)?.toInt() ?? 0},
+      accessLevel: json['access_level'] as String? ?? 'full',
+      canViewProfile: json['can_view_profile'] as bool? ?? true,
+      canSendMessages: json['can_send_messages'] as bool? ?? true,
+      freeMessagesRemaining: (json['free_messages_remaining'] as num?)?.toInt(),
+      accessLockedReason: json['access_locked_reason'] as String?,
     );
   }
 }

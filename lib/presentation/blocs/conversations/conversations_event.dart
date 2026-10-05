@@ -86,6 +86,15 @@ class ConversationRealtimeSignal extends ConversationsEvent {
 /// et fusionne dans le cache local SANS jamais émettre `ConversationsLoading`
 /// (contrairement à `LoadConversations`), pour éviter tout flash d'écran de
 /// chargement à chaque message temps réel reçu.
+class ConversationRemovedRemotely extends ConversationsEvent {
+  final String conversationId;
+
+  const ConversationRemovedRemotely({required this.conversationId});
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
 class ReconcileConversations extends ConversationsEvent {
   const ReconcileConversations();
 }

@@ -10,6 +10,9 @@ class PremiumPlan extends Equatable {
   final String description;
   final double price;
   final String currency;
+  final double basePrice;
+  final String baseCurrency;
+  final double monthlyEquivalent;
   final BillingInterval billingInterval;
   final int trialPeriodDays;
   final PremiumFeatures features;
@@ -24,13 +27,18 @@ class PremiumPlan extends Equatable {
     required this.description,
     required this.price,
     required this.currency,
+    double? basePrice,
+    String? baseCurrency,
+    double? monthlyEquivalent,
     required this.billingInterval,
     this.trialPeriodDays = 0,
     required this.features,
     this.savings = 0,
     this.isPopular = false,
     this.isRecommended = false,
-  });
+  })  : basePrice = basePrice ?? price,
+        baseCurrency = baseCurrency ?? currency,
+        monthlyEquivalent = monthlyEquivalent ?? price;
 
   @override
   List<Object?> get props => [
@@ -40,6 +48,9 @@ class PremiumPlan extends Equatable {
         description,
         price,
         currency,
+        basePrice,
+        baseCurrency,
+        monthlyEquivalent,
         billingInterval,
         trialPeriodDays,
         features,
@@ -56,6 +67,7 @@ class PremiumFeatures extends Equatable {
   final bool canRewind;
   final int monthlyBoosts;
   final int dailySuperLikes;
+  final int dailyRewinds;
   final bool mediaMessaging;
   final bool videoCalls;
   final bool prioritySupport;
@@ -68,6 +80,7 @@ class PremiumFeatures extends Equatable {
     this.canRewind = false,
     this.monthlyBoosts = 0,
     this.dailySuperLikes = 0,
+    this.dailyRewinds = 0,
     this.mediaMessaging = false,
     this.videoCalls = false,
     this.prioritySupport = false,
@@ -82,12 +95,74 @@ class PremiumFeatures extends Equatable {
         canRewind,
         monthlyBoosts,
         dailySuperLikes,
+        dailyRewinds,
         mediaMessaging,
         videoCalls,
         prioritySupport,
         advancedFilters,
         incognitoMode,
       ];
+}
+
+/// Capacités publiques de paiement exposées par le backend.
+///
+/// Aucun secret fournisseur n'est transporté dans ce contrat.
+class PaymentCapabilities extends Equatable {
+  final String provider;
+  final bool available;
+  final bool callbackVerificationAvailable;
+  final bool automaticReturnAvailable;
+  final String confirmationMode;
+  final List<String> enabledCurrencies;
+  final String defaultCurrency;
+  final String effectiveCurrency;
+
+  const PaymentCapabilities({
+    required this.provider,
+    required this.available,
+    required this.callbackVerificationAvailable,
+    this.automaticReturnAvailable = false,
+    this.confirmationMode = 'polling_only',
+    required this.enabledCurrencies,
+    required this.defaultCurrency,
+    required this.effectiveCurrency,
+  });
+
+  const PaymentCapabilities.unavailable({this.effectiveCurrency = 'EUR'})
+      : provider = 'mycoolpay',
+        available = false,
+        callbackVerificationAvailable = false,
+        automaticReturnAvailable = false,
+        confirmationMode = 'polling_only',
+        enabledCurrencies = const [],
+        defaultCurrency = 'EUR';
+
+  @override
+  List<Object> get props => [
+        provider,
+        available,
+        callbackVerificationAvailable,
+        automaticReturnAvailable,
+        confirmationMode,
+        enabledCurrencies,
+        defaultCurrency,
+        effectiveCurrency,
+      ];
+}
+
+class ScheduledPlanChange extends Equatable {
+  final String planId;
+  final String planName;
+  final DateTime? effectiveAt;
+
+  const ScheduledPlanChange({
+    required this.planId,
+    required this.planName,
+    required this.effectiveAt,
+  });
+
+  @override
+  List<Object?> get props => [planId, planName, effectiveAt];
 }
 
 // Abonnement utilisateur
@@ -102,6 +177,7 @@ class UserSubscription extends Equatable {
   final bool cancelAtPeriodEnd;
   final DateTime? nextBillingDate;
   final FeaturesUsage? featuresUsage;
+  final ScheduledPlanChange? scheduledChange;
 
   const UserSubscription({
     required this.id,
@@ -114,6 +190,7 @@ class UserSubscription extends Equatable {
     this.cancelAtPeriodEnd = false,
     this.nextBillingDate,
     this.featuresUsage,
+    this.scheduledChange,
   });
 
   bool get isActive =>
@@ -132,6 +209,7 @@ class UserSubscription extends Equatable {
         cancelAtPeriodEnd,
         nextBillingDate,
         featuresUsage,
+        scheduledChange,
       ];
 }
 
@@ -161,37 +239,116 @@ class FeaturesUsage extends Equatable {
 // Session de paiement MyCoolPay
 class PaymentSession extends Equatable {
   final String sessionId;
-  final String paymentUrl;
-  final DateTime expiresAt;
+  final String? paymentUrl;
+  final String planId;
+  final String idempotencyKey;
+  final PaymentStatus status;
+  final DateTime? expiresAt;
+  final String? returnTo;
 
   const PaymentSession({
     required this.sessionId,
     required this.paymentUrl,
-    required this.expiresAt,
+    this.planId = '',
+    this.idempotencyKey = '',
+    this.status = PaymentStatus.pending,
+    this.expiresAt,
+    this.returnTo,
   });
 
-  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  bool get canOpenPaymentPage =>
+      paymentUrl != null && paymentUrl!.trim().isNotEmpty;
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
   @override
-  List<Object> get props => [sessionId, paymentUrl, expiresAt];
+  List<Object?> get props => [
+        sessionId,
+        paymentUrl,
+        planId,
+        idempotencyKey,
+        status,
+        expiresAt,
+        returnTo,
+      ];
+}
+
+/// Result of [PremiumRepository.modifySubscription].
+///
+/// MyCoolPay is Paylink-only and has no subscription-modification API: an
+/// immediate plan change either costs nothing extra (the outgoing plan's
+/// unused credit covers the new plan in full) and is [applied] right away,
+/// or requires a real charge, in which case a fresh [PaymentSession] is
+/// created and the plan itself only switches once the webhook confirms that
+/// payment — exactly like [PremiumRepository.createPaymentSession].
+class ModifySubscriptionOutcome extends Equatable {
+  final UserSubscription? subscription;
+  final PaymentSession? paymentSession;
+
+  const ModifySubscriptionOutcome.applied(this.subscription)
+      : paymentSession = null;
+
+  const ModifySubscriptionOutcome.paymentRequired(this.paymentSession)
+      : subscription = null;
+
+  bool get requiresPayment => paymentSession != null;
+
+  @override
+  List<Object?> get props => [subscription, paymentSession];
+}
+
+/// Minimal encrypted local record used to resume a hosted checkout.
+///
+/// It deliberately excludes the phone number and all provider credentials.
+class PendingPaymentAttempt extends Equatable {
+  final String? paymentId;
+  final String planId;
+  final String idempotencyKey;
+  final String? paymentUrl;
+  final DateTime createdAt;
+  final String? returnTo;
+
+  const PendingPaymentAttempt({
+    required this.paymentId,
+    required this.planId,
+    required this.idempotencyKey,
+    required this.paymentUrl,
+    required this.createdAt,
+    this.returnTo,
+  });
+
+  bool get hasPaymentId => paymentId != null && paymentId!.isNotEmpty;
+  bool get canOpenPaymentPage =>
+      paymentUrl != null && paymentUrl!.trim().isNotEmpty;
+
+  @override
+  List<Object?> get props => [
+        paymentId,
+        planId,
+        idempotencyKey,
+        paymentUrl,
+        createdAt,
+        returnTo,
+      ];
 }
 
 // Résultat d'un paiement
 class PaymentResult extends Equatable {
   final PaymentStatus status;
+  final bool fulfilled;
   final String? subscriptionId;
   final DateTime? activatedAt;
   final List<String> featuresUnlocked;
 
   const PaymentResult({
     required this.status,
+    this.fulfilled = false,
     this.subscriptionId,
     this.activatedAt,
     this.featuresUnlocked = const [],
   });
 
-  bool get isSuccessful => status == PaymentStatus.succeeded;
-  bool get success => status == PaymentStatus.succeeded;
+  bool get isSuccessful => status == PaymentStatus.succeeded && fulfilled;
+  bool get success => isSuccessful;
   String? get errorMessage {
     switch (status) {
       case PaymentStatus.failed:
@@ -208,6 +365,7 @@ class PaymentResult extends Equatable {
   @override
   List<Object?> get props => [
         status,
+        fulfilled,
         subscriptionId,
         activatedAt,
         featuresUnlocked,

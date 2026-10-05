@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:developer' as developer;
+import 'package:hivmeet/core/utils/log_service.dart' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:hivmeet/core/config/app_config.dart';

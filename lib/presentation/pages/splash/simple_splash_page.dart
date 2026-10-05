@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 
 class SimpleSplashPage extends StatefulWidget {
@@ -54,7 +53,8 @@ class _SimpleSplashPageState extends State<SimpleSplashPage> {
               // Nom de l'application
               Text(
                 'HIVMeet',
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primaryPurple,
@@ -65,7 +65,8 @@ class _SimpleSplashPageState extends State<SimpleSplashPage> {
               // Tagline
               Text(
                 'Connecter • Soutenir • Grandir',
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 16,
                   color: AppColors.slate,
                 ),
@@ -80,7 +81,8 @@ class _SimpleSplashPageState extends State<SimpleSplashPage> {
               const SizedBox(height: 16),
               Text(
                 'Chargement...',
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 14,
                   color: AppColors.slate,
                 ),
@@ -91,7 +93,8 @@ class _SimpleSplashPageState extends State<SimpleSplashPage> {
               // Version de l'app
               Text(
                 'Version 1.0.0',
-                style: GoogleFonts.openSans(
+                style: TextStyle(
+                  fontFamily: 'OpenSans',
                   fontSize: 12,
                   color: AppColors.slate.withValues(alpha: 0.7),
                 ),

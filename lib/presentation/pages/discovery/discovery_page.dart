@@ -1,14 +1,16 @@
-﻿// lib/presentation/pages/discovery/discovery_page.dart
+// lib/presentation/pages/discovery/discovery_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/config/premium_navigation.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/domain/entities/search_filters.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
+import 'package:hivmeet/presentation/blocs/auth/auth_state.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_bloc.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_event.dart';
 import 'package:hivmeet/presentation/blocs/discovery/discovery_state.dart';
@@ -73,7 +75,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           elevation: 0,
           title: Text(
             'HIVMeet',
-            style: GoogleFonts.pacifico(
+            style: TextStyle(
+              fontFamily: 'Pacifico',
               fontSize: 28,
               fontWeight: FontWeight.w400,
               color: AppColors.primaryPurple,
@@ -175,40 +178,49 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   Widget _buildDiscoveryContent(DiscoveryLoaded state) {
-    return Column(
-      children: [
-        // Zone de swipe : carte + overlays (limite, rewind, loading)
-        Expanded(
-          child: Stack(
-            children: [
-              Center(
-                child: SwipeCard(
-                  key: _swipeCardKey,
-                  profile: state.currentProfile,
-                  onSwipe: _handleSwipe,
-                  onTap: _showProfileDetail,
-                ),
+    return BlocBuilder<AuthBlocSimple, AuthState>(
+      builder: (context, authState) {
+        final isPremium =
+            authState is Authenticated && authState.user.isPremiumActive;
+        return Column(
+          children: [
+            // Zone de swipe : carte + overlays (limite, rewind, loading)
+            Expanded(
+              child: Stack(
+                children: [
+                  Center(
+                    child: SwipeCard(
+                      key: _swipeCardKey,
+                      profile: state.currentProfile,
+                      onSwipe: _handleSwipe,
+                      onTap: _showProfileDetail,
+                    ),
+                  ),
+
+                  // Indicateur de likes restants (overlay haut)
+                  if (!isPremium && state.dailyLimit != null)
+                    _buildDailyLimitIndicator(state.dailyLimit!),
+
+                  // Le rewind immédiat est un droit Premium. Le statut
+                  // d'authentification rafraîchi prime sur le quota local.
+                  if (state.canRewind && isPremium)
+                    _buildRewindButton(isRewinding: state.isRewinding)
+                  else if (!isPremium)
+                    _buildLockedRewindButton(),
+
+                  // Indicateur de chargement progressif (overlay centre)
+                  if (_discoveryBloc.state is DiscoveryLoadingMore)
+                    _buildLoadingMoreIndicator(),
+                ],
               ),
+            ),
 
-              // Indicateur de likes restants (overlay haut)
-              // Toujours affiché pour les utilisateurs gratuits (remaining <= totalLikes)
-              if (state.dailyLimit != null)
-                _buildDailyLimitIndicator(state.dailyLimit!),
-
-              // Bouton de retour arriere (overlay haut-droite)
-              if (state.canRewind) _buildRewindButton(),
-
-              // Indicateur de chargement progressif (overlay centre)
-              if (_discoveryBloc.state is DiscoveryLoadingMore)
-                _buildLoadingMoreIndicator(),
-            ],
-          ),
-        ),
-
-        // Boutons d'action SOUS la carte, jamais superposes
-        _buildActionButtons(state),
-        const SizedBox(height: 12),
-      ],
+            // Boutons d'action SOUS la carte, jamais superposes
+            _buildActionButtons(state, isPremium: isPremium),
+            const SizedBox(height: 12),
+          ],
+        );
+      },
     );
   }
 
@@ -270,7 +282,10 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
-  Widget _buildActionButtons(DiscoveryLoaded state) {
+  Widget _buildActionButtons(
+    DiscoveryLoaded state, {
+    required bool isPremium,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Row(
@@ -306,6 +321,10 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             onPressed: () {
               // Bloquer pendant une erreur (rate limit ou autre)
               if (_discoveryBloc.state is DiscoveryError) return;
+              if (!isPremium) {
+                _showPremiumSuperLikeDialog();
+                return;
+              }
               // Declencher l'animation + le swipe
               final swipeCardState = _swipeCardKey.currentState;
               if (swipeCardState != null) {
@@ -388,18 +407,115 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
-  Widget _buildRewindButton() {
+  Widget _buildRewindButton({bool isRewinding = false}) {
     return Positioned(
       top: 70, // Aligner avec l'indicateur de likes
       right: 20,
       child: FloatingActionButton(
         mini: true,
         backgroundColor: AppColors.primaryPurple,
-        onPressed: () => _discoveryBloc.add(RewindLastSwipe()),
-        child: const Icon(
-          Icons.undo,
-          color: Colors.white,
+        onPressed:
+            isRewinding ? null : () => _discoveryBloc.add(RewindLastSwipe()),
+        child: isRewinding
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(
+                Icons.undo,
+                color: Colors.white,
+              ),
+      ),
+    );
+  }
+
+  Widget _buildLockedRewindButton() {
+    return Positioned(
+      top: 70,
+      right: 20,
+      child: Semantics(
+        button: true,
+        label: LocalizationService.translate('premium.rewind_locked'),
+        child: FloatingActionButton.small(
+          heroTag: 'premium-rewind-lock',
+          backgroundColor: AppColors.slate,
+          onPressed: _showPremiumRewindDialog,
+          child: const Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(Icons.undo, color: Colors.white),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Icon(Icons.lock, color: Colors.white, size: 12),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _showPremiumRewindDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          LocalizationService.translate('premium.rewind_locked_title'),
+        ),
+        content: Text(
+          LocalizationService.translate('premium.rewind_locked_message'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(LocalizationService.translate('common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push(PremiumNavigation.location(
+                returnTo: AppRoutes.discovery,
+              ));
+            },
+            child: Text(
+              LocalizationService.translate('premium.upgrade'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPremiumSuperLikeDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(LocalizationService.translate(
+          'premium.super_like_locked_title',
+        )),
+        content: Text(LocalizationService.translate(
+          'premium.super_like_locked_message',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(LocalizationService.translate('common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push(PremiumNavigation.location(
+                returnTo: AppRoutes.discovery,
+              ));
+            },
+            child: Text(LocalizationService.translate('premium.upgrade')),
+          ),
+        ],
       ),
     );
   }
@@ -443,68 +559,60 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _buildNoMoreProfilesState() {
     _debugLog('DEBUG _buildNoMoreProfilesState: Debut de construction');
-    try {
-      final title =
-          LocalizationService.translate('discovery.no_more_profiles_title');
-      final message =
-          LocalizationService.translate('discovery.no_more_profiles_message');
-      final actionText =
-          LocalizationService.translate('discovery.adjust_filters');
+    final title =
+        LocalizationService.translate('discovery.no_more_profiles_title');
+    final message =
+        LocalizationService.translate('discovery.no_more_profiles_message');
+    final actionText =
+        LocalizationService.translate('discovery.adjust_filters');
+    final reloadText =
+        LocalizationService.translate('discovery.reload_profiles');
 
-      _debugLog(
-          'DEBUG _buildNoMoreProfilesState: title=$title, message=$message, actionText=$actionText');
+    _debugLog(
+        'DEBUG _buildNoMoreProfilesState: title=$title, message=$message, actionText=$actionText');
 
-      return Container(
-        color: AppColors.primaryWhite,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              EmptyStateWidget(
-                icon: Icons.people_outline,
-                title: title,
-                message: message,
-                actionText: actionText,
-                onAction: _showFiltersModal,
-              ),
-              const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: () {
-                  _debugLog('DEBUG: Reinitialisation des filtres demandee');
-                  _discoveryBloc.add(const LoadDiscoveryProfiles(limit: 5));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Rechargement des profils...'),
-                      backgroundColor: AppColors.primaryPurple,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.refresh, size: 20),
-                label: const Text(
-                  'Recharger',
-                  style: TextStyle(fontSize: 16),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primaryPurple,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+    return Container(
+      color: AppColors.primaryWhite,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            EmptyStateWidget(
+              icon: Icons.people_outline,
+              title: title,
+              message: message,
+              actionText: actionText,
+              onAction: _showFiltersModal,
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () {
+                _debugLog('DEBUG: Actualisation des profils demandee');
+                _discoveryBloc.add(
+                  const LoadDiscoveryProfiles(
+                    limit: 20,
+                    forceRefresh: true,
                   ),
+                );
+              },
+              icon: const Icon(Icons.refresh, size: 20),
+              label: Text(
+                reloadText,
+                style: const TextStyle(fontSize: 16),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryPurple,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    } catch (e, stackTrace) {
-      _debugLog('ERROR _buildNoMoreProfilesState: $e');
-      _debugLog('Stack trace: $stackTrace');
-      return Center(
-        child: Text('Erreur: $e', style: const TextStyle(color: Colors.red)),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildDailyLimitReachedState(DailyLimitReached state) {
@@ -521,7 +629,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           Text(
             LocalizationService.translate(
                 'discovery.daily_limit_reached_title'),
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: AppColors.charcoal,
@@ -537,7 +646,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                 'resetTime': _formatResetTime(state.limitInfo.resetAt),
               },
             ),
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 16,
               color: AppColors.slate,
             ),
@@ -545,7 +655,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
-            onPressed: () => context.go('/subscription'),
+            onPressed: () => context.go(PremiumNavigation.location(
+              returnTo: AppRoutes.discovery,
+            )),
             icon: const Icon(Icons.star),
             label: Text(
                 LocalizationService.translate('discovery.upgrade_premium')),
@@ -580,6 +692,13 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   void _handleSwipe(SwipeDirection direction) {
+    final authState = context.read<AuthBlocSimple>().state;
+    final isPremium =
+        authState is Authenticated && authState.user.isPremiumActive;
+    if (direction == SwipeDirection.up && !isPremium) {
+      _showPremiumSuperLikeDialog();
+      return;
+    }
     _discoveryBloc.add(SwipeProfile(direction: direction));
   }
 

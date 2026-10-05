@@ -1,12 +1,13 @@
 import 'package:get_it/get_it.dart';
+import 'package:app_links/app_links.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:dio/dio.dart';
 import 'package:hivmeet/data/services/notification_service.dart';
 import 'package:hivmeet/data/services/notifications_local_store.dart';
 import 'package:hivmeet/presentation/blocs/notifications/notifications_bloc.dart';
 import 'package:hivmeet/presentation/blocs/unread/unread_cubit.dart';
+import 'package:hivmeet/presentation/blocs/matches/unseen_matches_cubit.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/notification_websocket_service.dart';
 import 'package:hivmeet/core/services/token_manager.dart';
@@ -14,6 +15,8 @@ import 'package:hivmeet/core/services/authentication_service.dart';
 import 'package:hivmeet/core/network/api_client.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/services/network_connectivity_service.dart';
+import 'package:hivmeet/core/services/payment_deep_link_service.dart';
+import 'package:hivmeet/core/services/media_download_service.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_bloc_simple.dart';
 import 'package:hivmeet/presentation/blocs/register/register_bloc.dart';
 import 'package:hivmeet/data/datasources/remote/settings_api.dart';
@@ -36,6 +39,9 @@ import 'package:hivmeet/domain/usecases/chat/send_media_message.dart';
 import 'package:hivmeet/domain/usecases/chat/mark_message_as_read.dart';
 import 'package:hivmeet/domain/usecases/chat/set_typing_status.dart';
 import 'package:hivmeet/domain/usecases/chat/delete_message.dart';
+import 'package:hivmeet/domain/usecases/chat/delete_messages.dart';
+import 'package:hivmeet/domain/usecases/chat/edit_message.dart';
+import 'package:hivmeet/domain/usecases/chat/restore_conversation.dart';
 import 'package:hivmeet/domain/usecases/chat/get_presence.dart';
 import 'package:hivmeet/core/services/chat_websocket_service.dart';
 import 'package:hivmeet/domain/usecases/match/get_discovery_profiles.dart';
@@ -47,8 +53,12 @@ import 'package:hivmeet/domain/usecases/match/update_filters.dart';
 import 'package:hivmeet/domain/usecases/match/get_search_filters.dart';
 import 'package:hivmeet/domain/usecases/match/get_daily_like_limit.dart';
 import 'package:hivmeet/domain/usecases/match/get_matches.dart';
+import 'package:hivmeet/domain/usecases/match/get_unseen_match_count.dart';
+import 'package:hivmeet/domain/usecases/match/mark_matches_seen.dart';
 import 'package:hivmeet/domain/usecases/match/delete_match.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received.dart';
+import 'package:hivmeet/domain/usecases/match/unlock_free_match.dart';
+import 'package:hivmeet/domain/usecases/match/reveal_received_like.dart';
 import 'package:hivmeet/domain/repositories/premium_repository.dart';
 import 'package:hivmeet/domain/usecases/match/get_likes_received_count.dart';
 import 'package:hivmeet/domain/usecases/match/activate_boost.dart';
@@ -60,6 +70,7 @@ import 'package:hivmeet/domain/usecases/resources/add_to_favorites.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/get_my_likes.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/get_my_passes.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/revoke_interaction.dart';
+import 'package:hivmeet/domain/usecases/interaction_history/revoke_interactions.dart';
 import 'package:hivmeet/domain/usecases/interaction_history/get_interaction_stats.dart';
 import 'package:hivmeet/core/events/app_events.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
@@ -77,6 +88,7 @@ import 'package:hivmeet/data/datasources/remote/resources_api.dart';
 import 'package:hivmeet/data/repositories/resource_repository_impl.dart';
 import 'package:hivmeet/domain/repositories/resource_repository.dart';
 import 'package:hivmeet/presentation/blocs/resources/resources_bloc.dart';
+import 'package:hivmeet/presentation/blocs/resource_detail/resource_detail_bloc.dart';
 import 'package:hivmeet/data/datasources/remote/profile_api.dart';
 import 'package:hivmeet/data/repositories/profile_repository_impl.dart';
 import 'package:hivmeet/data/repositories/premium_repository_impl.dart';
@@ -118,6 +130,7 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<FirebaseAuth>(FirebaseAuth.instance);
   getIt.registerSingleton<FirebaseMessaging>(FirebaseMessaging.instance);
+  getIt.registerSingleton<AppLinks>(AppLinks());
 
   // 2. Services de base (dépendances simples)
   getIt.registerSingleton<LocalizationService>(LocalizationService());
@@ -131,6 +144,10 @@ Future<void> configureDependencies() async {
   );
 
   getIt.registerSingleton<RealtimeEventBus>(RealtimeEventBus());
+
+  getIt.registerSingleton<PaymentDeepLinkService>(
+    PaymentDeepLinkService(getIt<AppLinks>()),
+  );
 
   // 3. TokenManager sans ApiClient d'abord
   getIt.registerSingleton<TokenManager>(
@@ -152,21 +169,6 @@ Future<void> configureDependencies() async {
       getIt<TokenManager>(),
       getIt<ApiClient>(),
     ),
-  );
-
-  // 6.1 Dio dédié aux paiements externes (MyCoolPay)
-  // Ce client n'utilise pas l'auth HIVMeet et ne doit pas partager les
-  // intercepteurs de l'ApiClient principal.
-  getIt.registerSingleton<Dio>(
-    Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    )),
-    instanceName: 'paymentDio',
   );
 
   getIt.registerSingleton<NotificationWebSocketService>(
@@ -199,6 +201,13 @@ Future<void> configureDependencies() async {
     MessagingApi(getIt<ApiClient>()),
   );
 
+  getIt.registerSingleton<MediaDownloadService>(
+    MediaDownloadService(
+      getIt<ApiClient>(),
+      tokenManager: getIt<TokenManager>(),
+    ),
+  );
+
   getIt.registerSingleton<ResourcesApi>(
     ResourcesApi(getIt<ApiClient>()),
   );
@@ -221,7 +230,10 @@ Future<void> configureDependencies() async {
 
   // 8.1 Service de paiement externe (MyCoolPay)
   getIt.registerSingleton<PaymentService>(
-    PaymentService(getIt<Dio>(instanceName: 'paymentDio')),
+    PaymentService(
+      getIt<SubscriptionsApi>(),
+      getIt<FlutterSecureStorage>(),
+    ),
   );
 
   // 9. Repositories
@@ -305,6 +317,18 @@ Future<void> configureDependencies() async {
     DeleteMessage(getIt<MessageRepository>()),
   );
 
+  getIt.registerSingleton<DeleteMessages>(
+    DeleteMessages(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<EditMessage>(
+    EditMessage(getIt<MessageRepository>()),
+  );
+
+  getIt.registerSingleton<RestoreConversation>(
+    RestoreConversation(getIt<MessageRepository>()),
+  );
+
   getIt.registerSingleton<GetPresence>(
     GetPresence(getIt<MessageRepository>()),
   );
@@ -346,12 +370,28 @@ Future<void> configureDependencies() async {
     GetMatches(getIt<MatchRepository>()),
   );
 
+  getIt.registerSingleton<GetUnseenMatchCount>(
+    GetUnseenMatchCount(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<MarkMatchesSeen>(
+    MarkMatchesSeen(getIt<MatchRepository>()),
+  );
+
   getIt.registerSingleton<DeleteMatch>(
     DeleteMatch(getIt<MatchRepository>()),
   );
 
   getIt.registerSingleton<GetLikesReceived>(
     GetLikesReceived(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<UnlockFreeMatch>(
+    UnlockFreeMatch(getIt<MatchRepository>()),
+  );
+
+  getIt.registerSingleton<RevealReceivedLike>(
+    RevealReceivedLike(getIt<MatchRepository>()),
   );
 
   getIt.registerSingleton<GetLikesReceivedCount>(
@@ -449,6 +489,7 @@ Future<void> configureDependencies() async {
       updateFilters: getIt<UpdateFilters>(),
       getSearchFilters: getIt<GetSearchFilters>(),
       getDailyLikeLimit: getIt<GetDailyLikeLimit>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
       premiumRepository: getIt.isRegistered<PremiumRepository>()
           ? getIt<PremiumRepository>()
           : null,
@@ -459,6 +500,15 @@ Future<void> configureDependencies() async {
     () => ResourcesBloc(
       getResources: getIt<GetResources>(),
       addToFavorites: getIt<AddToFavorites>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
+    ),
+  );
+
+  getIt.registerFactory<ResourceDetailBloc>(
+    () => ResourceDetailBloc(
+      resourceRepository: getIt<ResourceRepository>(),
+      authenticationService: getIt<AuthenticationService>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
     ),
   );
 
@@ -469,11 +519,16 @@ Future<void> configureDependencies() async {
   getIt.registerFactory<ChatBloc>(
     () => ChatBloc(
       getMessages: getIt<GetMessages>(),
+      getPresence: getIt<GetPresence>(),
       sendTextMessage: getIt<SendTextMessage>(),
       sendMediaMessage: getIt<SendMediaMessage>(),
       markMessageAsRead: getIt<MarkMessageAsRead>(),
       setTypingStatus: getIt<SetTypingStatusUseCase>(),
       deleteMessage: getIt<DeleteMessage>(),
+      deleteMessages: getIt<DeleteMessages>(),
+      editMessage: getIt<EditMessage>(),
+      restoreConversation: getIt<RestoreConversation>(),
+      deleteConversation: getIt<delete_conversation.DeleteConversation>(),
       blockUser: getIt<BlockUser>(),
       reportUser: getIt<ReportUser>(),
       authService: getIt<AuthenticationService>(),
@@ -489,12 +544,12 @@ Future<void> configureDependencies() async {
       uploadPhoto: getIt<UploadPhoto>(),
       deletePhoto: getIt<DeletePhoto>(),
       setMainPhoto: getIt<SetMainPhoto>(),
-      reorderPhotos: getIt<ReorderPhotos>(),
       updateLocation: getIt<UpdateLocation>(),
       blockUser: getIt<BlockUser>(),
       unblockUser: getIt<UnblockUser>(),
       toggleProfileVisibility: getIt<ToggleProfileVisibility>(),
       profileRepository: getIt<ProfileRepository>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
     ),
   );
 
@@ -506,6 +561,9 @@ Future<void> configureDependencies() async {
       deleteMatch: getIt<DeleteMatch>(),
       getLikesReceived: getIt<GetLikesReceived>(),
       getLikesReceivedCount: getIt<GetLikesReceivedCount>(),
+      unlockFreeMatch: getIt<UnlockFreeMatch>(),
+      revealReceivedLike: getIt<RevealReceivedLike>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
     ),
   );
 
@@ -520,6 +578,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<RevokeInteraction>(
     RevokeInteraction(getIt<InteractionHistoryRepository>()),
+  );
+
+  getIt.registerSingleton<RevokeInteractions>(
+    RevokeInteractions(getIt<InteractionHistoryRepository>()),
   );
 
   getIt.registerSingleton<GetInteractionStats>(
@@ -555,12 +617,20 @@ Future<void> configureDependencies() async {
     ),
   );
 
+  getIt.registerLazySingleton<UnseenMatchesCubit>(
+    () => UnseenMatchesCubit(
+      getUnseenMatchCount: getIt<GetUnseenMatchCount>(),
+      markMatchesSeen: getIt<MarkMatchesSeen>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
+    ),
+  );
+
   // 12.2 InteractionHistoryBloc - Utilisé pour l'historique des likes/passes
   getIt.registerFactory<InteractionHistoryBloc>(
     () => InteractionHistoryBloc(
       getMyLikes: getIt<GetMyLikes>(),
       getMyPasses: getIt<GetMyPasses>(),
-      revokeInteraction: getIt<RevokeInteraction>(),
+      revokeInteractions: getIt<RevokeInteractions>(),
       getInteractionStats: getIt<GetInteractionStats>(),
     ),
   );
@@ -569,6 +639,8 @@ Future<void> configureDependencies() async {
   getIt.registerFactory<PremiumBloc>(
     () => PremiumBloc(
       premiumRepository: getIt<PremiumRepository>(),
+      authenticationService: getIt<AuthenticationService>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
     ),
   );
 

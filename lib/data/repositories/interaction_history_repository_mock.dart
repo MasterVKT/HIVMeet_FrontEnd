@@ -1,231 +1,177 @@
-// lib/data/repositories/interaction_history_repository_mock.dart
-
 import 'package:dartz/dartz.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/domain/entities/interaction_history.dart';
 import 'package:hivmeet/domain/entities/match.dart';
 import 'package:hivmeet/domain/repositories/interaction_history_repository.dart';
 
-/// Implémentation mock du repository d'historique des interactions
-///
-/// Utilisée pour le développement et les tests avant l'implémentation backend
+/// In-memory implementation kept contract-compatible with the REST repository.
 class InteractionHistoryRepositoryMock implements InteractionHistoryRepository {
-  // Stockage en mémoire des interactions
   final List<InteractionHistory> _likes = [];
   final List<InteractionHistory> _passes = [];
 
   InteractionHistoryRepositoryMock() {
-    _generateMockData();
+    _seed();
   }
 
   @override
-  Future<Either<Failure, List<InteractionHistory>>> getMyLikes({
+  Future<Either<Failure, InteractionHistoryPage>> getMyLikes({
     int page = 1,
     int pageSize = 20,
-    bool includeMatched = false,
-  }) async {
-    // Simuler un délai réseau
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    try {
-      var likes = List<InteractionHistory>.from(_likes);
-
-      // Filtrer les matchés si nécessaire
-      if (!includeMatched) {
-        likes = likes.where((l) => !l.isMatched).toList();
-      }
-
-      // Pagination
-      final startIndex = (page - 1) * pageSize;
-      final endIndex = startIndex + pageSize;
-
-      if (startIndex >= likes.length) {
-        return const Right([]);
-      }
-
-      final paginatedLikes = likes.sublist(
-        startIndex,
-        endIndex > likes.length ? likes.length : endIndex,
-      );
-
-      return Right(paginatedLikes);
-    } catch (e) {
-      return Left(ServerFailure(
-        message: 'Erreur lors du chargement des likes: $e',
-      ));
-    }
-  }
+    String query = '',
+    InteractionMatchFilter matchFilter = InteractionMatchFilter.all,
+  }) =>
+      _page(_likes, page, pageSize, query, matchFilter);
 
   @override
-  Future<Either<Failure, List<InteractionHistory>>> getMyPasses({
+  Future<Either<Failure, InteractionHistoryPage>> getMyPasses({
     int page = 1,
     int pageSize = 20,
-  }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    String query = '',
+    InteractionMatchFilter matchFilter = InteractionMatchFilter.all,
+  }) =>
+      _page(_passes, page, pageSize, query, matchFilter);
 
-    try {
-      final startIndex = (page - 1) * pageSize;
-      final endIndex = startIndex + pageSize;
-
-      if (startIndex >= _passes.length) {
-        return const Right([]);
-      }
-
-      final paginatedPasses = _passes.sublist(
-        startIndex,
-        endIndex > _passes.length ? _passes.length : endIndex,
-      );
-
-      return Right(paginatedPasses);
-    } catch (e) {
-      return Left(ServerFailure(
-        message: 'Erreur lors du chargement des profils passés: $e',
-      ));
-    }
+  Future<Either<Failure, InteractionHistoryPage>> _page(
+    List<InteractionHistory> source,
+    int page,
+    int pageSize,
+    String query,
+    InteractionMatchFilter filter,
+  ) async {
+    final filtered = _filter(source, query, filter);
+    final start = (page - 1) * pageSize;
+    final entries = start >= filtered.length
+        ? const <InteractionHistory>[]
+        : filtered.sublist(
+            start,
+            (start + pageSize).clamp(0, filtered.length).toInt(),
+          );
+    return Right(InteractionHistoryPage(
+      interactions: entries,
+      totalCount: filtered.length,
+      selectableCount: filtered.where((item) => item.canRevoke).length,
+      hasNextPage: start + pageSize < filtered.length,
+    ));
   }
 
   @override
   Future<Either<Failure, void>> revokeInteraction(String interactionId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    try {
-      // Chercher dans les likes
-      final likeIndex = _likes.indexWhere((l) => l.id == interactionId);
-      if (likeIndex != -1) {
-        // Vérifier si c'est un match actif
-        if (_likes[likeIndex].isMatched) {
-          return Left(ServerFailure(
-            message: 'Impossible de révoquer un like qui a abouti à un match',
-          ));
-        }
-        _likes.removeAt(likeIndex);
-        return const Right(null);
-      }
-
-      // Chercher dans les passes
-      final passIndex = _passes.indexWhere((p) => p.id == interactionId);
-      if (passIndex != -1) {
-        _passes.removeAt(passIndex);
-        return const Right(null);
-      }
-
-      return Left(ServerFailure(
-        message: 'Interaction non trouvée',
-      ));
-    } catch (e) {
-      return Left(ServerFailure(
-        message: 'Erreur lors de la révocation: $e',
-      ));
-    }
+    final result = await revokeInteractions(BulkRevokeRequest(
+      historyType: _likes.any((item) => item.id == interactionId)
+          ? InteractionHistoryType.likes
+          : InteractionHistoryType.passes,
+      interactionIds: [interactionId],
+    ));
+    return result.fold(Left.new, (_) => const Right(null));
   }
 
   @override
-  Future<Either<Failure, InteractionStats>> getStats() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+  Future<Either<Failure, BulkRevokeResult>> revokeInteractions(
+    BulkRevokeRequest request,
+  ) async {
+    final source =
+        request.historyType == InteractionHistoryType.likes ? _likes : _passes;
+    final selected = request.selectAll
+        ? _filter(source, request.query, request.matchFilter)
+        : source
+            .where((item) => request.interactionIds.contains(item.id))
+            .toList();
+    if (selected.any((item) => !item.canRevoke)) {
+      return const Left(ServerFailure(
+        code: 'bulk_revoke_not_possible',
+        message: 'Selection cannot be revoked.',
+      ));
+    }
+    final ids = selected.map((item) => item.id).toList(growable: false);
+    source.removeWhere((item) => ids.contains(item.id));
+    return Right(BulkRevokeResult(
+      revokedCount: ids.length,
+      revokedInteractionIds: ids,
+    ));
+  }
 
-    try {
-      final totalLikes =
-          _likes.where((l) => l.type == InteractionType.like).length;
-      final totalSuperLikes =
-          _likes.where((l) => l.type == InteractionType.superLike).length;
-      final totalDislikes = _passes.length;
-      final totalMatches = _likes.where((l) => l.isMatched).length;
-
-      final totalAllLikes = totalLikes + totalSuperLikes;
-      final likeToMatchRatio =
-          totalAllLikes > 0 ? totalMatches / totalAllLikes : 0.0;
-
-      final stats = InteractionStats(
-        totalLikes: totalLikes,
-        totalSuperLikes: totalSuperLikes,
-        totalDislikes: totalDislikes,
-        totalMatches: totalMatches,
-        likeToMatchRatio: likeToMatchRatio,
-        totalInteractionsToday: 15,
-        dailyLimit: 100,
-        remainingToday: 85,
+  @override
+  Future<Either<Failure, InteractionStats>> getStats() async => Right(
+        InteractionStats(
+          totalLikes:
+              _likes.where((item) => item.type == InteractionType.like).length,
+          totalSuperLikes: _likes
+              .where((item) => item.type == InteractionType.superLike)
+              .length,
+          totalDislikes: _passes.length,
+          totalMatches: _likes.where((item) => item.isMatched).length,
+          likeToMatchRatio: 0,
+          totalInteractionsToday: 0,
+          dailyLimit: 0,
+          remainingToday: 0,
+        ),
       );
 
-      return Right(stats);
-    } catch (e) {
-      return Left(ServerFailure(
-        message: 'Erreur lors du chargement des statistiques: $e',
-      ));
-    }
+  List<InteractionHistory> _filter(
+    List<InteractionHistory> source,
+    String query,
+    InteractionMatchFilter filter,
+  ) {
+    final needle = query.trim().toLowerCase();
+    return source.where((item) {
+      final matchesFilter = switch (filter) {
+        InteractionMatchFilter.all => true,
+        InteractionMatchFilter.matched => item.isMatched,
+        InteractionMatchFilter.unmatched => !item.isMatched,
+      };
+      return matchesFilter &&
+          (needle.isEmpty ||
+              item.profile.displayName.toLowerCase().contains(needle));
+    }).toList(growable: false);
   }
 
-  /// Génère des données mock pour le développement
-  void _generateMockData() {
+  void _seed() {
     final now = DateTime.now();
-
-    // Générer des likes mock
-    for (int i = 0; i < 15; i++) {
-      _likes.add(InteractionHistory(
-        id: 'like-$i',
-        profile: _generateMockProfile('like-profile-$i', 'Sophie', 25 + i),
-        type: i % 5 == 0 ? InteractionType.superLike : InteractionType.like,
-        timestamp: now.subtract(Duration(days: i, hours: i * 2)),
-        isMatched: i % 4 == 0, // 25% de matches
-        matchId: i % 4 == 0 ? 'match-$i' : null,
-        canRevoke: i % 4 != 0, // Peut révoquer si pas de match
+    for (var index = 0; index < 25; index++) {
+      _likes.add(_entry(
+        id: 'like-$index',
+        type: index % 5 == 0 ? InteractionType.superLike : InteractionType.like,
+        at: now.subtract(Duration(days: index)),
+        matched: index % 4 == 0,
       ));
-    }
-
-    // Générer des passes mock
-    for (int i = 0; i < 25; i++) {
-      _passes.add(InteractionHistory(
-        id: 'pass-$i',
-        profile: _generateMockProfile('pass-profile-$i', 'Marc', 28 + i),
+      _passes.add(_entry(
+        id: 'pass-$index',
         type: InteractionType.dislike,
-        timestamp: now.subtract(Duration(days: i, hours: i)),
-        canRevoke: true,
+        at: now.subtract(Duration(days: index + 1)),
       ));
     }
   }
 
-  DiscoveryProfile _generateMockProfile(String id, String baseName, int age) {
-    final names = [
-      'Sophie',
-      'Julie',
-      'Emma',
-      'Léa',
-      'Chloé',
-      'Clara',
-      'Alice',
-      'Laura',
-      'Sarah',
-      'Marie'
-    ];
-    final cities = [
-      'Paris',
-      'Lyon',
-      'Marseille',
-      'Toulouse',
-      'Nice',
-      'Bordeaux',
-      'Lille'
-    ];
-
-    return DiscoveryProfile(
+  InteractionHistory _entry({
+    required String id,
+    required InteractionType type,
+    required DateTime at,
+    bool matched = false,
+  }) {
+    final name = type == InteractionType.dislike ? 'Marc' : 'Sophie';
+    return InteractionHistory(
       id: id,
-      displayName: names[age % names.length],
-      age: age,
-      mainPhotoUrl: 'https://picsum.photos/400/600?random=$id',
-      otherPhotosUrls: [
-        'https://picsum.photos/400/600?random=${id}a',
-        'https://picsum.photos/400/600?random=${id}b',
-      ],
-      bio: 'Bio de test pour $id',
-      city: cities[age % cities.length],
-      country: 'France',
-      distance: (age % 30).toDouble() + 1.5,
-      interests: ['Voyage', 'Sport', 'Cinéma'],
-      relationshipType: 'casual',
-      isVerified: age % 3 == 0,
-      isPremium: age % 5 == 0,
-      lastActive: DateTime.now().subtract(Duration(hours: age % 48)),
-      likedAt: null,
-      compatibilityScore: 70.0 + (age % 20),
+      profile: DiscoveryProfile(
+        id: 'profile-$id',
+        displayName: name,
+        age: 30,
+        mainPhotoUrl: '',
+        otherPhotosUrls: const [],
+        bio: '',
+        city: '',
+        country: '',
+        interests: const [],
+        relationshipType: '',
+        isVerified: false,
+        isPremium: false,
+        lastActive: at,
+        compatibilityScore: 0,
+      ),
+      type: type,
+      timestamp: at,
+      isMatched: matched,
+      matchId: matched ? 'match-$id' : null,
+      canRevoke: !matched,
     );
   }
 }

@@ -18,14 +18,76 @@ if (flutterRoot == null) {
     throw new Exception("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
 }
 
+// versionCode monotone et reproductible.
+//
+// Source de vérité :
+//   1. flutter.versionCode dans local.properties (override local explicite)
+//   2. variable d'environnement HIVMEET_VERSION_CODE (CI)
+//   3. nombre de commits Git sur la branche courante (monotone par construction)
+//
+// Un fichier local ignoré par Git (local.properties) ne doit JAMAIS être la
+// seule source de vérité pour le versionCode, car cela provoque
+// INSTALL_FAILED_VERSION_DOWNGRADE quand un build antérieur avait un code
+// supérieur. Le nombre de commits garantit qu'un checkout propre produit
+// toujours un versionCode strictement supérieur aux builds précédents.
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
+def envVersionCode = System.getenv('HIVMEET_VERSION_CODE')
+if (envVersionCode != null && !envVersionCode.trim().isEmpty()) {
+    flutterVersionCode = envVersionCode.trim()
+} else if (flutterVersionCode == null || flutterVersionCode.trim().isEmpty() || flutterVersionCode.trim() == '1') {
+    // Calculer le versionCode depuis le nombre de commits Git.
+    // Base 1000 pour laisser de la marge et garantir un minimum décent.
+    def commitCount = 1000
+    try {
+        def proc = ["git", "rev-list", "--count", "HEAD"].execute(null, rootProject.projectDir)
+        proc.waitFor()
+        if (proc.exitValue() == 0) {
+            commitCount = 1000 + proc.text.trim().toInteger()
+        } else {
+            logger.warn("git rev-list a échoué (exit {}), utilisation du versionCode de fallback {}", proc.exitValue(), commitCount)
+        }
+    } catch (Exception e) {
+        logger.warn("Git non disponible pour calculer le versionCode, utilisation du fallback {}: {}", commitCount, e.message)
+    }
+    flutterVersionCode = commitCount.toString()
+    logger.lifecycle("HIVMeet: versionCode calculé depuis le nombre de commits Git = {}", flutterVersionCode)
 }
 
 def flutterVersionName = localProperties.getProperty('flutter.versionName')
 if (flutterVersionName == null) {
     flutterVersionName = '1.0'
+}
+
+// La signature release provient exclusivement d'un fichier local ignoré par
+// Git ou des secrets CI. Un APK release non signé est inutilisable et ne doit
+// jamais être présenté comme un artefact livrable.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
+def releaseStorePath = System.getenv('HIVMEET_ANDROID_KEYSTORE_PATH') ?: keystoreProperties.getProperty('storeFile')
+def releaseStorePassword = System.getenv('HIVMEET_ANDROID_STORE_PASSWORD') ?: keystoreProperties.getProperty('storePassword')
+def releaseKeyAlias = System.getenv('HIVMEET_ANDROID_KEY_ALIAS') ?: keystoreProperties.getProperty('keyAlias')
+def releaseKeyPassword = System.getenv('HIVMEET_ANDROID_KEY_PASSWORD') ?: keystoreProperties.getProperty('keyPassword')
+def releaseSigningValues = [
+    releaseStorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+]
+def hasAnyReleaseSigningValue = releaseSigningValues.any { value -> value != null && !value.trim().isEmpty() }
+def hasCompleteReleaseSigning = releaseSigningValues.every { value -> value != null && !value.trim().isEmpty() }
+def releaseStore = hasCompleteReleaseSigning ? file(releaseStorePath) : null
+
+if (hasAnyReleaseSigningValue && !hasCompleteReleaseSigning) {
+    throw new GradleException('Configuration de signature Android release incomplète. Fournir les quatre valeurs du keystore.')
+}
+if (hasCompleteReleaseSigning && !releaseStore.exists()) {
+    throw new GradleException("Keystore Android release introuvable: ${releaseStore}")
 }
 
 android {
@@ -49,10 +111,21 @@ android {
 
     defaultConfig {
         applicationId "com.hivmeet.hivmeet"
-        minSdkVersion 23
+        minSdkVersion flutter.minSdkVersion
         targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+    }
+
+    signingConfigs {
+        if (hasCompleteReleaseSigning) {
+            release {
+                storeFile releaseStore
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -60,7 +133,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // signingConfig signingConfigs.release
+            if (hasCompleteReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             minifyEnabled false
@@ -70,6 +145,25 @@ android {
     
     buildFeatures {
         buildConfig = true
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def requestsReleaseArtifact = graph.allTasks.any { task ->
+        def taskName = task.name.toLowerCase(Locale.ROOT)
+        taskName.contains('release') && (
+            taskName.startsWith('assemble') ||
+            taskName.startsWith('bundle') ||
+            taskName.startsWith('package') ||
+            taskName.startsWith('sign')
+        )
+    }
+    if (requestsReleaseArtifact && !hasCompleteReleaseSigning) {
+        throw new GradleException(
+            'Signature Android release absente. Configurer android/key.properties ' +
+            'ou HIVMEET_ANDROID_KEYSTORE_PATH, HIVMEET_ANDROID_STORE_PASSWORD, ' +
+            'HIVMEET_ANDROID_KEY_ALIAS et HIVMEET_ANDROID_KEY_PASSWORD.'
+        )
     }
 }
 

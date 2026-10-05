@@ -45,6 +45,7 @@ class NotificationWebSocketService {
   bool _suspended = false;
 
   Timer? _reconnectTimer;
+  Timer? _presenceHeartbeatTimer;
   int _reconnectAttempts = 0;
   static const _maxReconnectDelay = Duration(seconds: 30);
   static const _initialReconnectDelay = Duration(seconds: 1);
@@ -66,9 +67,15 @@ class NotificationWebSocketService {
   /// re-émettre `Authenticated` plusieurs fois pour une même session.
   Future<void> connect() async {
     if (isConnected || _isConnecting) return;
+    // Verrouille immédiatement, avant tout `await`, pour fermer la fenêtre
+    // de course entre appelants concurrents (auth listener, `resume()`,
+    // timer de reconnexion) qui liraient sinon tous `_isConnecting == false`
+    // avant que le premier appel n'ait eu la main.
+    _isConnecting = true;
 
     final token = await _authService.getAccessToken();
     if (token == null) {
+      _isConnecting = false;
       if (kDebugMode) {
         debugPrint('[WS Notifications] No access token, skip connect');
       }
@@ -76,7 +83,6 @@ class NotificationWebSocketService {
     }
 
     _intentionalClose = false;
-    _isConnecting = true;
 
     final baseWs = _websocketUrl ?? AppConfig.websocketUrl;
     final uri = '$baseWs/ws/notifications/?token=$token';
@@ -98,10 +104,14 @@ class NotificationWebSocketService {
         onDone: _onDone,
         cancelOnError: false,
       );
+
+      _startPresenceHeartbeat();
     } catch (e) {
       _isConnecting = false;
       if (kDebugMode) {
-        debugPrint('[WS Notifications] Connection failed: $e');
+        debugPrint(
+          '[WS Notifications] Connection failed (${e.runtimeType})',
+        );
       }
       _scheduleReconnect();
     }
@@ -113,6 +123,8 @@ class NotificationWebSocketService {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnectAttempts = 0;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     _socketSub?.cancel();
     _socketSub = null;
     _socket?.close();
@@ -128,6 +140,8 @@ class NotificationWebSocketService {
     _suspended = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     _socketSub?.cancel();
     _socketSub = null;
     _socket?.close();
@@ -139,6 +153,24 @@ class NotificationWebSocketService {
     if (!_suspended) return;
     _suspended = false;
     await connect();
+  }
+
+  void _startPresenceHeartbeat() {
+    _presenceHeartbeatTimer?.cancel();
+    _sendPresenceHeartbeat();
+    _presenceHeartbeatTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _sendPresenceHeartbeat(),
+    );
+  }
+
+  void _sendPresenceHeartbeat() {
+    if (!isConnected) return;
+    try {
+      _socket!.add(jsonEncode({'type': 'presence.heartbeat'}));
+    } catch (_) {
+      // The socket lifecycle callback handles reconnects.
+    }
   }
 
   void _onRawMessage(dynamic raw) {
@@ -168,6 +200,13 @@ class NotificationWebSocketService {
           notificationId: data['notification_id'] as String?,
         ));
         break;
+      case 'match_removed':
+        _bus.publish(RealtimeEvent(
+          type: RealtimeEventType.matchRemoved,
+          source: RealtimeSource.websocket,
+          matchId: data['match_id'] as String?,
+        ));
+        break;
       case 'like':
         _bus.publish(RealtimeEvent(
           type: RealtimeEventType.likeReceived,
@@ -190,12 +229,28 @@ class NotificationWebSocketService {
           source: RealtimeSource.websocket,
           conversationId: data['conversation_id'] as String?,
           fromUserId: data['from_user_id'] as String?,
+          senderName: data['sender_name'] as String?,
           preview: data['preview'] as String?,
           messageId: data['message_id'] as String?,
           notificationId: data['notification_id'] as String?,
         ));
         break;
       case 'message_read':
+        final notificationId = data['notification_id'] as String?;
+        if (notificationId != null && notificationId.isNotEmpty) {
+          _bus.publish(RealtimeEvent(
+            type: RealtimeEventType.messageReadAlert,
+            source: RealtimeSource.websocket,
+            conversationId: data['conversation_id'] as String?,
+            fromUserId: data['reader_id'] as String?,
+            readerName: data['reader_name'] as String?,
+            messageId: data['representative_message_id'] as String?,
+            messageCount: int.tryParse(data['message_count']?.toString() ?? ''),
+            readAt: data['read_at'] as String?,
+            notificationId: notificationId,
+          ));
+          break;
+        }
         _bus.publish(RealtimeEvent(
           type: RealtimeEventType.messageRead,
           source: RealtimeSource.websocket,
@@ -210,6 +265,25 @@ class NotificationWebSocketService {
           conversationId: data['conversation_id'] as String?,
         ));
         break;
+      case 'subscription_expiring':
+        _bus.publish(RealtimeEvent(
+          type: RealtimeEventType.subscriptionExpiring,
+          source: RealtimeSource.websocket,
+          notificationId: data['notification_id'] as String?,
+          daysRemaining: int.tryParse(data['days_remaining'] as String? ?? ''),
+          expiryDate: data['expiry_date'] as String?,
+        ));
+        break;
+      case 'report_resolved':
+        _bus.publish(RealtimeEvent(
+          type: RealtimeEventType.reportResolved,
+          source: RealtimeSource.websocket,
+          notificationId: data['notification_id'] as String?,
+          reportId: data['report_id'] as String?,
+          reportStatus: data['status'] as String?,
+          resolutionSummary: data['resolution_summary'] as String?,
+        ));
+        break;
       case null:
       default:
         // Type inconnu ou absent — ignoré silencieusement.
@@ -219,7 +293,7 @@ class NotificationWebSocketService {
 
   void _onError(Object error) {
     if (kDebugMode) {
-      debugPrint('[WS Notifications] Error: $error');
+      debugPrint('[WS Notifications] Error (${error.runtimeType})');
     }
   }
 
@@ -229,6 +303,8 @@ class NotificationWebSocketService {
           '[WS Notifications] Connection closed (intentional: $_intentionalClose)');
     }
     _socket = null;
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     if (!_intentionalClose && !_suspended) {
       _scheduleReconnect();
     }
@@ -238,7 +314,14 @@ class NotificationWebSocketService {
     if (_intentionalClose || _suspended) return;
     _reconnectTimer?.cancel();
 
-    final delay = _initialReconnectDelay * (1 << _reconnectAttempts);
+    // `_reconnectAttempts` n'est pas borné (utile pour les logs), mais ne
+    // doit jamais servir tel quel d'exposant de décalage binaire : au-delà
+    // du décalage 63 `1 << n` déborde silencieusement en Dart et redevient
+    // 0, ce qui fait retomber le délai à `Duration.zero` et déclenche une
+    // boucle de reconnexion serrée. Un exposant plafonné à 10 (1024x le
+    // délai initial) dépasse déjà largement le plafond de 30 s ci-dessous.
+    final exponent = _reconnectAttempts.clamp(0, 10);
+    final delay = _initialReconnectDelay * (1 << exponent);
     final cappedDelay = delay > _maxReconnectDelay ? _maxReconnectDelay : delay;
     _reconnectAttempts++;
 

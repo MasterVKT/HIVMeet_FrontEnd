@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hivmeet/injection.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/services/authentication_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/presentation/blocs/conversations/conversations_bloc.dart';
 import 'package:hivmeet/presentation/widgets/conversations/conversations_widgets.dart';
 import 'package:hivmeet/presentation/widgets/navigation/app_scaffold.dart';
-import 'package:hivmeet/presentation/widgets/notifications/notification_bell_button.dart';
 
 /// Page principale des conversations
 ///
@@ -56,11 +57,13 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    getIt<RealtimeEventBus>().setActiveRoute('/conversations');
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    getIt<RealtimeEventBus>().setActiveRoute(null);
     super.dispose();
   }
 
@@ -158,7 +161,6 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                 },
               ),
         actions: [
-          if (!_showSearch) const NotificationBellButton(),
           if (!_showSearch)
             IconButton(
               icon: const Icon(Icons.search),
@@ -313,7 +315,10 @@ class _ConversationsPageContentState extends State<_ConversationsPageContent> {
                             conversation: conversation,
                             participantName: _getParticipantName(conversation),
                             participantPhotoUrl: conversation.otherUserPhotoUrl,
-                            currentUserId: '',
+                            currentUserId: getIt<AuthenticationService>()
+                                    .currentUser
+                                    ?.id ??
+                                '',
                             onTap: () => _onConversationTap(conversation),
                             onLongPress: () =>
                                 _showConversationOptions(context, conversation),

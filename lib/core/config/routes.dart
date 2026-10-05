@@ -18,6 +18,7 @@ import 'package:hivmeet/presentation/pages/profile/profile_privacy_page.dart';
 import 'package:hivmeet/presentation/pages/profile/profile_notifications_page.dart';
 import 'package:hivmeet/presentation/pages/profile/profile_blocked_users_page.dart';
 import 'package:hivmeet/presentation/pages/profile/profile_data_page.dart';
+import 'package:hivmeet/presentation/pages/profile/profile_currency_page.dart';
 import 'package:hivmeet/presentation/pages/profile/public_profile_page.dart';
 import 'package:hivmeet/presentation/pages/discovery/profile_detail_page.dart'
     as discovery;
@@ -30,6 +31,7 @@ import 'package:hivmeet/presentation/pages/conversations/conversations_page.dart
 import 'package:hivmeet/presentation/pages/feed/feed_page.dart';
 import 'package:hivmeet/presentation/pages/resources/resources_page.dart';
 import 'package:hivmeet/presentation/pages/premium/premium_page.dart';
+import 'package:hivmeet/core/config/premium_navigation.dart';
 import 'package:hivmeet/presentation/pages/verification/verification_page.dart';
 import 'package:hivmeet/presentation/pages/likes_received/likes_received_page.dart';
 import 'package:hivmeet/presentation/pages/about/about_page.dart';
@@ -68,6 +70,7 @@ class AppRoutes {
   static const String profileNotifications = '/profile/notifications';
   static const String profileBlockedUsers = '/profile/blocked-users';
   static const String profileData = '/profile/data';
+  static const String profileCurrency = '/profile/currency';
   static const String profileId = '/profile/:id';
   static const String profileDetail = '/profile-detail';
 
@@ -75,6 +78,7 @@ class AppRoutes {
   static const String verification = '/verification';
   static const String likesReceived = '/likes-received';
   static const String premium = '/premium';
+  static const String legacySubscription = '/subscription';
 
   // Routes de paramètres et légales
   static const String about = '/about';
@@ -89,6 +93,10 @@ class AppRoutes {
 
   // Notifications in-app
   static const String notifications = '/notifications';
+
+  static String? redirectLegacyPremium(String location) {
+    return location == legacySubscription ? premium : null;
+  }
 }
 
 class AppRouter {
@@ -109,6 +117,7 @@ class AppRouter {
         AppRoutes.resources,
         AppRoutes.profile,
         AppRoutes.premium,
+        AppRoutes.legacySubscription,
         AppRoutes.verification,
         AppRoutes.likesReceived,
         AppRoutes.interactionHistory,
@@ -234,6 +243,10 @@ class AppRouter {
         builder: (context, state) => const ProfileDataPage(),
       ),
       GoRoute(
+        path: AppRoutes.profileCurrency,
+        builder: (context, state) => const ProfileCurrencyPage(),
+      ),
+      GoRoute(
         path: AppRoutes.profileId,
         builder: (context, state) {
           final userId = state.pathParameters['id'];
@@ -281,7 +294,18 @@ class AppRouter {
       ),
       GoRoute(
         path: AppRoutes.premium,
-        builder: (context, state) => const PremiumPage(),
+        builder: (context, state) => PremiumPage(
+          paymentReturnStatus: state.uri.queryParameters['paymentReturn'],
+          paymentEventId: state.uri.queryParameters['paymentEvent'],
+          returnTo: PremiumNavigation.sanitizeReturnTo(
+            state.uri.queryParameters['returnTo'],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.legacySubscription,
+        redirect: (context, state) =>
+            AppRoutes.redirectLegacyPremium(state.matchedLocation),
       ),
       // Pages de paramètres et légales
       GoRoute(

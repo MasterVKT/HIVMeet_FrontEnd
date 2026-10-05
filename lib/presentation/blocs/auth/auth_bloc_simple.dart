@@ -1,11 +1,13 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
+import 'package:hivmeet/data/services/notification_service.dart';
+import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_event.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_state.dart';
 import 'package:hivmeet/domain/entities/user.dart' as domain;
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
@@ -21,30 +23,37 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
   DateTime? _lastAppStartedTime;
 
   AuthBlocSimple(this._authService) : super(AuthInitial()) {
-    developer.log(
+    LogService.log(
       '🔧 [BLOC] AuthBlocSimple initialisé avec service: ${_authService.runtimeType}',
       name: 'AuthBloc',
     );
-    developer.log(
+    LogService.log(
         '📊 [BLOC] État initial du service: ${_authService.status.name}',
         name: 'AuthBloc');
 
     // Enregistrer les handlers d'événements
     on<AppStarted>(_onAppStarted);
+    on<AuthUserChanged>((event, emit) {
+      if (event.user != null && _authService.isFullyAuthenticated) {
+        emit(Authenticated(user: event.user!));
+      } else if (event.user == null) {
+        emit(Unauthenticated());
+      }
+    });
     on<LoginRequested>((event, emit) async {
-      debugPrint('🔐 [BLOC] Tentative de connexion: ${event.email}');
-      debugPrint(
+      LogService.debug('🔐 [BLOC] Tentative de connexion: ${event.email}');
+      LogService.debug(
           '📊 [BLOC] État du service avant connexion: ${_authService.status.name}');
 
       emit(AuthLoading());
-      debugPrint('📊 [BLOC] État émis: AuthLoading');
+      LogService.debug('📊 [BLOC] État émis: AuthLoading');
 
       int retries = 0;
       const maxRetries = 3;
 
       while (retries < maxRetries) {
         try {
-          debugPrint(
+          LogService.debug(
               '🔄 [BLOC] Appel _authService.signInWithEmailAndPassword... (tentative ${retries + 1}/$maxRetries)');
 
           final result = await _authService.signInWithEmailAndPassword(
@@ -52,29 +61,69 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
             password: event.password,
           );
 
-          debugPrint(
+          LogService.debug(
               '📊 [BLOC] Résultat de signInWithEmailAndPassword: success=${result.success}');
 
           if (result.success && result.user != null) {
-            debugPrint('✅ [BLOC] Connexion réussie pour ${event.email}');
+            LogService.debug('✅ [BLOC] Connexion réussie pour ${event.email}');
             emit(Authenticated(user: result.user!));
             return;
           } else {
-            debugPrint('❌ [BLOC] Connexion échouée: ${result.error}');
+            LogService.debug(
+                '❌ [BLOC] Connexion Firebase échouée: ${result.error}');
+
+            // Fallback debug: essayer login backend direct si Firebase échoue
+            if (kDebugMode) {
+              LogService.debug(
+                  '🔄 [BLOC] Fallback: tentative login backend direct...');
+              final backendResult = await _authService.loginWithBackend(
+                email: event.email,
+                password: event.password,
+              );
+              if (backendResult.success && backendResult.user != null) {
+                LogService.debug(
+                    '✅ [BLOC] Login backend réussi pour ${event.email}');
+                emit(Authenticated(user: backendResult.user!));
+                return;
+              }
+              LogService.debug(
+                  '❌ [BLOC] Login backend aussi échoué: ${backendResult.error}');
+            }
+
             emit(AuthError(result.error ?? 'Erreur de connexion inconnue'));
             return;
           }
         } catch (e) {
           retries++;
-          debugPrint(
+          LogService.debug(
               '❌ [BLOC] Exception lors de la connexion (tentative $retries/$maxRetries): $e');
+
+          // Fallback debug: essayer login backend direct sur erreur Firebase
+          if (kDebugMode && retries >= maxRetries) {
+            LogService.debug(
+                '🔄 [BLOC] Fallback final: tentative login backend direct...');
+            try {
+              final backendResult = await _authService.loginWithBackend(
+                email: event.email,
+                password: event.password,
+              );
+              if (backendResult.success && backendResult.user != null) {
+                LogService.debug(
+                    '✅ [BLOC] Login backend réussi pour ${event.email}');
+                emit(Authenticated(user: backendResult.user!));
+                return;
+              }
+            } catch (backendErr) {
+              LogService.debug('❌ [BLOC] Login backend exception: $backendErr');
+            }
+          }
 
           // Gestion spécifique des erreurs réseau Firebase
           if (e.toString().contains('network-request-failed') ||
               e.toString().contains('timeout') ||
               e.toString().contains('unreachable host')) {
             if (retries < maxRetries) {
-              debugPrint(
+              LogService.debug(
                   '🔄 [BLOC] Erreur réseau détectée, retry dans 2 secondes...');
               emit(AuthNetworkError(
                 'Problème de connexion réseau. Tentative $retries/$maxRetries...',
@@ -83,14 +132,15 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
               await Future.delayed(const Duration(seconds: 2));
               continue;
             } else {
-              debugPrint('❌ [BLOC] Échec final après $maxRetries tentatives');
+              LogService.debug(
+                  '❌ [BLOC] Échec final après $maxRetries tentatives');
               emit(AuthError(
                   'Impossible de se connecter au serveur après $maxRetries tentatives. Vérifiez votre connexion internet.'));
               return;
             }
           } else {
             // Autres erreurs (non-réseau) - pas de retry
-            debugPrint('❌ [BLOC] Erreur non-réseau, pas de retry: $e');
+            LogService.debug('❌ [BLOC] Erreur non-réseau, pas de retry: $e');
             emit(AuthError('Erreur lors de l\'authentification: $e'));
             return;
           }
@@ -98,6 +148,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       }
     });
     on<RegisterRequested>(_onRegisterRequested);
+    on<BackendLoginRequested>(_onBackendLoginRequested);
     on<LoggedOut>(_onLoggedOut);
     on<RefreshToken>(_onRefreshToken);
     on<DeleteAccountRequested>(_onDeleteAccountRequested);
@@ -106,7 +157,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
   }
 
   void _initializeAuthListeners() {
-    developer.log('📡 Configuration du listener authStateChanges...',
+    LogService.log('📡 Configuration du listener authStateChanges...',
         name: 'AuthBloc');
 
     // Écouter les changements de statut d'authentification
@@ -114,48 +165,48 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
     // mais on peut déclencher un événement AppStarted pour rafraîchir l'état
     _statusSubscription = _authService.statusStream.listen(
       (status) {
-        developer.log('🔔 LISTENER DÉCLENCHÉ: status: $status',
+        LogService.log('🔔 LISTENER DÉCLENCHÉ: status: $status',
             name: 'AuthBloc');
         _handleAuthStatusChangeInternal(status);
       },
       onError: (error) {
-        developer.log('❌ Erreur status stream: $error', name: 'AuthBloc');
+        LogService.log('❌ Erreur status stream: $error', name: 'AuthBloc');
       },
     );
 
     // Écouter les changements d'utilisateur
     _userSubscription = _authService.userStream.listen(
       (user) {
-        developer.log('👤 LISTENER USER: utilisateur changé: ${user?.email}',
+        LogService.log('👤 LISTENER USER: utilisateur changé',
             name: 'AuthBloc');
         _handleUserChangeInternal(user);
       },
       onError: (error) {
-        developer.log('❌ Erreur user stream: $error', name: 'AuthBloc');
+        LogService.log('❌ Erreur user stream: $error', name: 'AuthBloc');
       },
     );
 
     // Écouter les erreurs d'authentification
     _errorSubscription = _authService.errorStream.listen(
       (error) {
-        developer.log('❌ LISTENER ERROR: $error', name: 'AuthBloc');
+        LogService.log('❌ LISTENER ERROR: $error', name: 'AuthBloc');
         // Déclencher un AppStarted pour réévaluer l'état après une erreur
         if (!isClosed) {
           add(AppStarted());
         }
       },
       onError: (error) {
-        developer.log('❌ Erreur error stream: $error', name: 'AuthBloc');
+        LogService.log('❌ Erreur error stream: $error', name: 'AuthBloc');
       },
     );
 
-    developer.log('✅ Listener authStateChanges configuré', name: 'AuthBloc');
+    LogService.log('✅ Listener authStateChanges configuré', name: 'AuthBloc');
   }
 
   void _handleAuthStatusChangeInternal(AuthenticationStatus status) {
     // Cette méthode ne peut pas utiliser emit() directement
     // Déclencher un événement AppStarted pour réévaluer l'état
-    developer.log(
+    LogService.log(
         '🔄 Changement de status interne: $status -> déclenchement AppStarted',
         name: 'AuthBloc');
 
@@ -163,7 +214,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
     if (!isClosed) {
       add(AppStarted());
     } else {
-      developer.log('⚠️ Bloc fermé, événement AppStarted ignoré',
+      LogService.log('⚠️ Bloc fermé, événement AppStarted ignoré',
           name: 'AuthBloc');
     }
   }
@@ -171,27 +222,28 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
   void _handleUserChangeInternal(domain.User? user) {
     // Cette méthode ne peut pas utiliser emit() directement
     // Déclencher un événement AppStarted pour réévaluer l'état
-    developer.log(
-        '👤 Changement utilisateur interne: ${user?.email} -> déclenchement AppStarted',
+    LogService.log(
+        '👤 Changement utilisateur interne -> déclenchement AppStarted',
         name: 'AuthBloc');
 
     // Vérifier que le Bloc n'est pas fermé avant d'ajouter un événement
     if (!isClosed) {
-      add(AppStarted());
+      add(AuthUserChanged(user));
     } else {
-      developer.log('⚠️ Bloc fermé, événement AppStarted ignoré',
+      LogService.log('⚠️ Bloc fermé, événement AppStarted ignoré',
           name: 'AuthBloc');
     }
   }
 
   void _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
-    developer.log('🚀 [BLOC] AppStarted reçu', name: 'AuthBloc');
+    LogService.log('🚀 [BLOC] AppStarted reçu', name: 'AuthBloc');
 
     // Protection contre les appels répétés trop rapprochés (debounce de 500ms)
     final now = DateTime.now();
     if (_lastAppStartedTime != null &&
         now.difference(_lastAppStartedTime!).inMilliseconds < 500) {
-      developer.log('⏭️ [BLOC] AppStarted ignoré (debounce)', name: 'AuthBloc');
+      LogService.log('⏭️ [BLOC] AppStarted ignoré (debounce)',
+          name: 'AuthBloc');
       return;
     }
 
@@ -199,7 +251,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
 
     // Protection contre les appels concurrents
     if (_isProcessingAppStarted) {
-      developer.log('⏭️ [BLOC] AppStarted ignoré (déjà en traitement)',
+      LogService.log('⏭️ [BLOC] AppStarted ignoré (déjà en traitement)',
           name: 'AuthBloc');
       return;
     }
@@ -214,36 +266,39 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       final currentStatus = _authService.status;
       final currentUser = _authService.currentUser;
 
-      developer.log('📊 Status initial: $currentStatus', name: 'AuthBloc');
-      developer.log('👤 Utilisateur initial: ${currentUser?.email ?? "null"}',
-          name: 'AuthBloc');
+      LogService.log('📊 Status initial: $currentStatus', name: 'AuthBloc');
+      LogService.log(
+        '👤 Utilisateur initial présent: ${currentUser != null}',
+        name: 'AuthBloc',
+      );
 
       switch (currentStatus) {
         case AuthenticationStatus.fullyAuthenticated:
           if (currentUser != null) {
-            developer.log('✅ Déjà authentifié -> Authenticated',
+            LogService.log('✅ Déjà authentifié -> Authenticated',
                 name: 'AuthBloc');
             emit(Authenticated(user: currentUser));
           } else {
-            developer.log('❌ Status authenticated mais pas d\'utilisateur',
+            LogService.log('❌ Status authenticated mais pas d\'utilisateur',
                 name: 'AuthBloc');
             emit(Unauthenticated());
           }
           break;
         case AuthenticationStatus.disconnected:
-          developer.log('🔄 Pas connecté -> Unauthenticated', name: 'AuthBloc');
+          LogService.log('🔄 Pas connecté -> Unauthenticated',
+              name: 'AuthBloc');
           emit(Unauthenticated());
           break;
         case AuthenticationStatus.authenticating:
         case AuthenticationStatus.firebaseConnected:
         case AuthenticationStatus.tokensExchanged:
-          developer.log('🔄 Status $currentStatus -> AuthLoading (en cours)',
+          LogService.log('🔄 Status $currentStatus -> AuthLoading (en cours)',
               name: 'AuthBloc');
           // Garder AuthLoading et laisser les listeners gérer la suite
           // Le timeout est géré par le SplashPage (10 secondes)
           break;
         default:
-          developer.log('🔄 Status $currentStatus -> AuthLoading',
+          LogService.log('🔄 Status $currentStatus -> AuthLoading',
               name: 'AuthBloc');
           emit(AuthLoading());
 
@@ -251,7 +306,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
           try {
             await _authService.checkAuthenticationStatus();
           } catch (e) {
-            developer.log('❌ Erreur lors de la vérification: $e',
+            LogService.log('❌ Erreur lors de la vérification: $e',
                 name: 'AuthBloc');
             emit(AuthError(
                 'Erreur lors de la vérification d\'authentification'));
@@ -260,6 +315,31 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       }
     } finally {
       _isProcessingAppStarted = false;
+    }
+  }
+
+  /// Handler pour login backend direct (debug only)
+  void _onBackendLoginRequested(
+      BackendLoginRequested event, Emitter<AuthState> emit) async {
+    LogService.debug('🔐 [BLOC] BackendLoginRequested: ${event.email}');
+    emit(AuthLoading());
+
+    try {
+      final result = await _authService.loginWithBackend(
+        email: event.email,
+        password: event.password,
+      );
+
+      if (result.success && result.user != null) {
+        LogService.debug('✅ [BLOC] Login backend réussi pour ${event.email}');
+        emit(Authenticated(user: result.user!));
+      } else {
+        LogService.debug('❌ [BLOC] Login backend échoué: ${result.error}');
+        emit(AuthError(result.error ?? 'Erreur de connexion'));
+      }
+    } catch (e) {
+      LogService.debug('❌ [BLOC] Login backend exception: $e');
+      emit(AuthError('Erreur lors de l\'authentification: $e'));
     }
   }
 
@@ -287,6 +367,14 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
+      // Retirer le token FCM du backend AVANT d'effacer le JWT : une fois
+      // `signOut()` passé, `TokenManager.clearAllTokens()` a déjà vidé le
+      // secure storage et tout appel authentifié (dont `DELETE
+      // /auth/fcm-token`) échoue en 401. `main.dart` déclenchait jusqu'ici
+      // ce retrait après coup, sur l'état `Unauthenticated` — trop tard
+      // pour réussir, d'où un token FCM qui restait attaché au compte et
+      // continuait de recevoir ses notifications même après déconnexion.
+      await getIt<NotificationService>().removeTokenFromBackend();
       await _authService.signOut();
       emit(Unauthenticated());
     } catch (e) {
@@ -298,7 +386,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
     try {
       // Pour l'instant, on suppose que le refresh est géré automatiquement
       // Si échec, les listeners se chargeront de la gestion d'erreur
-      developer.log('🔄 Refresh token demandé', name: 'AuthBloc');
+      LogService.log('🔄 Refresh token demandé', name: 'AuthBloc');
     } catch (e) {
       emit(AuthError('Erreur lors du rafraîchissement: $e'));
     }

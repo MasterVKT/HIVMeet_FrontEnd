@@ -59,8 +59,7 @@ class FeedPostCard extends StatelessWidget {
       children: [
         SafeCircleAvatar(
           radius: 20,
-          imageUrl:
-              post.authorPhotoUrl.isNotEmpty ? post.authorPhotoUrl : null,
+          imageUrl: post.authorPhotoUrl.isNotEmpty ? post.authorPhotoUrl : null,
           backgroundColor: AppColors.primaryPurple,
           fallbackWidget: Text(
             post.authorName.substring(0, 1).toUpperCase(),

@@ -38,17 +38,29 @@ class SendMediaMessage {
     if (fileSizeInMB > 50) {
       return Left(
         ServerFailure(
-          message: 'Le fichier est trop volumineux (max 50 MB). Taille: ${fileSizeInMB.toStringAsFixed(1)} MB',
+          message:
+              'Le fichier est trop volumineux (max 50 MB). Taille: ${fileSizeInMB.toStringAsFixed(1)} MB',
         ),
       );
     }
 
-    return await repository.sendMessage(
+    if (params.onUploadProgress == null) {
+      return repository.sendMessage(
+        conversationId: params.conversationId,
+        content: '', // Vide pour les médias
+        type: params.type,
+        mediaFile: params.mediaFile,
+        clientMessageId: params.clientMessageId,
+      );
+    }
+
+    return repository.sendMessage(
       conversationId: params.conversationId,
       content: '', // Vide pour les médias
       type: params.type,
       mediaFile: params.mediaFile,
       clientMessageId: params.clientMessageId,
+      onUploadProgress: params.onUploadProgress,
     );
   }
 }
@@ -58,12 +70,14 @@ class SendMediaMessageParams extends Equatable {
   final File mediaFile;
   final MessageType type;
   final String? clientMessageId;
+  final MediaUploadProgressCallback? onUploadProgress;
 
   const SendMediaMessageParams({
     required this.conversationId,
     required this.mediaFile,
     required this.type,
     this.clientMessageId,
+    this.onUploadProgress,
   });
 
   /// Factory pour message image

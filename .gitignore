@@ -47,10 +47,13 @@ app.*.map.json
 /android/.gradle/
 /android/.kotlin/
 android/app/build/
+android/build/
 android/.gradle/
 android/.kotlin/
+android/gradle_manifest_info.txt
 *.apk
 *.aab
+*.hprof
 
 # Gradle files
 .gradle/
@@ -67,3 +70,38 @@ local.properties
 .worktrees/
 .security-key
 logs/security/
+
+# Local Android tool archives
+/android-ndk-*-windows.zip
+
+# Local development outputs and captured test evidence
+/.codex/*.png
+/analyze*.txt
+/build_apk*.txt
+/build_gradle*.txt
+/backend_run*.md
+/clean_output.txt
+/config_analyze.txt
+/core_analyze*.txt
+/dart_fix_output.txt
+/device_log*.md
+/device_run*.md
+/device_physical_logs.txt
+/emulator_log*.md
+/emulator_run*.md
+/emulator_screen*.png
+/flutter_analyze*.txt
+/flutter_build_output.txt
+/flutter_run_output*.txt
+/flutter_tecno*.txt
+/full_analyze*.txt
+/gradle_manifest_info.txt
+/log-caa.md
+/logs_connectivite.md
+/pub_*.txt
+/screenshot_phase*.png
+/stale_match_tests.txt
+/test_output*.txt
+
+# Added by code-review-graph
+.code-review-graph/

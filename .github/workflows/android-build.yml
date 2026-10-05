@@ -1,0 +1,84 @@
+name: Android Build & Version Gate
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build APK with monotonic versionCode
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Récupérer tout l'historique pour git rev-list --count
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.3'
+
+      - name: Compute monotonic versionCode
+        id: version
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          VERSION_CODE=$((1000 + COMMIT_COUNT))
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "HIVMEET_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "Computed versionCode: $VERSION_CODE (commits: $COMMIT_COUNT)"
+
+      - name: Verify versionCode is monotonic (not 1)
+        run: |
+          if [ "$HIVMEET_VERSION_CODE" -le 1 ]; then
+            echo "::error::versionCode ($HIVMEET_VERSION_CODE) is not monotonic. Check git history."
+            exit 1
+          fi
+          echo "versionCode $HIVMEET_VERSION_CODE is valid (> 1)"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run analyzer
+        run: flutter analyze --no-pub
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+        env:
+          HIVMEET_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+
+      - name: Verify APK metadata
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "::error::APK not found at $APK_PATH"
+            exit 1
+          fi
+          # Utiliser aapt pour lire le versionCode de l'APK produit
+          AAPT=$(find $ANDROID_HOME -name aapt2 -type f | head -1)
+          APK_VC=$($AAPT dump badging "$APK_PATH" 2>/dev/null | grep "versionCode" | head -1 | sed "s/.*versionCode='\\([0-9]*\\)'.*/\\1/")
+          echo "APK versionCode: $APK_VC"
+          echo "Expected versionCode: $HIVMEET_VERSION_CODE"
+          if [ "$APK_VC" != "$HIVMEET_VERSION_CODE" ]; then
+            echo "::error::APK versionCode ($APK_VC) does not match expected ($HIVMEET_VERSION_CODE)"
+            exit 1
+          fi
+          echo "✅ APK versionCode matches expected monotonic value"
+
+      - name: Compute APK checksum
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
+          sha256sum "$APK_PATH" | tee apk_checksum.txt
+          echo "## APK Checksum" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat apk_checksum.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "**versionCode**: $HIVMEET_VERSION_CODE" >> $GITHUB_STEP_SUMMARY
+          echo "**commit**: ${GITHUB_SHA::8}" >> $GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 30

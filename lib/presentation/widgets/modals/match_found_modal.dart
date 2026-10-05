@@ -1,7 +1,6 @@
 // lib/presentation/widgets/modals/match_found_modal.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/match.dart';
@@ -139,7 +138,8 @@ class _MatchFoundModalState extends State<MatchFoundModal>
           const SizedBox(width: 8),
           Text(
             LocalizationService.translate('discovery.its_a_match'),
-            style: GoogleFonts.openSans(
+            style: TextStyle(
+              fontFamily: 'OpenSans',
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppColors.charcoal,
@@ -207,7 +207,8 @@ class _MatchFoundModalState extends State<MatchFoundModal>
                           'discovery.match_message',
                           params: {'name': widget.matchedProfile.displayName},
                         ),
-                        style: GoogleFonts.openSans(
+                        style: TextStyle(
+                          fontFamily: 'OpenSans',
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: AppColors.charcoal,
@@ -220,7 +221,8 @@ class _MatchFoundModalState extends State<MatchFoundModal>
                       Text(
                         LocalizationService.translate(
                             'discovery.match_subtitle'),
-                        style: GoogleFonts.openSans(
+                        style: TextStyle(
+                          fontFamily: 'OpenSans',
                           fontSize: 14,
                           color: AppColors.slate,
                         ),

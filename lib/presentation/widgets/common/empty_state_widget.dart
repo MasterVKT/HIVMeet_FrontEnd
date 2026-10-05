@@ -1,7 +1,6 @@
 // lib/presentation/widgets/common/empty_state_widget.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 
 class EmptyStateWidget extends StatelessWidget {
@@ -53,7 +52,8 @@ class EmptyStateWidget extends StatelessWidget {
                 // Titre
                 Text(
                   title,
-                  style: GoogleFonts.openSans(
+                  style: TextStyle(
+                    fontFamily: 'OpenSans',
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: AppColors.charcoal,
@@ -67,7 +67,8 @@ class EmptyStateWidget extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 320),
                   child: Text(
                     message,
-                    style: GoogleFonts.openSans(
+                    style: TextStyle(
+                      fontFamily: 'OpenSans',
                       fontSize: 16,
                       color: AppColors.slate,
                       height: 1.6,

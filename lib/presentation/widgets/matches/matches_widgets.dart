@@ -3,7 +3,6 @@
 /// Barrel file pour exporter tous les widgets relatifs aux matches
 library;
 
-
 export 'match_card.dart';
 export 'matches_grid.dart';
 export 'matches_filter_bar.dart';

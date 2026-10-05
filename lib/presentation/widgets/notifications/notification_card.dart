@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:hivmeet/core/config/theme/app_theme.dart';
+import 'package:hivmeet/core/notifications/read_receipt_notification_copy.dart';
 import 'package:hivmeet/domain/entities/app_notification.dart';
 
 class NotificationCard extends StatelessWidget {
@@ -16,6 +17,12 @@ class NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final title = notification.type == AppNotificationType.messageRead
+        ? ReadReceiptNotificationCopy.title()
+        : notification.title;
+    final body = notification.type == AppNotificationType.messageRead
+        ? ReadReceiptNotificationCopy.body(notification.data)
+        : notification.body;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -36,7 +43,7 @@ class NotificationCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          notification.title,
+                          title,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: notification.isRead
                                 ? FontWeight.normal
@@ -57,7 +64,7 @@ class NotificationCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    notification.body,
+                    body,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
@@ -98,6 +105,10 @@ class _NotificationIcon extends StatelessWidget {
         icon = Icons.chat_bubble;
         color = AppColors.primaryPurple;
         break;
+      case AppNotificationType.messageRead:
+        icon = Icons.done_all;
+        color = Colors.teal;
+        break;
       case AppNotificationType.like:
         icon = Icons.thumb_up;
         color = Colors.orange;
@@ -105,6 +116,14 @@ class _NotificationIcon extends StatelessWidget {
       case AppNotificationType.superLike:
         icon = Icons.star;
         color = Colors.amber;
+        break;
+      case AppNotificationType.subscriptionExpiring:
+        icon = Icons.workspace_premium;
+        color = Colors.deepOrange;
+        break;
+      case AppNotificationType.reportResolved:
+        icon = Icons.gavel;
+        color = Colors.blue;
         break;
       case AppNotificationType.system:
         icon = Icons.notifications;

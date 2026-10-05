@@ -1,0 +1,77 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "type": "stdio",
+      "command": "D:\\Projets\\HIVMeet\\hivmeet\\.venv\\Scripts\\code-review-graph.exe",
+      "args": [
+        "serve",
+        "--repo",
+        "D:\\Projets\\HIVMeet\\hivmeet"
+      ],
+      "cwd": "D:\\Projets\\HIVMeet\\hivmeet",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CRG_REPO_ROOT": "D:\\Projets\\HIVMeet\\hivmeet",
+        "CRG_DATA_DIR": "D:\\Projets\\HIVMeet\\hivmeet\\.code-review-graph"
+      }
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .gemini/hooks/crg-session-start.sh",
+            "name": "code-review-graph status",
+            "timeout": 10000,
+            "commandWindows": "\"C:/Program Files/Git/bin/bash.exe\" .gemini/hooks/crg-session-start.sh"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .gemini/hooks/crg-update.sh",
+            "name": "code-review-graph update",
+            "timeout": 30000,
+            "commandWindows": "\"C:/Program Files/Git/bin/bash.exe\" .gemini/hooks/crg-update.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .gemini/hooks/task-router-gate.sh",
+            "name": "task-router gate",
+            "timeout": 10000,
+            "commandWindows": "\"C:/Program Files/Git/bin/bash.exe\" .gemini/hooks/task-router-gate.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .gemini/hooks/double-check-completion.sh",
+            "name": "double-check completion",
+            "timeout": 10000,
+            "commandWindows": "\"C:/Program Files/Git/bin/bash.exe\" .gemini/hooks/double-check-completion.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

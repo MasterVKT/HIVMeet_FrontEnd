@@ -91,9 +91,8 @@ class _AppTextFieldState extends State<AppTextField> {
           validator: widget.validator,
           decoration: InputDecoration(
             hintText: widget.hintText,
-            prefixIcon: widget.prefixIcon != null
-                ? Icon(widget.prefixIcon)
-                : null,
+            prefixIcon:
+                widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
             suffixIcon: widget.obscureText
                 ? IconButton(
                     icon: Icon(

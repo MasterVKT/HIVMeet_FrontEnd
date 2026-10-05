@@ -2,9 +2,9 @@
 
 import 'package:injectable/injectable.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/domain/repositories/premium_repository.dart';
 import 'package:hivmeet/domain/entities/user.dart' as domain;
-import 'dart:developer' as developer;
 
 /// Service pour vérifier la cohérence entre le flag premium et l'abonnement réel
 @lazySingleton
@@ -31,7 +31,7 @@ class SubscriptionVerificationService {
 
       // Si l'utilisateur n'est pas premium, pas besoin de vérifier
       if (!user.isPremium) {
-        developer.log(
+        LogService.log(
           'User is not premium, skipping subscription verification',
           name: 'SubscriptionVerification',
         );
@@ -48,7 +48,7 @@ class SubscriptionVerificationService {
       return subscriptionResult.fold(
         (failure) {
           // Erreur lors de la récupération
-          developer.log(
+          LogService.log(
             'Error fetching subscription: ${failure.message}',
             name: 'SubscriptionVerification',
             level: 900, // Warning
@@ -61,8 +61,8 @@ class SubscriptionVerificationService {
           // Vérifier la cohérence
           if (subscription == null || !subscription.isActive) {
             // INCOHÉRENCE DÉTECTÉE
-            developer.log(
-              '⚠️ INCONSISTENCY: User ${user.id} has isPremium=true but no active subscription',
+            LogService.log(
+              '⚠️ INCONSISTENCY: premium user has no active subscription',
               name: 'SubscriptionVerification',
               level: 1000, // Error
             );
@@ -76,8 +76,8 @@ class SubscriptionVerificationService {
           }
 
           // Tout est cohérent
-          developer.log(
-            'Premium status consistent for user ${user.id}',
+          LogService.log(
+            'Premium status consistent',
             name: 'SubscriptionVerification',
           );
           return SubscriptionConsistencyResult.consistent(
@@ -88,7 +88,7 @@ class SubscriptionVerificationService {
         },
       );
     } catch (e, stackTrace) {
-      developer.log(
+      LogService.log(
         'Unexpected error during subscription verification',
         name: 'SubscriptionVerification',
         error: e,
@@ -111,7 +111,7 @@ class SubscriptionVerificationService {
 
       return subscriptionResult.fold(
         (failure) {
-          developer.log(
+          LogService.log(
             'Error checking super likes: ${failure.message}',
             name: 'SubscriptionVerification',
           );
@@ -124,7 +124,7 @@ class SubscriptionVerificationService {
 
           final usage = subscription.featuresUsage;
           if (usage == null) {
-            developer.log(
+            LogService.log(
               'No features usage data available',
               name: 'SubscriptionVerification',
             );
@@ -135,7 +135,7 @@ class SubscriptionVerificationService {
         },
       );
     } catch (e) {
-      developer.log(
+      LogService.log(
         'Error checking super likes availability',
         name: 'SubscriptionVerification',
         error: e,

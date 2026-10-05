@@ -3,6 +3,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/domain/entities/message.dart';
 import 'package:hivmeet/domain/usecases/message/get_conversations.dart';
@@ -240,6 +241,22 @@ void main() {
       });
     });
 
+    test('conversationRestored reconciles the visible list from the server',
+        () async {
+      when(() => mockGetConversations(any()))
+          .thenAnswer((_) async => _rightPage(tConversations));
+      bloc.add(LoadConversations());
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      realtimeBus.publish(const RealtimeEvent(
+        type: RealtimeEventType.conversationRestored,
+        source: RealtimeSource.local,
+        conversationId: 'conv_1',
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      verify(() => mockGetConversations(any())).called(2);
+    });
     group('LoadMoreConversations', () {
       test('should load more conversations with pagination', () async {
         // arrange - initial load must contain 20 items so internal _hasMore is true
@@ -703,8 +720,21 @@ void main() {
 
     group('Conversation filters and hiding', () {
       test('changes filter, clears search and keeps it on page two', () async {
-        when(() => mockGetConversations(any()))
-            .thenAnswer((_) async => _rightPage(tConversations, hasMore: true));
+        final serverUnreadConversation = tConversations.first.copyWith(
+          id: 'server_unread',
+          unreadCount: 4,
+        );
+        when(() => mockGetConversations(any())).thenAnswer((invocation) async {
+          final params =
+              invocation.positionalArguments.single as GetConversationsParams;
+          if (params.filter == ConversationFilter.unread && params.page == 1) {
+            return _rightPage(
+              [serverUnreadConversation],
+              hasMore: true,
+            );
+          }
+          return _rightPage(tConversations, hasMore: true);
+        });
 
         bloc.add(LoadConversations());
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -712,6 +742,14 @@ void main() {
         bloc.add(
             const ChangeConversationFilter(filter: ConversationFilter.unread));
         await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final stateAfterFilter = bloc.state as ConversationsLoaded;
+        expect(
+          stateAfterFilter.allConversations.map((item) => item.id),
+          ['server_unread'],
+          reason: 'the server page for the new filter must replace local data',
+        );
+
         bloc.add(LoadMoreConversations());
         await Future<void>.delayed(const Duration(milliseconds: 50));
 

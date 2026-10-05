@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Cline hook: double-check completion - executes AFTER every response
+set -euo pipefail
+
+# Read JSON payload from stdin
+INPUT=$(cat)
+
+# Emit system instruction via JSON stdout
+cat <<EOF
+{
+  "systemMessage": "[DOUBLE CHECK GATE] OBLIGATOIRE avant envoi : 1- Relire la requete originale mot pour mot. 2- Verifier chaque exigence contre ce qui a ete fait. 3- Corriger tout ecart silencieusement. 4- Envoyer seulement apres verification complete."
+}
+EOF
+exit 0

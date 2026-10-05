@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/location_catalog.dart';
 
 abstract class ProfileRepository {
   /// Crée un nouveau profil pour l'utilisateur
@@ -32,8 +33,10 @@ abstract class ProfileRepository {
   Future<Either<Failure, Profile>> updateProfile({
     String? displayName,
     String? bio,
+    String? gender,
     String? city,
     String? country,
+    String? preferredCurrency,
     double? latitude,
     double? longitude,
     List<String>? interests,
@@ -41,6 +44,7 @@ abstract class ProfileRepository {
     List<String>? relationshipTypesSought,
     SearchPreferences? searchPreferences,
     PrivacySettings? privacySettings,
+    ProfileLocationUpdate? locationUpdate,
   });
 
   /// Mise Ã  jour avancÃ©e alignÃ©e sur le serializer backend plat.
@@ -64,6 +68,11 @@ abstract class ProfileRepository {
     String? caption,
   });
 
+  Future<Either<Failure, ProfilePhoto>> replaceProfilePhoto({
+    required String photoId,
+    required File photo,
+  });
+
   /// Supprime une photo de profil
   Future<Either<Failure, void>> deleteProfilePhoto(String photoUrl);
   Future<Either<Failure, void>> deleteProfilePhotoById(String photoId);
@@ -74,6 +83,22 @@ abstract class ProfileRepository {
 
   /// Réorganise l'ordre des photos
   Future<Either<Failure, void>> reorderPhotos(List<String> photoUrls);
+
+  /// Versioned GeoNames catalogue used by the dependent manual picker.
+  Future<Either<Failure, List<LocationCountry>>> getLocationCountries({
+    String? query,
+  });
+
+  Future<Either<Failure, List<LocationCity>>> getLocationCities({
+    required String countryCode,
+    String? query,
+  });
+
+  Future<Either<Failure, Profile>> updateProfileLocation(
+    ProfileLocationUpdate update,
+  );
+
+  Future<Either<Failure, void>> reorderPhotosByIds(List<String> photoIds);
 
   /// Soumet les documents pour la vérification
   Future<Either<Failure, void>> submitVerificationDocuments({

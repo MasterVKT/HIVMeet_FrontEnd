@@ -46,8 +46,7 @@ class ResourcesApi {
   /// POST /api/v1/content/resources/{resource_id}/favorite
   Future<Response<Map<String, dynamic>>> favoriteResource(
       String resourceId) async {
-    return await _apiClient
-        .post('/content/resources/$resourceId/favorite');
+    return await _apiClient.post('/content/resources/$resourceId/favorite');
   }
 
   /// Récupérer les ressources favorites
@@ -78,8 +77,7 @@ class ResourcesApi {
     if (category != null) queryParams['category'] = category;
     if (search != null) queryParams['search'] = search;
 
-    return await _apiClient.get('/feed/posts',
-        queryParameters: queryParams);
+    return await _apiClient.get('/feed/posts', queryParameters: queryParams);
   }
 
   /// Créer un post
@@ -171,16 +169,14 @@ class ResourcesApi {
   /// POST /api/v1/content/resources/{resource_id}/favorite
   Future<Response<Map<String, dynamic>>> addToFavorites(
       String resourceId) async {
-    return await _apiClient
-        .post('/content/resources/$resourceId/favorite');
+    return await _apiClient.post('/content/resources/$resourceId/favorite');
   }
 
   /// Retirer des favoris
   /// DELETE /api/v1/content/resources/{resource_id}/favorite
   Future<Response<Map<String, dynamic>>> removeFromFavorites(
       String resourceId) async {
-    return await _apiClient
-        .delete('/content/resources/$resourceId/favorite');
+    return await _apiClient.delete('/content/resources/$resourceId/favorite');
   }
 
   /// Récupérer les ressources récemment vues
@@ -189,8 +185,7 @@ class ResourcesApi {
     int page = 1,
     int pageSize = 20,
   }) async {
-    return await _apiClient
-        .get('/content/recently-viewed', queryParameters: {
+    return await _apiClient.get('/content/recently-viewed', queryParameters: {
       'page': page,
       'page_size': pageSize,
     });
@@ -218,8 +213,7 @@ class ResourcesApi {
   /// POST /api/v1/content/resources/{resource_id}/bookmark
   Future<Response<Map<String, dynamic>>> bookmarkResource(
       String resourceId) async {
-    return await _apiClient
-        .post('/content/resources/$resourceId/bookmark');
+    return await _apiClient.post('/content/resources/$resourceId/bookmark');
   }
 
   /// Partager une ressource

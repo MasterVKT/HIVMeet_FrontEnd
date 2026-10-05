@@ -27,6 +27,7 @@ dependencies:
 
   # Navigation
   go_router: ^12.1.1
+  app_links: ^7.2.1
 
   # Networking
   dio: ^5.3.4
@@ -55,9 +56,12 @@ dependencies:
   # i18n / Formatting
   intl: ^0.20.2
   # UI/UX
-  google_fonts: 8.2.1
+  # google_fonts retiré : polices bundlées en assets locaux (LOG-02).
+  # Les familles OpenSans et Pacifico sont déclarées dans la section fonts ci-dessous.
   flutter_svg: ^2.0.9
   cached_network_image: ^3.3.0
+  video_player: ^2.14.0
+  just_audio: ^0.10.6
   shimmer: ^3.0.0
   photo_view: ^0.14.0
   smooth_page_indicator: ^1.1.0
@@ -94,6 +98,7 @@ dependencies:
   # Tests
   integration_test:
     sdk: flutter
+  open_filex: 4.7.0
 
   # Connectivity (override removed to use compatible resolved version)
 
@@ -116,3 +121,13 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/translations/
+  # Polices locales (LOG-02) : plus de téléchargement runtime depuis fonts.gstatic.com.
+  # OpenSans est une police variable couvrant tous les poids (Regular → Bold).
+  # Licences OFL incluses dans assets/fonts/.
+  fonts:
+    - family: OpenSans
+      fonts:
+        - asset: assets/fonts/OpenSans.ttf
+    - family: Pacifico
+      fonts:
+        - asset: assets/fonts/Pacifico-Regular.ttf

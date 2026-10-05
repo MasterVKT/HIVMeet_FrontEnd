@@ -1,0 +1,6 @@
+# Copier ce fichier vers android/key.properties uniquement sur la machine de
+# signature. Ne jamais committer le fichier réel ni le keystore.
+storeFile=C:/chemin/securise/hivmeet-release.jks
+storePassword=<secret-du-keystore>
+keyAlias=hivmeet-release
+keyPassword=<secret-de-la-cle>

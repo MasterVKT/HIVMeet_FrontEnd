@@ -35,6 +35,7 @@ abstract class MessageRepository {
     File? mediaFile,
     String? clientMessageId,
     String? mediaText,
+    MediaUploadProgressCallback? onUploadProgress,
   });
 
   Future<Either<Failure, MarkAsReadResult>> markAsRead({
@@ -47,11 +48,25 @@ abstract class MessageRepository {
     required String messageId,
   });
 
+  Future<Either<Failure, void>> deleteMessages({
+    required String conversationId,
+    required List<String> messageIds,
+    required MessageDeletionScope scope,
+  });
+
+  Future<Either<Failure, Message>> editMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+  });
+
   /// Compteur global exact de messages non lus sur toutes les conversations
   /// actives non masquées (endpoint dédié, non limité par la pagination).
   Future<Either<Failure, int>> getUnreadCount();
 
   Future<Either<Failure, void>> deleteConversation(String conversationId);
+
+  Future<Either<Failure, void>> restoreConversation(String conversationId);
 
   // Typing indicators
   Future<Either<Failure, void>> setTypingStatus({

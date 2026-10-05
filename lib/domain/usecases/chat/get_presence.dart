@@ -11,7 +11,8 @@ class GetPresence {
 
   GetPresence(this.repository);
 
-  Future<Either<Failure, ParticipantPresence>> call(GetPresenceParams params) async {
+  Future<Either<Failure, ParticipantPresence>> call(
+      GetPresenceParams params) async {
     return repository.getPresence(conversationId: params.conversationId);
   }
 }

@@ -43,6 +43,21 @@ class ProfileApi {
     return await _apiClient.post('/user-profiles/me/photos/', data: formData);
   }
 
+  /// Remplacer le contenu d'une photo sans modifier son ordre ni son statut.
+  /// PUT /api/v1/user-profiles/me/photos/{photo_id}/
+  Future<Response<Map<String, dynamic>>> replacePhoto(
+    String photoId,
+    String photoPath,
+  ) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(photoPath),
+    });
+    return _apiClient.put(
+      '/user-profiles/me/photos/$photoId/',
+      data: formData,
+    );
+  }
+
   /// Supprimer une photo du profil
   /// DELETE /api/v1/user-profiles/me/photos/{photo_id}/
   Future<Response<Map<String, dynamic>>> deletePhoto(String photoId) async {
@@ -70,6 +85,51 @@ class ProfileApi {
       if (country != null) 'country': country,
     });
   }
+
+  /// GET /api/v1/user-profiles/geo/countries/
+  Future<Response<Map<String, dynamic>>> getLocationCountries({
+    String? query,
+  }) =>
+      _apiClient.get('/user-profiles/geo/countries/', queryParameters: {
+        'page_size': 300,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      });
+
+  /// GET /api/v1/user-profiles/geo/cities/?country=XX
+  Future<Response<Map<String, dynamic>>> getLocationCities({
+    required String countryCode,
+    String? query,
+  }) =>
+      _apiClient.get('/user-profiles/geo/cities/', queryParameters: {
+        'country': countryCode,
+        'page_size': 100,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      });
+
+  /// PUT /api/v1/user-profiles/me/location/
+  Future<Response<Map<String, dynamic>>> updateProfileLocation(
+    Map<String, dynamic> payload,
+  ) =>
+      _apiClient.put('/user-profiles/me/location/', data: payload);
+
+  /// PUT /api/v1/user-profiles/me/complete/
+  ///
+  /// The server validates both objects before writing either one.  This is the
+  /// only update route used when a profile edit also changes location.
+  Future<Response<Map<String, dynamic>>> updateProfileAndLocation({
+    required Map<String, dynamic> profile,
+    Map<String, dynamic>? location,
+  }) =>
+      _apiClient.put('/user-profiles/me/complete/', data: <String, dynamic>{
+        'profile': profile,
+        if (location != null) 'location': location,
+      });
+
+  /// PUT /api/v1/user-profiles/me/photos/reorder/
+  Future<Response<List<dynamic>>> reorderPhotos(List<String> photoIds) =>
+      _apiClient.put('/user-profiles/me/photos/reorder/', data: {
+        'photo_ids': photoIds,
+      });
 
   /// Récupérer le statut de vérification
   /// GET /api/v1/user-profiles/me/verification/

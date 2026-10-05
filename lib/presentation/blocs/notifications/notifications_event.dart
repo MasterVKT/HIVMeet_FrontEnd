@@ -47,3 +47,16 @@ class MarkAllNotificationsRead extends NotificationsEvent {
 class ClearNotifications extends NotificationsEvent {
   const ClearNotifications();
 }
+
+/// Supprime une notification spécifique (backend + local).
+class DeleteNotification extends NotificationsEvent {
+  final String notificationId;
+  const DeleteNotification(this.notificationId);
+  @override
+  List<Object?> get props => [notificationId];
+}
+
+/// Supprime toutes les notifications (backend + local).
+class DeleteAllNotifications extends NotificationsEvent {
+  const DeleteAllNotifications();
+}

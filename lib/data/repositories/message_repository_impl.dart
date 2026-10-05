@@ -4,8 +4,9 @@ import 'dart:math';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:injectable/injectable.dart';
-import 'package:hivmeet/core/config/app_config.dart';
+import 'package:hivmeet/core/utils/media_url_resolver.dart';
 import 'package:hivmeet/core/error/failures.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/domain/entities/message.dart';
@@ -24,9 +25,7 @@ class MessageRepositoryImpl implements MessageRepository {
 
   /// Convertit une URL relative en URL absolue en utilisant apiBaseUrl
   String? _buildAbsoluteUrl(String? url) {
-    if (url == null || url.isEmpty) return null;
-    if (url.startsWith('http')) return url;
-    return '${AppConfig.apiBaseUrl}/$url';
+    return MediaUrlResolver.resolve(url);
   }
 
   @override
@@ -121,6 +120,7 @@ class MessageRepositoryImpl implements MessageRepository {
     File? mediaFile,
     String? clientMessageId,
     String? mediaText,
+    MediaUploadProgressCallback? onUploadProgress,
   }) async {
     final effectiveClientMessageId =
         clientMessageId ?? _buildClientMessageId(conversationId);
@@ -146,6 +146,7 @@ class MessageRepositoryImpl implements MessageRepository {
           mediaType: _messageTypeToMediaType(type),
           clientMessageId: effectiveClientMessageId,
           text: mediaText,
+          onSendProgress: onUploadProgress,
         );
       } else {
         response = await _messagingApi.sendTextMessage(
@@ -212,6 +213,47 @@ class MessageRepositoryImpl implements MessageRepository {
   }
 
   @override
+  Future<Either<Failure, void>> deleteMessages({
+    required String conversationId,
+    required List<String> messageIds,
+    required MessageDeletionScope scope,
+  }) async {
+    try {
+      await _messagingApi.deleteMessages(
+        conversationId: conversationId,
+        messageIds: messageIds,
+        scope: scope,
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_mapDioFailure(e));
+    } catch (e) {
+      return Left(_unexpectedFailure('deleteMessages', e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Message>> editMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final response = await _messagingApi.editMessage(
+        conversationId: conversationId,
+        messageId: messageId,
+        content: content,
+      );
+      return Right(
+          _mapJsonToMessage(response.data ?? const <String, dynamic>{}));
+    } on DioException catch (e) {
+      return Left(_mapDioFailure(e, validationMessageKey: 'chat.edit_invalid'));
+    } catch (e) {
+      return Left(_unexpectedFailure('editMessage', e));
+    }
+  }
+
+  @override
   Future<Either<Failure, int>> getUnreadCount() async {
     try {
       final response = await _messagingApi.getUnreadCount();
@@ -234,6 +276,19 @@ class MessageRepositoryImpl implements MessageRepository {
       return Left(_mapDioFailure(e));
     } catch (e) {
       return Left(_unexpectedFailure('deleteConversation', e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> restoreConversation(
+      String conversationId) async {
+    try {
+      await _messagingApi.restoreConversation(conversationId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_mapDioFailure(e));
+    } catch (e) {
+      return Left(_unexpectedFailure('restoreConversation', e));
     }
   }
 
@@ -269,8 +324,10 @@ class MessageRepositoryImpl implements MessageRepository {
       return Right(
         ParticipantPresence(
           userId: (participant['user_id'] ?? '') as String,
+          isVisible: participant['visibility'] as bool? ?? false,
           isOnline: participant['is_online'] as bool? ?? false,
           lastActive: _parseDateTime(participant['last_active']),
+          serverTimestamp: _parseDateTime(payload['server_timestamp']),
           isTyping: participant['is_typing'] as bool? ?? false,
         ),
       );
@@ -354,15 +411,23 @@ class MessageRepositoryImpl implements MessageRepository {
       deliveredAt: _parseDateTime(json['delivered_at']),
       readAt: _parseDateTime(json['read_at']),
       readAtByRecipient: _parseDateTime(json['read_at_by_recipient']),
+      editedAt: _parseDateTime(json['edited_at']),
       isRead: (json['status'] == 'read') ||
           ((json['read_at'] ?? json['read_at_by_recipient']) != null),
       isDelivered:
           (json['status'] == 'delivered') || (json['delivered_at'] != null),
       isSending: json['is_sending'] as bool? ?? false,
+      isDeletedForEveryone: json['is_deleted_for_everyone'] as bool? ?? false,
       mediaUrl: _buildAbsoluteUrl(json['media_url'] as String?),
+      mediaDownloadUrl:
+          _buildAbsoluteUrl(json['media_download_url'] as String?),
       mediaType: json['media_type'] as String?,
       mediaThumbnailUrl:
           _buildAbsoluteUrl(json['media_thumbnail_url'] as String?),
+      mediaMimeType: json['media_mime_type'] as String?,
+      mediaSizeBytes: _intOrNull(json['media_size_bytes']),
+      mediaFileName: json['media_file_name'] as String?,
+      mediaDurationMs: _intOrNull(json['media_duration_ms']),
       // Cast défensif : pas d'endpoint reactions exposé actuellement côté
       // backend (champ toujours vide en pratique), mais si une valeur
       // non-string arrivait un jour (int/null), on ne veut pas crasher toute
@@ -408,10 +473,27 @@ class MessageRepositoryImpl implements MessageRepository {
       );
     }
     if (statusCode == 403) {
+      if (errorCode == 'free_match_locked' ||
+          errorCode == 'free_message_limit_reached') {
+        return PermissionFailure(
+          message: LocalizationService.translate(
+            errorCode == 'free_message_limit_reached'
+                ? 'matches.free_message_limit'
+                : 'matches.locked_message',
+          ),
+          code: errorCode,
+        );
+      }
       return PermissionFailure(
         message:
             LocalizationService.translate('conversations.action_forbidden'),
-        code: 'forbidden',
+        code: errorCode?.toString() ?? 'forbidden',
+      );
+    }
+    if (statusCode == 409) {
+      return ServerFailure(
+        message: LocalizationService.translate('chat.edit_unavailable'),
+        code: errorCode?.toString() ?? 'conflict',
       );
     }
     if (statusCode == 404) {
@@ -449,13 +531,20 @@ class MessageRepositoryImpl implements MessageRepository {
   /// est loggé en debug uniquement.
   Failure _unexpectedFailure(String operation, Object error) {
     if (kDebugMode) {
-      debugPrint('[MessageRepositoryImpl] $operation failed: $error');
+      LogService.warning('[MessageRepositoryImpl] $operation failed: $error',
+          name: 'MessageRepositoryImpl');
     }
     return ServerFailure(
       message: LocalizationService.translate('common.error'),
       code: 'unknown',
     );
   }
+
+  int? _intOrNull(Object? value) => value is int
+      ? value
+      : value == null
+          ? null
+          : int.tryParse(value.toString());
 
   MessageType _stringToMessageType(String type) {
     switch (type) {

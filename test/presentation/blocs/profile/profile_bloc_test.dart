@@ -5,13 +5,15 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
+import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/domain/entities/profile.dart';
+import 'package:hivmeet/domain/entities/location_catalog.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
 import 'package:hivmeet/domain/usecases/profile/block_user.dart' as block;
 import 'package:hivmeet/domain/usecases/profile/delete_photo.dart' as delete;
 import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
-import 'package:hivmeet/domain/usecases/profile/reorder_photos.dart' as reorder;
 import 'package:hivmeet/domain/usecases/profile/set_main_photo.dart'
     as set_main;
 import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart'
@@ -36,8 +38,6 @@ class MockDeletePhoto extends Mock implements delete.DeletePhoto {}
 
 class MockSetMainPhoto extends Mock implements set_main.SetMainPhoto {}
 
-class MockReorderPhotos extends Mock implements reorder.ReorderPhotos {}
-
 class MockUpdateLocation extends Mock implements update_loc.UpdateLocation {}
 
 class MockBlockUser extends Mock implements block.BlockUser {}
@@ -56,12 +56,12 @@ void main() {
   late MockUploadPhoto mockUploadPhoto;
   late MockDeletePhoto mockDeletePhoto;
   late MockSetMainPhoto mockSetMainPhoto;
-  late MockReorderPhotos mockReorderPhotos;
   late MockUpdateLocation mockUpdateLocation;
   late MockBlockUser mockBlockUser;
   late MockUnblockUser mockUnblockUser;
   late MockToggleProfileVisibility mockToggleProfileVisibility;
   late MockProfileRepository mockProfileRepository;
+  late RealtimeEventBus realtimeBus;
 
   setUp(() {
     mockGetCurrentProfile = MockGetCurrentProfile();
@@ -69,12 +69,12 @@ void main() {
     mockUploadPhoto = MockUploadPhoto();
     mockDeletePhoto = MockDeletePhoto();
     mockSetMainPhoto = MockSetMainPhoto();
-    mockReorderPhotos = MockReorderPhotos();
     mockUpdateLocation = MockUpdateLocation();
     mockBlockUser = MockBlockUser();
     mockUnblockUser = MockUnblockUser();
     mockToggleProfileVisibility = MockToggleProfileVisibility();
     mockProfileRepository = MockProfileRepository();
+    realtimeBus = RealtimeEventBus();
 
     bloc = ProfileBloc(
       getCurrentProfile: mockGetCurrentProfile,
@@ -82,12 +82,12 @@ void main() {
       uploadPhoto: mockUploadPhoto,
       deletePhoto: mockDeletePhoto,
       setMainPhoto: mockSetMainPhoto,
-      reorderPhotos: mockReorderPhotos,
       updateLocation: mockUpdateLocation,
       blockUser: mockBlockUser,
       unblockUser: mockUnblockUser,
       toggleProfileVisibility: mockToggleProfileVisibility,
       profileRepository: mockProfileRepository,
+      realtimeBus: realtimeBus,
     );
 
     registerFallbackValue(NoParams());
@@ -105,9 +105,6 @@ void main() {
       set_main.SetMainPhotoParams(photoUrl: 'https://example.com/fallback.jpg'),
     );
     registerFallbackValue(
-      reorder.ReorderPhotosParams(photoUrls: const []),
-    );
-    registerFallbackValue(
       update_loc.UpdateLocationParams(
         latitude: 0,
         longitude: 0,
@@ -122,7 +119,10 @@ void main() {
     );
   });
 
-  tearDown(() => bloc.close());
+  tearDown(() async {
+    await bloc.close();
+    realtimeBus.dispose();
+  });
 
   Profile createProfileFixture({
     String id = 'profile_1',
@@ -184,6 +184,21 @@ void main() {
   group('ProfileBloc', () {
     test('initial state is ProfileInitial', () {
       expect(bloc.state, equals(ProfileInitial()));
+    });
+
+    test('a confirmed subscription reloads the current profile', () async {
+      final profile = createProfileFixture();
+      stubLoadProfileSnapshot(profile);
+
+      bloc.add(LoadProfile());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      realtimeBus.publish(const RealtimeEvent(
+        type: RealtimeEventType.subscriptionChanged,
+        source: RealtimeSource.local,
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      verify(() => mockGetCurrentProfile(any())).called(2);
     });
 
     group('LoadProfile', () {
@@ -267,6 +282,56 @@ void main() {
         bloc.add(const UpdateProfileEvent(bio: 'Updated bio'));
       });
 
+      test('forwards the selected subscription currency preference', () async {
+        final current = createProfileFixture();
+        final updated = current.copyWith(
+          preferredCurrency: 'XAF',
+          effectiveCurrency: 'XAF',
+        );
+        stubLoadProfileSnapshot(current);
+        bloc.add(LoadProfile());
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        when(() => mockUpdateProfile(any()))
+            .thenAnswer((_) async => Right(updated));
+
+        bloc.add(const UpdateProfileEvent(preferredCurrency: 'XAF'));
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final params = verify(() => mockUpdateProfile(captureAny()))
+            .captured
+            .single as UpdateProfileParams;
+        expect(params.preferredCurrency, 'XAF');
+        expect(bloc.state, isA<ProfileActionSuccess>());
+        expect(
+          (bloc.state as ProfileActionSuccess).profile.effectiveCurrency,
+          'XAF',
+        );
+      });
+
+      test('passes a manual catalog location to the atomic profile contract',
+          () async {
+        final current = createProfileFixture();
+        final updated = current.copyWith(city: 'Douala', country: 'Cameroon');
+        const location = ProfileLocationUpdate.manual(cityId: 2220957);
+        stubLoadProfileSnapshot(current);
+        bloc.add(LoadProfile());
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        when(() => mockUpdateProfile(any()))
+            .thenAnswer((_) async => Right(updated));
+        bloc.add(const UpdateProfileEvent(locationUpdate: location));
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final params = verify(() => mockUpdateProfile(captureAny()))
+            .captured
+            .single as UpdateProfileParams;
+        expect(params.locationUpdate, location);
+        verifyNever(
+            () => mockProfileRepository.updateProfileLocation(location));
+        expect(bloc.state, isA<ProfileActionSuccess>());
+      });
+
       test('should do nothing if no loaded state exists', () async {
         const tFailure = ServerFailure(message: 'Should not be called');
         when(() => mockUpdateProfile(any()))
@@ -280,6 +345,23 @@ void main() {
         await bloc.close();
 
         verifyNever(() => mockUpdateProfile(any()));
+      });
+    });
+
+    group('ApplySavedProfile', () {
+      test('updates the parent snapshot without fetching it again', () async {
+        final current = createProfileFixture();
+        final updated = current.copyWith(city: 'Douala');
+        stubLoadProfileSnapshot(current);
+        bloc.add(LoadProfile());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        bloc.add(ApplySavedProfile(updated));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(bloc.state, isA<ProfileLoaded>());
+        expect((bloc.state as ProfileLoaded).profile.city, 'Douala');
+        verify(() => mockGetCurrentProfile(any())).called(1);
       });
     });
 

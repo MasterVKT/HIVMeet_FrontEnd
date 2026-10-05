@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -59,7 +59,7 @@ class TokenService {
 
       return false;
     } catch (e) {
-      debugPrint('Erreur lors de l\'échange de tokens: $e');
+      LogService.debug('Erreur lors de l\'échange de tokens: $e');
       return false;
     }
   }
@@ -111,7 +111,7 @@ class TokenService {
 
       return false;
     } catch (e) {
-      debugPrint('Erreur lors du rafraîchissement du token: $e');
+      LogService.debug('Erreur lors du rafraîchissement du token: $e');
       return false;
     }
   }
