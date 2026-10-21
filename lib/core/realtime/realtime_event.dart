@@ -38,6 +38,7 @@ enum RealtimeEventType {
 
   /// Émis localement après confirmation et rechargement serveur des droits.
   subscriptionChanged,
+  kycVerificationUpdated,
 }
 
 /// Origine d'un [RealtimeEvent] — utile pour le diagnostic et pour éviter

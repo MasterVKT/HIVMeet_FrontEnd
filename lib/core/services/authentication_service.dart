@@ -15,6 +15,9 @@ enum AuthenticationStatus {
   /// Connecté à Firebase mais pas encore échangé
   firebaseConnected,
 
+  /// Firebase session retained only for email verification.
+  emailVerificationPending,
+
   /// Tokens JWT Django obtenus
   tokensExchanged,
 
@@ -34,12 +37,16 @@ class AuthenticationResult {
   final String? error;
   final String? errorCode;
   final domain.User? user;
+  final bool isEmailVerificationPending;
+  final bool? verificationEmailSent;
 
   const AuthenticationResult({
     required this.success,
     this.error,
     this.errorCode,
     this.user,
+    this.isEmailVerificationPending = false,
+    this.verificationEmailSent,
   });
 
   factory AuthenticationResult.success(domain.User user) {
@@ -51,6 +58,16 @@ class AuthenticationResult {
       success: false,
       error: error,
       errorCode: errorCode,
+    );
+  }
+
+  factory AuthenticationResult.emailVerificationPending({
+    bool? verificationEmailSent,
+  }) {
+    return AuthenticationResult(
+      success: true,
+      isEmailVerificationPending: true,
+      verificationEmailSent: verificationEmailSent,
     );
   }
 }
@@ -75,6 +92,7 @@ class AuthenticationService {
 
   // Listeners Firebase
   StreamSubscription<User?>? _firebaseAuthSubscription;
+  StreamSubscription<void>? _emailVerificationRequiredSubscription;
   bool _registrationSignInInProgress = false;
 
   AuthenticationService(
@@ -84,6 +102,10 @@ class AuthenticationService {
   ) {
     developer.log('🔧 AuthenticationService initialisé', name: 'AuthService');
     _connectivityService.initialize();
+    _emailVerificationRequiredSubscription =
+        _tokenManager.emailVerificationRequiredStream.listen((_) {
+      _moveToEmailVerificationAfterServerRejection();
+    });
     _initializeAuthentication();
   }
 
@@ -96,6 +118,9 @@ class AuthenticationService {
   Stream<AuthenticationStatus> get statusStream => _statusController.stream;
   Stream<domain.User?> get userStream => _userController.stream;
   Stream<String?> get errorStream => _errorController.stream;
+
+  bool get isEmailVerificationPending =>
+      _status == AuthenticationStatus.emailVerificationPending;
 
   /// Retourne le JWT access token courant (pour WebSocket auth, etc.).
   Future<String?> getAccessToken() => _tokenManager.getAccessToken();
@@ -150,18 +175,12 @@ class AuthenticationService {
 
     // Vérifier l'état initial de Firebase Auth
     final currentUser = _firebaseAuth.currentUser;
-    developer.log(
-        '👤 Utilisateur Firebase initial: ${currentUser?.email ?? "null"} (UID: ${currentUser?.uid ?? "null"})',
-        name: 'AuthService');
 
     // Écouter les changements d'état Firebase avec logs détaillés
     developer.log('📡 Configuration du listener authStateChanges...',
         name: 'AuthService');
     _firebaseAuthSubscription = _firebaseAuth.authStateChanges().listen(
       (user) {
-        developer.log(
-            '🔔 LISTENER DÉCLENCHÉ: authStateChanges pour ${user?.email ?? "null"} (UID: ${user?.uid ?? "null"})',
-            name: 'AuthService');
         _onFirebaseAuthStateChanged(user);
       },
       onError: (error) {
@@ -173,13 +192,12 @@ class AuthenticationService {
 
     developer.log('✅ Listener authStateChanges configuré', name: 'AuthService');
 
-    // Vérifier si des tokens sont déjà stockés
+    // A Django session is usable only with a currently verified Firebase
+    // session. This check clears stale JWTs before any protected request.
     _checkStoredTokens();
 
     // Si un utilisateur est déjà connecté, forcer le traitement
     if (currentUser != null) {
-      developer.log('🔄 Utilisateur déjà connecté, traitement forcé...',
-          name: 'AuthService');
       Future.delayed(Duration(milliseconds: 500), () {
         _onFirebaseAuthStateChanged(currentUser);
       });
@@ -188,13 +206,6 @@ class AuthenticationService {
 
   /// Gère les changements d'état Firebase Auth
   Future<void> _onFirebaseAuthStateChanged(User? firebaseUser) async {
-    developer.log(
-        '🔄 [HANDLER] Changement d\'état Firebase: ${firebaseUser?.email ?? "null"} (UID: ${firebaseUser?.uid ?? "null"})',
-        name: 'AuthService');
-
-    developer.log('📊 État actuel du service: ${_status.name}',
-        name: 'AuthService');
-
     if (firebaseUser == null) {
       // Utilisateur déconnecté de Firebase
       developer.log('🚪 [HANDLER] Gestion déconnexion Firebase...',
@@ -205,13 +216,20 @@ class AuthenticationService {
       // the canonical account. Avoid a competing listener exchange.
       return;
     } else {
+      await firebaseUser.reload();
+      final refreshedFirebaseUser = _firebaseAuth.currentUser;
+      if (refreshedFirebaseUser == null) {
+        await _handleFirebaseSignOut();
+        return;
+      }
+      if (!refreshedFirebaseUser.emailVerified) {
+        await _enterEmailVerificationPending();
+        return;
+      }
       // Utilisateur connecté à Firebase
-      developer.log(
-          '🔐 [HANDLER] Gestion connexion Firebase pour ${firebaseUser.email}...',
-          name: 'AuthService');
 
       // Vérifier si on a déjà traité cet utilisateur
-      if (_currentUser?.id == firebaseUser.uid &&
+      if (_currentUser?.id == refreshedFirebaseUser.uid &&
           _status == AuthenticationStatus.fullyAuthenticated) {
         developer.log('✅ [HANDLER] Utilisateur déjà traité, ignorer',
             name: 'AuthService');
@@ -219,13 +237,13 @@ class AuthenticationService {
       }
 
       try {
-        await _handleFirebaseSignIn(firebaseUser);
+        await _handleFirebaseSignIn(refreshedFirebaseUser);
         developer.log('✅ [HANDLER] _handleFirebaseSignIn terminé avec succès',
             name: 'AuthService');
-      } catch (e) {
-        developer.log('❌ [HANDLER] Erreur dans _handleFirebaseSignIn: $e',
+      } catch (_) {
+        developer.log('Firebase session processing failed',
             name: 'AuthService');
-        _updateError('Erreur traitement connexion Firebase: $e');
+        _updateError('auth.errors.authentication_failed');
         _updateStatus(AuthenticationStatus.error);
       }
     }
@@ -236,44 +254,41 @@ class AuthenticationService {
 
   /// Gère les erreurs Firebase Auth
   void _onFirebaseAuthError(dynamic error) {
-    developer.log('❌ Erreur Firebase Auth: $error', name: 'AuthService');
-    _updateError('Erreur Firebase Auth: $error');
+    developer.log('Firebase Auth state listener failed', name: 'AuthService');
+    _updateError('auth.errors.firebase_unavailable');
     _updateStatus(AuthenticationStatus.error);
   }
 
   /// Vérifie les tokens stockés au démarrage
   Future<void> _checkStoredTokens() async {
     try {
-      final hasValidTokens = await _tokenManager.hasValidTokens();
-
-      if (hasValidTokens) {
-        developer.log('✅ Tokens valides trouvés en cache', name: 'AuthService');
-
-        // Récupérer les informations utilisateur stockées
-        final userData = await _tokenManager.getStoredUserData();
-        if (userData != null) {
-          _currentUser = userData;
-          _updateStatus(AuthenticationStatus.fullyAuthenticated);
-          _userController.add(_currentUser);
-
-          developer.log(
-              '🎯 Utilisateur restauré depuis le cache: ${userData.email}',
-              name: 'AuthService');
-        }
-      } else {
-        developer.log('ℹ️ Aucun token valide en cache', name: 'AuthService');
+      final firebaseUser = _firebaseAuth.currentUser;
+      if (firebaseUser == null) {
+        await _tokenManager.clearAllTokens();
+        return;
       }
-    } catch (e) {
-      developer.log('❌ Erreur lors de la vérification des tokens: $e',
-          name: 'AuthService');
+      await firebaseUser.reload();
+      final refreshedFirebaseUser = _firebaseAuth.currentUser;
+      if (refreshedFirebaseUser == null ||
+          !refreshedFirebaseUser.emailVerified) {
+        await _enterEmailVerificationPending();
+        return;
+      }
+      // Never restore a Django JWT from storage on its own. Re-exchange a
+      // fresh Firebase ID token so pre-verification credentials cannot regain
+      // access after an application restart.
+      await _handleFirebaseSignIn(refreshedFirebaseUser);
+    } catch (_) {
+      developer.log('Stored-session verification failed', name: 'AuthService');
     }
   }
 
   /// Gère la connexion Firebase réussie
   Future<void> _handleFirebaseSignIn(User firebaseUser) async {
-    developer.log(
-        '🎯 [SIGNIN] Début _handleFirebaseSignIn pour ${firebaseUser.email}',
-        name: 'AuthService');
+    if (!firebaseUser.emailVerified) {
+      await _enterEmailVerificationPending();
+      return;
+    }
 
     _updateStatus(AuthenticationStatus.firebaseConnected);
     developer.log('📊 [SIGNIN] Statut mis à jour: firebaseConnected',
@@ -291,8 +306,7 @@ class AuthenticationService {
             'Impossible de récupérer le token Firebase (null ou vide)');
       }
 
-      developer.log(
-          '🔑 [SIGNIN] Token Firebase récupéré pour ${firebaseUser.email} (${firebaseToken.length} chars)',
+      developer.log('Firebase ID token obtained for exchange',
           name: 'AuthService');
 
       // Tenter l'échange de tokens (appel réel backend)
@@ -301,11 +315,9 @@ class AuthenticationService {
       await _exchangeFirebaseTokens(firebaseToken, firebaseUser);
       developer.log('✅ [SIGNIN] _exchangeFirebaseTokens terminé avec succès',
           name: 'AuthService');
-    } catch (e) {
-      developer.log(
-          '❌ [SIGNIN] Erreur lors de la gestion de connexion Firebase: $e',
-          name: 'AuthService');
-      _updateError('Erreur lors de l\'authentification: $e');
+    } catch (_) {
+      developer.log('Firebase session exchange failed', name: 'AuthService');
+      _updateError('auth.errors.authentication_failed');
       _updateStatus(AuthenticationStatus.error);
       rethrow; // Re-lancer l'erreur pour que le handler parent puisse la gérer
     }
@@ -325,6 +337,21 @@ class AuthenticationService {
     _userController.add(null);
   }
 
+  Future<void> _enterEmailVerificationPending() async {
+    await _tokenManager.clearAllTokens();
+    _currentUser = null;
+    _lastError = null;
+    _updateStatus(AuthenticationStatus.emailVerificationPending);
+  }
+
+  Future<void> _moveToEmailVerificationAfterServerRejection() async {
+    if (_firebaseAuth.currentUser == null) {
+      await _handleFirebaseSignOut();
+      return;
+    }
+    await _enterEmailVerificationPending();
+  }
+
   /// Échange les tokens Firebase contre des tokens Django JWT
   Future<void> _exchangeFirebaseTokens(
       String firebaseToken, User firebaseUser) async {
@@ -332,9 +359,6 @@ class AuthenticationService {
 
     try {
       developer.log('🔄 Tentative d\'échange Firebase → Django JWT',
-          name: 'AuthService');
-      developer.log(
-          '🔑 Token Firebase (${firebaseToken.length} chars): ${firebaseToken.substring(0, 50)}...',
           name: 'AuthService');
 
       // Retry limité sur erreurs réseau temporaires
@@ -432,10 +456,14 @@ class AuthenticationService {
       final status = e.response?.statusCode ?? 0;
       final data = e.response?.data;
       String backendCode = '';
-      String backendMessage = '';
       if (data is Map<String, dynamic>) {
-        backendCode = (data['code'] as String?) ?? '';
-        backendMessage = (data['message'] as String?) ?? '';
+        backendCode =
+            (data['code'] as String?) ?? (data['error'] as String?) ?? '';
+      }
+
+      if (backendCode == 'email_not_verified') {
+        await _enterEmailVerificationPending();
+        return;
       }
 
       final message = backendCode == 'MISSING_TOKEN'
@@ -449,13 +477,13 @@ class AuthenticationService {
                       : 'auth.errors.exchange_failed';
 
       developer.log(
-          '🌐 Erreur échange tokens (HTTP $status, code=$backendCode): $backendMessage',
+          'Firebase token exchange failed (HTTP $status, code=$backendCode)',
           name: 'AuthService');
       _updateError(message);
       _updateStatus(AuthenticationStatus.error);
-    } catch (e) {
-      developer.log('❌ Erreur échange de tokens: $e', name: 'AuthService');
-      _updateError('Erreur lors de l\'échange de tokens: $e');
+    } catch (_) {
+      developer.log('Firebase token exchange failed', name: 'AuthService');
+      _updateError('auth.errors.exchange_failed');
       _updateStatus(AuthenticationStatus.error);
     }
   }
@@ -466,7 +494,7 @@ class AuthenticationService {
     required String password,
   }) async {
     try {
-      developer.log('🔐 Tentative de connexion: $email', name: 'AuthService');
+      developer.log('Firebase sign-in started', name: 'AuthService');
       _updateStatus(AuthenticationStatus.authenticating);
 
       // Test de connectivité réseau préalable
@@ -487,7 +515,7 @@ class AuthenticationService {
       // Test admin via ApiClient supprimé: faux négatif (chemin /api/v1/admin/ inexistant)
       // La vérification de connectivité a déjà réussi via NetworkConnectivityService.
 
-      developer.log('✅ Connectivité OK, tentative login backend...',
+      developer.log('Backend connectivity confirmed; Firebase sign-in starting',
           name: 'AuthService');
 
       // Utiliser directement Firebase pour l'authentification
@@ -509,16 +537,29 @@ class AuthenticationService {
       if (credential.user != null) {
         developer.log('✅ Connexion Firebase réussie', name: 'AuthService');
 
-        // Appeler le flux standard qui effectue l'échange de tokens
-        final firebaseUser = credential.user!;
+        // Refresh the user record before any Django-token exchange. Firebase
+        // is the authority for this claim, not a cached local flag.
+        await credential.user!.reload();
+        final firebaseUser = _firebaseAuth.currentUser;
+        if (firebaseUser == null) {
+          throw const FormatException('Firebase session was not retained.');
+        }
+        if (!firebaseUser.emailVerified) {
+          await _enterEmailVerificationPending();
+          return AuthenticationResult.emailVerificationPending();
+        }
+
+        // Appeler le flux standard qui effectue l'échange de tokens.
         await _handleFirebaseSignIn(firebaseUser);
+
+        if (_status == AuthenticationStatus.emailVerificationPending) {
+          return AuthenticationResult.emailVerificationPending();
+        }
 
         // À ce stade, si tout s'est bien passé, _currentUser est défini
         if (_currentUser != null &&
             _status == AuthenticationStatus.fullyAuthenticated) {
-          developer.log(
-              '✅ Authentification complète pour ${_currentUser!.email}',
-              name: 'AuthService');
+          developer.log('Firebase sign-in completed', name: 'AuthService');
           return AuthenticationResult.success(_currentUser!);
         }
 
@@ -528,7 +569,7 @@ class AuthenticationService {
         throw Exception('Connexion échouée - credential.user est null');
       }
     } on FirebaseAuthException catch (e) {
-      developer.log('❌ Erreur Firebase Auth: ${e.code} - ${e.message}',
+      developer.log('Firebase sign-in failed (code=${e.code})',
           name: 'AuthService');
 
       String errorMessage = _getFirebaseErrorMessage(e.code);
@@ -537,8 +578,7 @@ class AuthenticationService {
 
       return AuthenticationResult.failure(errorMessage, e.code);
     } on TimeoutException {
-      const errorMessage =
-          'Timeout: Connexion trop lente. Vérifiez votre réseau.';
+      const errorMessage = 'auth.errors.connection_timeout';
       developer.log('⏰ $errorMessage', name: 'AuthService');
       _updateError(errorMessage);
       _updateStatus(AuthenticationStatus.error);
@@ -549,111 +589,14 @@ class AuthenticationService {
       _updateError(errorMessage);
       _updateStatus(AuthenticationStatus.error);
       return AuthenticationResult.failure(errorMessage);
-    } catch (e) {
-      developer.log('❌ Erreur inattendue lors de la connexion: $e',
-          name: 'AuthService');
+    } catch (_) {
+      developer.log('Unexpected sign-in failure', name: 'AuthService');
 
-      String errorMessage = 'Erreur de connexion: $e';
+      const errorMessage = 'auth.errors.authentication_failed';
       _updateError(errorMessage);
       _updateStatus(AuthenticationStatus.error);
 
       return AuthenticationResult.failure(errorMessage);
-    }
-  }
-
-  /// Connexion directe au backend Django (bypass Firebase) — mode debug
-  /// uniquement. Utilisé pour les tests sur émulateur/appareil physique
-  /// quand Firebase Auth n'est pas configuré ou inaccessible.
-  ///
-  /// Appelle POST /api/v1/auth/login/ avec email + password, stocke les
-  /// tokens JWT et construit l'entité User depuis la réponse.
-  Future<AuthenticationResult> loginWithBackend({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      developer.log('🔐 [DEBUG] Login backend direct: $email',
-          name: 'AuthService');
-      _updateStatus(AuthenticationStatus.authenticating);
-
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        'auth/login/',
-        data: {
-          'email': email,
-          'password': password,
-        },
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data!;
-        final accessToken = data['access_token'] as String?;
-        final refreshToken = data['refresh_token'] as String?;
-        final userJson = data['user'] as Map<String, dynamic>?;
-
-        if (accessToken == null || refreshToken == null) {
-          throw Exception('Tokens manquants dans la réponse de login');
-        }
-
-        // Conserver le même contrat de mapping que le login Firebase et le
-        // rafraîchissement post-paiement, notamment premium_until.
-        final now = DateTime.now().toIso8601String();
-        final user = domain.User.fromJson({
-          'id': '',
-          'email': email,
-          'displayName': 'Utilisateur',
-          'isVerified': false,
-          'isPremium': false,
-          'lastActive': now,
-          'isEmailVerified': true,
-          'notificationSettings': const <String, dynamic>{},
-          'blockedUserIds': const <String>[],
-          'createdAt': now,
-          'updatedAt': now,
-          ...?userJson,
-        });
-
-        await _tokenManager.storeTokens(
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-          userData: user,
-        );
-
-        _currentUser = user;
-        _updateStatus(AuthenticationStatus.fullyAuthenticated);
-        _userController.add(_currentUser);
-
-        developer.log('✅ [DEBUG] Login backend réussi pour ${user.email}',
-            name: 'AuthService');
-        return AuthenticationResult.success(user);
-      }
-
-      throw Exception('Login échoué (HTTP ${response.statusCode})');
-    } on DioException catch (e) {
-      final status = e.response?.statusCode ?? 0;
-      String errorMessage;
-      if (status == 401) {
-        errorMessage = 'Email ou mot de passe incorrect';
-      } else if (status == 0 || status >= 500) {
-        errorMessage = 'Serveur inaccessible. Vérifiez la connexion réseau.';
-      } else {
-        final data = e.response?.data;
-        if (data is Map<String, dynamic>) {
-          errorMessage = data['message'] as String? ??
-              'Erreur de connexion (HTTP $status)';
-        } else {
-          errorMessage = 'Erreur de connexion (HTTP $status)';
-        }
-      }
-      developer.log('❌ [DEBUG] Login backend DioException: $errorMessage',
-          name: 'AuthService');
-      _updateError(errorMessage);
-      _updateStatus(AuthenticationStatus.error);
-      return AuthenticationResult.failure(errorMessage);
-    } catch (e) {
-      developer.log('❌ [DEBUG] Login backend erreur: $e', name: 'AuthService');
-      _updateError('Erreur de connexion: $e');
-      _updateStatus(AuthenticationStatus.error);
-      return AuthenticationResult.failure('Erreur de connexion: $e');
     }
   }
 
@@ -661,6 +604,7 @@ class AuthenticationService {
   Future<AuthenticationResult> signUpWithEmailAndPassword({
     required String email,
     required String password,
+    required String locale,
     String? displayName,
     DateTime? birthDate,
     String? phoneNumber,
@@ -668,7 +612,7 @@ class AuthenticationService {
   }) async {
     if (displayName == null || birthDate == null || gender == null) {
       return AuthenticationResult.failure(
-        'Compl\u00e9tez le nom, la date de naissance et le genre pour cr\u00e9er le compte.',
+        'auth.errors.registration_data_required',
         'registration_data_required',
       );
     }
@@ -697,21 +641,23 @@ class AuthenticationService {
         throw const FormatException(
             'Firebase did not return the registered account.');
       }
-      await _handleFirebaseSignIn(firebaseUser);
-      final user = _currentUser;
-      if (user == null) {
-        throw const FormatException(
-            'Registered account could not be authenticated.');
+      await _firebaseAuth.setLanguageCode(locale);
+      var verificationEmailSent = true;
+      try {
+        await firebaseUser.sendEmailVerification();
+      } catch (_) {
+        verificationEmailSent = false;
       }
-      return AuthenticationResult.success(user);
+      await _enterEmailVerificationPending();
+      return AuthenticationResult.emailVerificationPending(
+        verificationEmailSent: verificationEmailSent,
+      );
     } on DioException catch (error) {
       final data = error.response?.data;
       final code = data is Map ? data['code'] as String? : null;
-      final message = data is Map ? data['message'] as String? : null;
-      final readable = message ??
-          (error.response?.statusCode == 400
-              ? 'V\u00e9rifiez les informations saisies.'
-              : 'Impossible de cr\u00e9er le compte pour le moment.');
+      final readable = error.response?.statusCode == 400
+          ? _registrationErrorMessage(data)
+          : 'auth.errors.registration_failed';
       _updateError(readable);
       _updateStatus(AuthenticationStatus.error);
       return AuthenticationResult.failure(readable, code);
@@ -721,17 +667,99 @@ class AuthenticationService {
       _updateStatus(AuthenticationStatus.error);
       return AuthenticationResult.failure(readable, error.code);
     } on FormatException catch (_) {
-      const readable = "Impossible de terminer l'inscription pour le moment.";
+      const readable = 'auth.errors.registration_failed';
       _updateError(readable);
       _updateStatus(AuthenticationStatus.error);
       return AuthenticationResult.failure(readable);
     } catch (_) {
-      const readable = "Impossible de terminer l'inscription pour le moment.";
+      const readable = 'auth.errors.registration_failed';
       _updateError(readable);
       _updateStatus(AuthenticationStatus.error);
       return AuthenticationResult.failure(readable);
     } finally {
       _registrationSignInInProgress = false;
+    }
+  }
+
+  /// Traduit le contrat d'erreur stable du backend en clé i18n.
+  ///
+  /// Le backend renvoie `field_errors: {champ: [codes]}`. Seuls ces codes
+  /// sont utilisés : aucun message backend brut n'est affiché.
+  String _registrationErrorMessage(dynamic data) {
+    if (data is! Map) {
+      return 'auth.errors.registration_invalid';
+    }
+
+    final rawFieldErrors = data['field_errors'];
+    if (rawFieldErrors is! Map) {
+      return 'auth.errors.registration_invalid';
+    }
+
+    const fieldsInDisplayOrder = <String>[
+      'email',
+      'password',
+      'password_confirm',
+      'display_name',
+      'birth_date',
+      'phone_number',
+      'gender',
+    ];
+
+    for (final field in fieldsInDisplayOrder) {
+      final codes = rawFieldErrors[field];
+      if (codes is List && codes.isNotEmpty) {
+        return _registrationFieldMessage(field, codes.first?.toString());
+      }
+    }
+
+    return 'auth.errors.registration_invalid';
+  }
+
+  String _registrationFieldMessage(String field, String? code) {
+    switch (field) {
+      case 'email':
+        return code == 'unique'
+            ? 'auth.errors.email_already_registered'
+            : 'auth.validation.email_invalid';
+      case 'password':
+        switch (code) {
+          case 'password_too_common':
+            return 'auth.errors.password_too_common';
+          case 'password_entirely_numeric':
+            return 'auth.errors.password_entirely_numeric';
+          case 'password_too_short':
+            return 'auth.errors.password_too_short';
+          case 'password_too_similar':
+            return 'auth.errors.password_too_similar';
+          default:
+            return 'auth.validation.password_requirements';
+        }
+      case 'password_confirm':
+        return 'auth.validation.password_mismatch';
+      case 'display_name':
+        switch (code) {
+          case 'required':
+            return 'auth.validation.display_name_required';
+          case 'invalid_characters':
+            return 'auth.errors.display_name_invalid_characters';
+          default:
+            return 'auth.validation.display_name_invalid';
+        }
+      case 'birth_date':
+        switch (code) {
+          case 'required':
+            return 'auth.validation.birth_date_required';
+          case 'age_requirement':
+            return 'auth.validation.age_requirement';
+          default:
+            return 'auth.errors.birth_date_invalid';
+        }
+      case 'phone_number':
+        return 'auth.validation.phone_invalid';
+      case 'gender':
+        return 'auth.validation.gender_required';
+      default:
+        return 'auth.errors.registration_invalid';
     }
   }
 
@@ -749,9 +777,80 @@ class AuthenticationService {
       _currentUser = null;
       _updateStatus(AuthenticationStatus.disconnected);
       _userController.add(null);
-    } catch (e) {
-      developer.log('❌ Erreur déconnexion: $e', name: 'AuthService');
-      _updateError('Erreur lors de la déconnexion: $e');
+    } catch (_) {
+      developer.log('Sign-out failed', name: 'AuthService');
+      _updateError('auth.errors.sign_out_failed');
+    }
+  }
+
+  Future<AuthenticationResult> resendEmailVerification({
+    required String locale,
+  }) async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) {
+      return AuthenticationResult.failure(
+        'auth.email_verification.no_firebase_session',
+        'no_firebase_session',
+      );
+    }
+
+    try {
+      await _firebaseAuth.setLanguageCode(locale);
+      await firebaseUser.sendEmailVerification();
+      await _enterEmailVerificationPending();
+      return AuthenticationResult.emailVerificationPending(
+        verificationEmailSent: true,
+      );
+    } catch (_) {
+      await _enterEmailVerificationPending();
+      return AuthenticationResult.emailVerificationPending(
+        verificationEmailSent: false,
+      );
+    }
+  }
+
+  Future<AuthenticationResult> completeEmailVerification() async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) {
+      return AuthenticationResult.failure(
+        'auth.email_verification.no_firebase_session',
+        'no_firebase_session',
+      );
+    }
+
+    try {
+      await firebaseUser.reload();
+      final refreshedFirebaseUser = _firebaseAuth.currentUser;
+      if (refreshedFirebaseUser == null) {
+        return AuthenticationResult.failure(
+          'auth.email_verification.no_firebase_session',
+          'no_firebase_session',
+        );
+      }
+      if (!refreshedFirebaseUser.emailVerified) {
+        await _enterEmailVerificationPending();
+        return AuthenticationResult.failure(
+          'auth.email_verification.still_pending',
+          'email_not_verified',
+        );
+      }
+
+      await _handleFirebaseSignIn(refreshedFirebaseUser);
+      if (_currentUser != null &&
+          _status == AuthenticationStatus.fullyAuthenticated) {
+        return AuthenticationResult.success(_currentUser!);
+      }
+      if (_status == AuthenticationStatus.emailVerificationPending) {
+        return AuthenticationResult.failure(
+          'auth.email_verification.still_pending',
+          'email_not_verified',
+        );
+      }
+      return AuthenticationResult.failure('auth.errors.exchange_failed');
+    } catch (_) {
+      await _enterEmailVerificationPending();
+      return AuthenticationResult.failure(
+          'auth.email_verification.check_failed');
     }
   }
 
@@ -759,13 +858,12 @@ class AuthenticationService {
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
-      developer.log('📧 Email de réinitialisation envoyé à: $email',
+      developer.log('Password-reset email request accepted',
           name: 'AuthService');
       return true;
     } catch (e) {
-      developer.log('❌ Erreur envoi email réinitialisation: $e',
-          name: 'AuthService');
-      _updateError('Erreur envoi email: $e');
+      developer.log('Password-reset email request failed', name: 'AuthService');
+      _updateError('auth.errors.password_reset_failed');
       return false;
     }
   }
@@ -787,9 +885,6 @@ class AuthenticationService {
 
     final currentUser = _firebaseAuth.currentUser;
     if (currentUser != null) {
-      developer.log('👤 Utilisateur Firebase trouvé: ${currentUser.email}',
-          name: 'AuthService');
-
       // Si on n'est pas déjà en cours de traitement, traiter l'utilisateur
       if (_status != AuthenticationStatus.authenticating &&
           _status != AuthenticationStatus.fullyAuthenticated) {
@@ -805,48 +900,48 @@ class AuthenticationService {
   String _getFirebaseErrorMessage(String errorCode) {
     switch (errorCode) {
       case 'user-not-found':
-        return 'Aucun compte trouvé avec cet email';
+        return 'auth.errors.firebase_user_not_found';
       case 'wrong-password':
-        return 'Mot de passe incorrect';
+        return 'auth.errors.firebase_wrong_password';
       case 'email-already-in-use':
-        return 'Cet email est déjà utilisé';
+        return 'auth.errors.firebase_email_already_in_use';
       case 'weak-password':
-        return 'Le mot de passe est trop faible';
+        return 'auth.errors.firebase_weak_password';
       case 'invalid-email':
-        return 'Email invalide';
+        return 'auth.errors.firebase_invalid_email';
       case 'user-disabled':
-        return 'Ce compte a été désactivé';
+        return 'auth.errors.firebase_user_disabled';
       case 'too-many-requests':
-        return 'Trop de tentatives. Réessayez plus tard';
+        return 'auth.errors.firebase_too_many_requests';
       case 'network-request-failed':
-        return 'Erreur de connexion réseau';
+        return 'auth.errors.firebase_network';
       default:
-        return 'Erreur d\'authentification: $errorCode';
+        return 'auth.errors.firebase_unknown';
     }
   }
 
   /// Convertit les erreurs de connectivité en messages lisibles
   String _getConnectivityErrorMessage(ConnectivityResult result) {
     if (result.error == null) {
-      return 'Erreur de connectivité inconnue';
+      return 'auth.errors.connectivity_unknown';
     }
 
     switch (result.errorType) {
       case ConnectivityErrorType.noInternet:
-        return 'Pas de connexion internet. Vérifiez votre réseau.';
+        return 'auth.errors.connectivity_no_internet';
       case ConnectivityErrorType.timeout:
-        return 'Le serveur met trop de temps à répondre. Réessayez.';
+        return 'auth.errors.connectivity_timeout';
       case ConnectivityErrorType.connectionRefused:
-        return 'Impossible de se connecter au serveur. Vérifiez que le backend fonctionne.';
+        return 'auth.errors.connectivity_refused';
       case ConnectivityErrorType.networkError:
-        return 'Erreur de réseau. Vérifiez votre connexion internet.';
+        return 'auth.errors.connectivity_network';
       case ConnectivityErrorType.serverError:
-        return 'Erreur du serveur. ${result.error}';
+        return 'auth.errors.connectivity_server';
       case ConnectivityErrorType.apiError:
-        return 'Erreur de l\'API. ${result.error}';
+        return 'auth.errors.connectivity_api';
       case ConnectivityErrorType.unknown:
       default:
-        return 'Erreur de connexion: ${result.error}';
+        return 'auth.errors.connectivity_unknown';
     }
   }
 
@@ -854,27 +949,27 @@ class AuthenticationService {
   String _getDioErrorMessage(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return 'Timeout de connexion. Vérifiez votre réseau.';
+        return 'auth.errors.connection_timeout';
       case DioExceptionType.sendTimeout:
-        return 'Timeout lors de l\'envoi. Réessayez.';
+        return 'auth.errors.send_timeout';
       case DioExceptionType.receiveTimeout:
-        return 'Timeout lors de la réception. Réessayez.';
+        return 'auth.errors.receive_timeout';
       case DioExceptionType.connectionError:
-        return 'Erreur de connexion. Vérifiez que le serveur fonctionne.';
+        return 'auth.errors.connection_error';
       case DioExceptionType.badResponse:
-        final statusCode = e.response?.statusCode ?? 0;
-        return 'Erreur serveur (Code: $statusCode). Réessayez plus tard.';
+        return 'auth.errors.server_error';
       case DioExceptionType.cancel:
-        return 'Requête annulée.';
+        return 'auth.errors.request_cancelled';
       case DioExceptionType.unknown:
       default:
-        return 'Erreur réseau inconnue: ${e.message}';
+        return 'auth.errors.network_unknown';
     }
   }
 
   /// Nettoie les ressources
   void dispose() {
     _firebaseAuthSubscription?.cancel();
+    _emailVerificationRequiredSubscription?.cancel();
     _statusController.close();
     _userController.close();
     _errorController.close();

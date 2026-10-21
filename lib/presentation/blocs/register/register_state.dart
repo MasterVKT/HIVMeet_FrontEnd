@@ -12,6 +12,7 @@ class RegisterState extends Equatable {
   final bool acceptTerms;
   final bool isSubmitting;
   final bool isSuccess;
+  final bool? verificationEmailSent;
   final String? errorMessage;
   final Map<String, String> fieldErrors;
   final bool emailValid;
@@ -32,6 +33,7 @@ class RegisterState extends Equatable {
     this.acceptTerms = false,
     this.isSubmitting = false,
     this.isSuccess = false,
+    this.verificationEmailSent,
     this.errorMessage,
     this.fieldErrors = const {},
     this.emailValid = false,
@@ -62,6 +64,7 @@ class RegisterState extends Equatable {
     bool? acceptTerms,
     bool? isSubmitting,
     bool? isSuccess,
+    bool? verificationEmailSent,
     String? errorMessage,
     Map<String, String>? fieldErrors,
     bool? emailValid,
@@ -82,6 +85,8 @@ class RegisterState extends Equatable {
       acceptTerms: acceptTerms ?? this.acceptTerms,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isSuccess: isSuccess ?? this.isSuccess,
+      verificationEmailSent:
+          verificationEmailSent ?? this.verificationEmailSent,
       errorMessage: errorMessage,
       fieldErrors: fieldErrors ?? this.fieldErrors,
       emailValid: emailValid ?? this.emailValid,
@@ -105,6 +110,7 @@ class RegisterState extends Equatable {
         acceptTerms,
         isSubmitting,
         isSuccess,
+        verificationEmailSent,
         errorMessage,
         fieldErrors,
         emailValid,

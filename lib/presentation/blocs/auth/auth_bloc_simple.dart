@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
-import 'package:flutter/foundation.dart';
 import 'package:hivmeet/core/utils/log_service.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/data/services/notification_service.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/auth/auth_event.dart';
@@ -41,7 +41,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       }
     });
     on<LoginRequested>((event, emit) async {
-      LogService.debug('🔐 [BLOC] Tentative de connexion: ${event.email}');
+      LogService.debug('Firebase sign-in requested');
       LogService.debug(
           '📊 [BLOC] État du service avant connexion: ${_authService.status.name}');
 
@@ -65,58 +65,23 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
               '📊 [BLOC] Résultat de signInWithEmailAndPassword: success=${result.success}');
 
           if (result.success && result.user != null) {
-            LogService.debug('✅ [BLOC] Connexion réussie pour ${event.email}');
+            LogService.debug('Firebase sign-in succeeded');
             emit(Authenticated(user: result.user!));
             return;
+          } else if (result.isEmailVerificationPending) {
+            emit(EmailVerificationPending());
+            return;
           } else {
-            LogService.debug(
-                '❌ [BLOC] Connexion Firebase échouée: ${result.error}');
-
-            // Fallback debug: essayer login backend direct si Firebase échoue
-            if (kDebugMode) {
-              LogService.debug(
-                  '🔄 [BLOC] Fallback: tentative login backend direct...');
-              final backendResult = await _authService.loginWithBackend(
-                email: event.email,
-                password: event.password,
-              );
-              if (backendResult.success && backendResult.user != null) {
-                LogService.debug(
-                    '✅ [BLOC] Login backend réussi pour ${event.email}');
-                emit(Authenticated(user: backendResult.user!));
-                return;
-              }
-              LogService.debug(
-                  '❌ [BLOC] Login backend aussi échoué: ${backendResult.error}');
-            }
-
-            emit(AuthError(result.error ?? 'Erreur de connexion inconnue'));
+            LogService.debug('Firebase sign-in was rejected');
+            emit(AuthError(
+              result.error ?? 'auth.errors.authentication_failed',
+            ));
             return;
           }
         } catch (e) {
           retries++;
           LogService.debug(
-              '❌ [BLOC] Exception lors de la connexion (tentative $retries/$maxRetries): $e');
-
-          // Fallback debug: essayer login backend direct sur erreur Firebase
-          if (kDebugMode && retries >= maxRetries) {
-            LogService.debug(
-                '🔄 [BLOC] Fallback final: tentative login backend direct...');
-            try {
-              final backendResult = await _authService.loginWithBackend(
-                email: event.email,
-                password: event.password,
-              );
-              if (backendResult.success && backendResult.user != null) {
-                LogService.debug(
-                    '✅ [BLOC] Login backend réussi pour ${event.email}');
-                emit(Authenticated(user: backendResult.user!));
-                return;
-              }
-            } catch (backendErr) {
-              LogService.debug('❌ [BLOC] Login backend exception: $backendErr');
-            }
-          }
+              'Firebase sign-in failed (attempt $retries/$maxRetries)');
 
           // Gestion spécifique des erreurs réseau Firebase
           if (e.toString().contains('network-request-failed') ||
@@ -126,7 +91,7 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
               LogService.debug(
                   '🔄 [BLOC] Erreur réseau détectée, retry dans 2 secondes...');
               emit(AuthNetworkError(
-                'Problème de connexion réseau. Tentative $retries/$maxRetries...',
+                'auth.errors.network_retry',
                 retryCount: retries,
               ));
               await Future.delayed(const Duration(seconds: 2));
@@ -134,21 +99,19 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
             } else {
               LogService.debug(
                   '❌ [BLOC] Échec final après $maxRetries tentatives');
-              emit(AuthError(
-                  'Impossible de se connecter au serveur après $maxRetries tentatives. Vérifiez votre connexion internet.'));
+              emit(AuthError('auth.errors.connection_retries_exhausted'));
               return;
             }
           } else {
             // Autres erreurs (non-réseau) - pas de retry
-            LogService.debug('❌ [BLOC] Erreur non-réseau, pas de retry: $e');
-            emit(AuthError('Erreur lors de l\'authentification: $e'));
+            LogService.debug('Firebase sign-in failed without retry');
+            emit(AuthError('auth.errors.authentication_failed'));
             return;
           }
         }
       }
     });
     on<RegisterRequested>(_onRegisterRequested);
-    on<BackendLoginRequested>(_onBackendLoginRequested);
     on<LoggedOut>(_onLoggedOut);
     on<RefreshToken>(_onRefreshToken);
     on<DeleteAccountRequested>(_onDeleteAccountRequested);
@@ -169,8 +132,8 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
             name: 'AuthBloc');
         _handleAuthStatusChangeInternal(status);
       },
-      onError: (error) {
-        LogService.log('❌ Erreur status stream: $error', name: 'AuthBloc');
+      onError: (_) {
+        LogService.log('Authentication-status stream failed', name: 'AuthBloc');
       },
     );
 
@@ -181,22 +144,22 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
             name: 'AuthBloc');
         _handleUserChangeInternal(user);
       },
-      onError: (error) {
-        LogService.log('❌ Erreur user stream: $error', name: 'AuthBloc');
+      onError: (_) {
+        LogService.log('Authentication-user stream failed', name: 'AuthBloc');
       },
     );
 
     // Écouter les erreurs d'authentification
     _errorSubscription = _authService.errorStream.listen(
-      (error) {
-        LogService.log('❌ LISTENER ERROR: $error', name: 'AuthBloc');
+      (_) {
+        LogService.log('Authentication service reported an error', name: 'AuthBloc');
         // Déclencher un AppStarted pour réévaluer l'état après une erreur
         if (!isClosed) {
           add(AppStarted());
         }
       },
-      onError: (error) {
-        LogService.log('❌ Erreur error stream: $error', name: 'AuthBloc');
+      onError: (_) {
+        LogService.log('Authentication-error stream failed', name: 'AuthBloc');
       },
     );
 
@@ -289,6 +252,9 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
               name: 'AuthBloc');
           emit(Unauthenticated());
           break;
+        case AuthenticationStatus.emailVerificationPending:
+          emit(EmailVerificationPending());
+          break;
         case AuthenticationStatus.authenticating:
         case AuthenticationStatus.firebaseConnected:
         case AuthenticationStatus.tokensExchanged:
@@ -305,41 +271,15 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
           // Forcer la vérification de l'état d'authentification
           try {
             await _authService.checkAuthenticationStatus();
-          } catch (e) {
-            LogService.log('❌ Erreur lors de la vérification: $e',
+          } catch (_) {
+            LogService.log('Authentication status check failed',
                 name: 'AuthBloc');
-            emit(AuthError(
-                'Erreur lors de la vérification d\'authentification'));
+            emit(AuthError('auth.errors.authentication_status_check_failed'));
           }
           break;
       }
     } finally {
       _isProcessingAppStarted = false;
-    }
-  }
-
-  /// Handler pour login backend direct (debug only)
-  void _onBackendLoginRequested(
-      BackendLoginRequested event, Emitter<AuthState> emit) async {
-    LogService.debug('🔐 [BLOC] BackendLoginRequested: ${event.email}');
-    emit(AuthLoading());
-
-    try {
-      final result = await _authService.loginWithBackend(
-        email: event.email,
-        password: event.password,
-      );
-
-      if (result.success && result.user != null) {
-        LogService.debug('✅ [BLOC] Login backend réussi pour ${event.email}');
-        emit(Authenticated(user: result.user!));
-      } else {
-        LogService.debug('❌ [BLOC] Login backend échoué: ${result.error}');
-        emit(AuthError(result.error ?? 'Erreur de connexion'));
-      }
-    } catch (e) {
-      LogService.debug('❌ [BLOC] Login backend exception: $e');
-      emit(AuthError('Erreur lors de l\'authentification: $e'));
     }
   }
 
@@ -351,15 +291,18 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       final result = await _authService.signUpWithEmailAndPassword(
         email: event.email,
         password: event.password,
+        locale: LocalizationService.instance.currentLocale,
       );
 
       if (result.success && result.user != null) {
         emit(Authenticated(user: result.user!));
+      } else if (result.isEmailVerificationPending) {
+        emit(EmailVerificationPending());
       } else {
-        emit(AuthError(result.error ?? 'Erreur lors de l\'inscription'));
+        emit(AuthError(result.error ?? 'auth.errors.registration_failed'));
       }
-    } catch (e) {
-      emit(AuthError('Erreur lors de l\'inscription: $e'));
+    } catch (_) {
+      emit(AuthError('auth.errors.registration_failed'));
     }
   }
 
@@ -377,8 +320,8 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       await getIt<NotificationService>().removeTokenFromBackend();
       await _authService.signOut();
       emit(Unauthenticated());
-    } catch (e) {
-      emit(AuthError('Erreur lors de la déconnexion: $e'));
+    } catch (_) {
+      emit(AuthError('auth.errors.sign_out_failed'));
     }
   }
 
@@ -387,8 +330,8 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       // Pour l'instant, on suppose que le refresh est géré automatiquement
       // Si échec, les listeners se chargeront de la gestion d'erreur
       LogService.log('🔄 Refresh token demandé', name: 'AuthBloc');
-    } catch (e) {
-      emit(AuthError('Erreur lors du rafraîchissement: $e'));
+    } catch (_) {
+      emit(AuthError('auth.errors.session_refresh_failed'));
     }
   }
 
@@ -401,9 +344,9 @@ class AuthBlocSimple extends Bloc<AuthEvent, AuthState> {
       // final success = await _authService.deleteAccount();
 
       // Pour l'instant, on simule un échec
-      emit(AuthError('Suppression de compte non encore implémentée'));
-    } catch (e) {
-      emit(AuthError('Erreur lors de la suppression: $e'));
+      emit(AuthError('auth.errors.account_deletion_unavailable'));
+    } catch (_) {
+      emit(AuthError('auth.errors.account_deletion_failed'));
     }
   }
 

@@ -27,9 +27,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>HIVMeet utilise votre position uniquement lorsque vous la demandez pour définir votre ville et estimer les distances.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>HIVMeet utilise l’appareil photo pour ajouter une photo de profil.</string>
+	<string>HIVMeet utilise l’appareil photo pour ajouter une photo de profil ou prendre un selfie de verification.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HIVMeet utilise votre photothèque pour ajouter une photo de profil.</string>
+	<string>HIVMeet utilise votre photothèque pour ajouter une photo de profil ou un document de verification.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

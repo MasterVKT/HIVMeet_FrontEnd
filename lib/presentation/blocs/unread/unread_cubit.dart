@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
@@ -22,21 +23,34 @@ class UnreadCubit extends Cubit<int> {
   UnreadCubit({
     required GetUnreadCount getUnreadCount,
     required RealtimeEventBus realtimeBus,
+    KycAccessController? kycAccess,
   })  : _getUnreadCount = getUnreadCount,
         _realtimeBus = realtimeBus,
+        _kycAccess = kycAccess,
         super(0) {
     _sub = _realtimeBus.events.listen(_onRealtimeEvent);
+    _kycAccess?.addListener(_onKycAccessChanged);
   }
 
   final GetUnreadCount _getUnreadCount;
   final RealtimeEventBus _realtimeBus;
+  final KycAccessController? _kycAccess;
   StreamSubscription<RealtimeEvent>? _sub;
   Timer? _debounce;
   int _refreshGeneration = 0;
 
   static const _debounceDelay = Duration(milliseconds: 800);
+  bool get _canUseSocialData => _kycAccess?.hasActiveKyc ?? true;
+
+  void _onKycAccessChanged() {
+    if (_canUseSocialData) return;
+    _debounce?.cancel();
+    _refreshGeneration++;
+    if (!isClosed && state != 0) emit(0);
+  }
 
   void _onRealtimeEvent(RealtimeEvent event) {
+    if (!_canUseSocialData) return;
     switch (event.type) {
       case RealtimeEventType.newMessage:
       case RealtimeEventType.conversationRead:
@@ -58,6 +72,7 @@ class UnreadCubit extends Cubit<int> {
       case RealtimeEventType.superLikeReceived:
       case RealtimeEventType.subscriptionExpiring:
       case RealtimeEventType.reportResolved:
+      case RealtimeEventType.kycVerificationUpdated:
       case RealtimeEventType.subscriptionChanged:
         // Sans impact sur le compteur de messages non lus.
         break;
@@ -75,6 +90,10 @@ class UnreadCubit extends Cubit<int> {
   /// pagination (contrairement à une somme sur la première page de
   /// `getConversations` qui plafonnerait à 20 conversations).
   Future<void> refresh() async {
+    if (!_canUseSocialData) {
+      _onKycAccessChanged();
+      return;
+    }
     final generation = ++_refreshGeneration;
     final result = await _getUnreadCount(NoParams());
     if (generation != _refreshGeneration || isClosed) return;
@@ -89,10 +108,17 @@ class UnreadCubit extends Cubit<int> {
     );
   }
 
+  void reset() {
+    _debounce?.cancel();
+    _refreshGeneration++;
+    if (!isClosed && state != 0) emit(0);
+  }
+
   @override
   Future<void> close() {
     _debounce?.cancel();
     _sub?.cancel();
+    _kycAccess?.removeListener(_onKycAccessChanged);
     return super.close();
   }
 }

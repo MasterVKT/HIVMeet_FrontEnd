@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:hivmeet/core/utils/log_service.dart' as developer;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -60,6 +61,8 @@ class TokenManager {
   domain.User? _cachedUserData;
   DateTime? _tokenCacheTime;
   Future<TokenRefreshResult>? _refreshInFlight;
+  final _emailVerificationRequiredController =
+      StreamController<void>.broadcast();
 
   // Durée de validité du cache en mémoire (5 minutes)
   static const _cacheValidityDuration = Duration(minutes: 5);
@@ -68,6 +71,16 @@ class TokenManager {
   static const _refreshMarginDuration = Duration(minutes: 2);
 
   TokenManager(this._secureStorage);
+
+  /// Emitted after the server proves that a locally cached JWT no longer has
+  /// a verified Firebase email behind it.
+  Stream<void> get emailVerificationRequiredStream =>
+      _emailVerificationRequiredController.stream;
+
+  Future<void> requireEmailVerification() async {
+    await clearAllTokens();
+    _emailVerificationRequiredController.add(null);
+  }
 
   /// Initialise l'ApiClient après création (pour éviter les dépendances circulaires)
   void setApiClient(ApiClient apiClient) {
@@ -123,34 +136,9 @@ class TokenManager {
       _tokenCacheTime = DateTime.now();
 
       developer.log('✅ Tokens stockés avec succès', name: 'TokenManager');
-    } catch (e) {
-      developer.log('❌ Erreur stockage tokens: $e', name: 'TokenManager');
-      throw Exception('Échec stockage tokens: $e');
-    }
-  }
-
-  /// Stocke un token Firebase comme fallback
-  Future<void> storeFirebaseTokenFallback(String firebaseToken) async {
-    try {
-      await _secureStorage.write(
-        key: StorageKeys.firebaseToken,
-        value: firebaseToken,
-        aOptions: _secureStorageOptions,
-      );
-
-      // Mettre un timestamp pour l'expiration
-      await _secureStorage.write(
-        key: StorageKeys.tokenTimestamp,
-        value: DateTime.now().millisecondsSinceEpoch.toString(),
-        aOptions: _secureStorageOptions,
-      );
-
-      developer.log('⚠️ Token Firebase stocké comme fallback',
-          name: 'TokenManager');
-    } catch (e) {
-      developer.log('❌ Erreur stockage token Firebase: $e',
-          name: 'TokenManager');
-      throw Exception('Échec stockage token Firebase: $e');
+    } catch (_) {
+      developer.log('Token storage failed', name: 'TokenManager');
+      throw Exception('Token storage failed');
     }
   }
 
@@ -188,22 +176,9 @@ class TokenManager {
         }
       }
 
-      // Si pas de token Django, vérifier le fallback Firebase
-      final firebaseToken = await _secureStorage.read(
-        key: StorageKeys.firebaseToken,
-        aOptions: _secureStorageOptions,
-      );
-
-      if (firebaseToken != null) {
-        developer.log('⚠️ Utilisation du token Firebase fallback',
-            name: 'TokenManager');
-        return firebaseToken;
-      }
-
       return null;
-    } catch (e) {
-      developer.log('❌ Erreur récupération access token: $e',
-          name: 'TokenManager');
+    } catch (_) {
+      developer.log('Access-token retrieval failed', name: 'TokenManager');
       return null;
     }
   }
@@ -226,9 +201,8 @@ class TokenManager {
       }
 
       return storedToken;
-    } catch (e) {
-      developer.log('❌ Erreur récupération refresh token: $e',
-          name: 'TokenManager');
+    } catch (_) {
+      developer.log('Refresh-token retrieval failed', name: 'TokenManager');
       return null;
     }
   }
@@ -256,9 +230,8 @@ class TokenManager {
       }
 
       return null;
-    } catch (e) {
-      developer.log('❌ Erreur récupération données utilisateur: $e',
-          name: 'TokenManager');
+    } catch (_) {
+      developer.log('Stored-user retrieval failed', name: 'TokenManager');
       return null;
     }
   }
@@ -279,7 +252,7 @@ class TokenManager {
     try {
       final accessToken = await getAccessToken();
       return accessToken != null;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
@@ -364,9 +337,9 @@ class TokenManager {
         developer.log('❌ $error', name: 'TokenManager');
         return TokenRefreshResult.failure(error);
       }
-    } catch (e) {
-      developer.log('❌ Erreur refresh token: $e', name: 'TokenManager');
-      return TokenRefreshResult.failure('Erreur refresh: $e');
+    } catch (_) {
+      developer.log('Token refresh failed', name: 'TokenManager');
+      return TokenRefreshResult.failure('Token refresh failed');
     }
   }
 
@@ -380,7 +353,7 @@ class TokenManager {
 
       // Refresh si expiration dans moins de 2 minutes
       return expirationDate.difference(now) <= _refreshMarginDuration;
-    } catch (e) {
+    } catch (_) {
       return true; // En cas d'erreur, mieux vaut tenter le refresh
     }
   }
@@ -405,8 +378,8 @@ class TokenManager {
       _tokenCacheTime = null;
 
       developer.log('✅ Tokens nettoyés avec succès', name: 'TokenManager');
-    } catch (e) {
-      developer.log('❌ Erreur nettoyage tokens: $e', name: 'TokenManager');
+    } catch (_) {
+      developer.log('Token cleanup failed', name: 'TokenManager');
     }
   }
 

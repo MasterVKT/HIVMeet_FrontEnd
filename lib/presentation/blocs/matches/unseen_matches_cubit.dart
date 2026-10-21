@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
@@ -13,21 +14,33 @@ class UnseenMatchesCubit extends Cubit<int> {
     required GetUnseenMatchCount getUnseenMatchCount,
     required MarkMatchesSeen markMatchesSeen,
     required RealtimeEventBus realtimeBus,
+    KycAccessController? kycAccess,
   })  : _getUnseenMatchCount = getUnseenMatchCount,
         _markMatchesSeen = markMatchesSeen,
         _realtimeBus = realtimeBus,
+        _kycAccess = kycAccess,
         super(0) {
     _subscription = _realtimeBus.events.listen(_onRealtimeEvent);
+    _kycAccess?.addListener(_onKycAccessChanged);
   }
 
   final GetUnseenMatchCount _getUnseenMatchCount;
   final MarkMatchesSeen _markMatchesSeen;
   final RealtimeEventBus _realtimeBus;
+  final KycAccessController? _kycAccess;
   StreamSubscription<RealtimeEvent>? _subscription;
   Timer? _debounce;
   int _refreshGeneration = 0;
+  bool get _canUseSocialData => _kycAccess?.hasActiveKyc ?? true;
+
+  void _onKycAccessChanged() {
+    if (_canUseSocialData) return;
+    reset();
+    _refreshGeneration++;
+  }
 
   void _onRealtimeEvent(RealtimeEvent event) {
+    if (!_canUseSocialData) return;
     switch (event.type) {
       case RealtimeEventType.newMatch:
         // Immediate local signal keeps the tab responsive; the server refresh
@@ -48,6 +61,7 @@ class UnseenMatchesCubit extends Cubit<int> {
       case RealtimeEventType.superLikeReceived:
       case RealtimeEventType.subscriptionExpiring:
       case RealtimeEventType.reportResolved:
+      case RealtimeEventType.kycVerificationUpdated:
       case RealtimeEventType.subscriptionChanged:
         break;
     }
@@ -59,6 +73,10 @@ class UnseenMatchesCubit extends Cubit<int> {
   }
 
   Future<void> refresh() async {
+    if (!_canUseSocialData) {
+      _onKycAccessChanged();
+      return;
+    }
     final generation = ++_refreshGeneration;
     final result = await _getUnseenMatchCount(NoParams());
     if (isClosed || generation != _refreshGeneration) return;
@@ -68,6 +86,10 @@ class UnseenMatchesCubit extends Cubit<int> {
   /// Optimistically clears this page's new-match badge, then reconciles with
   /// the response returned by `PUT /matches/seen/`.
   Future<void> markSeen(List<String> matchIds, int localUnseenCount) async {
+    if (!_canUseSocialData) {
+      _onKycAccessChanged();
+      return;
+    }
     if (matchIds.isEmpty) return;
     emit((state - localUnseenCount).clamp(0, state).toInt());
     final result = await _markMatchesSeen(MarkMatchesSeenParams(matchIds));
@@ -84,6 +106,7 @@ class UnseenMatchesCubit extends Cubit<int> {
   Future<void> close() {
     _debounce?.cancel();
     _subscription?.cancel();
+    _kycAccess?.removeListener(_onKycAccessChanged);
     return super.close();
   }
 }

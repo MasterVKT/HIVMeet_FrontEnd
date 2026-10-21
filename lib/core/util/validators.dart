@@ -13,9 +13,11 @@ class Validators {
     r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
   );
 
-  // Regex pour le numéro de téléphone (format international)
+  // Regex pour le numéro de téléphone (format international ou local)
+  // Doit rester aligné avec UserRegistrationSerializer.validate_phone_number :
+  // 8 à 15 chiffres, préfixe + optionnel, séparateurs retirés en amont.
   static final RegExp _phoneRegExp = RegExp(
-    r'^\+?[1-9]\d{1,14}$',
+    r'^\+?[0-9]{8,15}$',
   );
 
   /// Valide un email

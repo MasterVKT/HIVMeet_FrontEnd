@@ -3,6 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hivmeet/core/util/validators.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'register_event.dart';
 import 'register_state.dart';
 
@@ -28,51 +29,60 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
     final Map<String, String> errors = {};
 
     if (!Validators.isValidEmail(event.email)) {
-      errors['email'] = 'Email invalide';
+      errors['email'] = 'auth.validation.email_invalid';
     }
 
     if (!Validators.isValidPassword(event.password)) {
-      errors['password'] =
-          'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
+      errors['password'] = 'auth.validation.password_requirements';
     }
 
     if (event.password != event.confirmPassword) {
-      errors['confirmPassword'] = 'Les mots de passe ne correspondent pas';
+      errors['confirmPassword'] = 'auth.validation.password_mismatch';
     }
 
     if (!Validators.isValidDisplayName(event.displayName)) {
-      errors['displayName'] = 'Le nom doit contenir entre 3 et 30 caractères';
+      errors['displayName'] = 'auth.validation.display_name_invalid';
     }
 
     if (!Validators.isAdult(event.birthDate)) {
-      errors['birthDate'] = 'Vous devez avoir au moins 18 ans';
+      errors['birthDate'] = 'auth.validation.age_requirement';
     }
 
-    if (event.phoneNumber != null &&
-        !Validators.isValidPhoneNumber(event.phoneNumber!)) {
-      errors['phoneNumber'] = 'Numéro de téléphone invalide';
+    // Le numéro est optionnel et peut être saisi avec espaces/tirets.
+    final String? phone =
+        event.phoneNumber?.replaceAll(RegExp(r'[\s\-.()]'), '');
+    if (phone != null &&
+        phone.isNotEmpty &&
+        !Validators.isValidPhoneNumber(phone)) {
+      errors['phoneNumber'] = 'auth.validation.phone_invalid';
     }
 
     if (!event.acceptTerms) {
-      errors['terms'] = 'Vous devez accepter les conditions d\'utilisation';
+      errors['terms'] = 'auth.validation.terms_required';
     }
 
     if (errors.isNotEmpty) {
+      // Message précis (premier champ en erreur) plutôt qu'un message générique.
       emit(state.copyWith(
         fieldErrors: errors,
-        errorMessage: 'Veuillez corriger les erreurs',
+        errorMessage: errors.values.first,
       ));
+      // Remise à zéro : sans cela, un même message ré-émis donne un état égal
+      // (Equatable) et le listener UI ne se déclenche plus aux clics suivants.
+      emit(state.copyWith(errorMessage: null));
       return;
     }
 
-    emit(state.copyWith(isSubmitting: true, errorMessage: null));
+    emit(state.copyWith(
+        isSubmitting: true, errorMessage: null, fieldErrors: const {}));
 
     final result = await _authService.signUpWithEmailAndPassword(
       email: event.email,
       password: event.password,
+      locale: LocalizationService.instance.currentLocale,
       displayName: event.displayName,
       birthDate: event.birthDate,
-      phoneNumber: event.phoneNumber,
+      phoneNumber: (phone == null || phone.isEmpty) ? null : phone,
       gender: event.gender,
     );
 
@@ -80,12 +90,14 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
       emit(state.copyWith(
         isSubmitting: false,
         isSuccess: true,
+        verificationEmailSent: result.verificationEmailSent,
       ));
     } else {
       emit(state.copyWith(
         isSubmitting: false,
-        errorMessage: result.error ?? 'Erreur d\'inscription',
+        errorMessage: result.error ?? 'auth.errors.registration_failed',
       ));
+      emit(state.copyWith(isSubmitting: false, errorMessage: null));
     }
   }
 
@@ -137,10 +149,14 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
     ResendVerificationEmailRequested event,
     Emitter<RegisterState> emit,
   ) async {
-    // AuthenticationService gère cela via Firebase Auth directement
-    // Pour l'instant, on notifie l'utilisateur
+    final result = await _authService.resendEmailVerification(
+      locale: LocalizationService.instance.currentLocale,
+    );
     emit(state.copyWith(
-      errorMessage: 'Email de vérification envoyé',
+      verificationEmailSent: result.verificationEmailSent,
+      errorMessage: result.verificationEmailSent == true
+          ? 'auth.email_verification.resend_sent'
+          : 'auth.email_verification.resend_failed',
     ));
   }
 }

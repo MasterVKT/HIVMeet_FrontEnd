@@ -136,7 +136,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
-    LogService.debug('🔥 DEBUG AuthAPI: signIn DÉMARRÉ pour $email');
+    LogService.debug('Firebase sign-in started');
 
     try {
       LogService.debug(
@@ -152,17 +152,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw ServerException(message: 'Échec de connexion');
       }
 
-      LogService.debug(
-          '✅ DEBUG AuthAPI: Firebase user récupéré: ${credential.user!.uid}');
-
-      // Vérifier que l'email est vérifié (sauf pour les utilisateurs de test)
-      final isTestUser = email.contains('test@hivmeet.com') ||
-          email.contains('@test.') ||
-          email.contains('test@');
-
-      if (!credential.user!.emailVerified && !isTestUser) {
-        LogService.debug(
-            '❌ DEBUG AuthAPI: Email non vérifié pour utilisateur non-test');
+      // Firebase is authoritative. Test-looking addresses receive no special
+      // treatment and cannot bypass this claim.
+      if (!credential.user!.emailVerified) {
+        LogService.debug('Firebase email is not verified');
         throw EmailNotVerifiedException();
       }
 
@@ -198,8 +191,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           }
         } else {
           // Utilisateur n'existe pas dans Firestore, créer un document
-          LogService.debug(
-              '🔥 DEBUG AuthAPI: Création nouveau document Firestore pour: ${credential.user!.email}');
+          LogService.debug('Creating Firebase user profile document');
 
           userModel = UserModel(
             id: credential.user!.uid,

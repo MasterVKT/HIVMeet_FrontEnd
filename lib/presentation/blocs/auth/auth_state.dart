@@ -16,6 +16,10 @@ class AuthInitial extends AuthState {}
 /// État pendant la vérification de l'authentification
 class AuthLoading extends AuthState {}
 
+/// Firebase is signed in only so the user can complete email verification.
+/// There is deliberately no Django user or JWT in this state.
+class EmailVerificationPending extends AuthState {}
+
 /// État lorsque l'utilisateur est authentifié
 class Authenticated extends AuthState {
   final User user;

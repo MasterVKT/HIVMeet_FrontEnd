@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hivmeet/core/kyc/kyc_upload_resume_store.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hivmeet/data/services/notification_service.dart';
@@ -13,6 +14,9 @@ import 'package:hivmeet/core/services/notification_websocket_service.dart';
 import 'package:hivmeet/core/services/token_manager.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
 import 'package:hivmeet/core/network/api_client.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
+import 'package:hivmeet/core/kyc/kyc_capture_port.dart';
+import 'package:hivmeet/core/kyc/kyc_media_cache_cleaner.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/services/network_connectivity_service.dart';
 import 'package:hivmeet/core/services/payment_deep_link_service.dart';
@@ -90,9 +94,12 @@ import 'package:hivmeet/domain/repositories/resource_repository.dart';
 import 'package:hivmeet/presentation/blocs/resources/resources_bloc.dart';
 import 'package:hivmeet/presentation/blocs/resource_detail/resource_detail_bloc.dart';
 import 'package:hivmeet/data/datasources/remote/profile_api.dart';
+import 'package:hivmeet/data/datasources/remote/kyc_api.dart';
 import 'package:hivmeet/data/repositories/profile_repository_impl.dart';
+import 'package:hivmeet/data/repositories/kyc_repository_impl.dart';
 import 'package:hivmeet/data/repositories/premium_repository_impl.dart';
 import 'package:hivmeet/domain/repositories/profile_repository.dart';
+import 'package:hivmeet/domain/repositories/kyc_repository.dart';
 import 'package:hivmeet/domain/usecases/profile/get_current_profile.dart';
 import 'package:hivmeet/domain/usecases/profile/update_profile.dart';
 import 'package:hivmeet/domain/usecases/profile/upload_photo.dart';
@@ -105,6 +112,7 @@ import 'package:hivmeet/domain/usecases/profile/report_user.dart';
 import 'package:hivmeet/domain/usecases/profile/unblock_user.dart';
 import 'package:hivmeet/domain/usecases/profile/toggle_profile_visibility.dart';
 import 'package:hivmeet/presentation/blocs/profile/profile_bloc.dart';
+import 'package:hivmeet/presentation/blocs/kyc/kyc_cubit.dart';
 // Note: AuthBloc classique temporairement désactivé
 // import 'package:hivmeet/presentation/blocs/auth/auth_bloc.dart';
 // import 'package:hivmeet/domain/repositories/auth_repository.dart';
@@ -145,6 +153,16 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<RealtimeEventBus>(RealtimeEventBus());
 
+  getIt.registerSingleton<KycMediaCacheCleaner>(
+    DefaultKycMediaCacheCleaner(),
+  );
+  getIt.registerSingleton<KycAccessController>(
+    KycAccessController(getIt<KycMediaCacheCleaner>()),
+  );
+  getIt.registerSingleton<KycUploadResumeStore>(
+    SecureKycUploadResumeStore(getIt<FlutterSecureStorage>()),
+  );
+
   getIt.registerSingleton<PaymentDeepLinkService>(
     PaymentDeepLinkService(getIt<AppLinks>()),
   );
@@ -156,7 +174,7 @@ Future<void> configureDependencies() async {
 
   // 4. API Client avec TokenManager
   getIt.registerSingleton<ApiClient>(
-    ApiClient(getIt<TokenManager>()),
+    ApiClient(getIt<TokenManager>(), getIt<KycAccessController>()),
   );
 
   // 5. Injection tardive de l'ApiClient dans TokenManager
@@ -175,6 +193,7 @@ Future<void> configureDependencies() async {
     NotificationWebSocketService(
       getIt<AuthenticationService>(),
       getIt<RealtimeEventBus>(),
+      kycAccess: getIt<KycAccessController>(),
     ),
   );
 
@@ -220,6 +239,8 @@ Future<void> configureDependencies() async {
     ProfileApi(getIt<ApiClient>()),
   );
 
+  getIt.registerSingleton<KycApi>(KycApi(getIt<ApiClient>()));
+
   getIt.registerSingleton<SubscriptionsApi>(
     SubscriptionsApi(getIt<ApiClient>()),
   );
@@ -257,6 +278,11 @@ Future<void> configureDependencies() async {
       getIt<AuthApi>(),
     ),
   );
+
+  getIt.registerSingleton<KycRepository>(
+    KycRepositoryImpl(getIt<KycApi>()),
+  );
+  getIt.registerSingleton<KycCapturePort>(DeviceKycCapturePort());
 
   // Repository pour l'historique d'interactions (likes/passes)
   getIt.registerSingleton<InteractionHistoryRepository>(
@@ -469,6 +495,16 @@ Future<void> configureDependencies() async {
   );
 
   // 11. BLoCs
+  getIt.registerLazySingleton<KycCubit>(
+    () => KycCubit(
+      repository: getIt<KycRepository>(),
+      capture: getIt<KycCapturePort>(),
+      access: getIt<KycAccessController>(),
+      resumeStore: getIt<KycUploadResumeStore>(),
+      realtimeBus: getIt<RealtimeEventBus>(),
+    ),
+  );
+
   getIt.registerFactory<ConversationsBloc>(
     () => ConversationsBloc(
       getConversations: getIt<GetConversations>(),
@@ -607,6 +643,7 @@ Future<void> configureDependencies() async {
       messageRepository: getIt<MessageRepository>(),
       realtimeBus: getIt<RealtimeEventBus>(),
       notificationApi: getIt<NotificationApi>(),
+      kycAccess: getIt<KycAccessController>(),
     ),
   );
 
@@ -614,6 +651,7 @@ Future<void> configureDependencies() async {
     () => UnreadCubit(
       getUnreadCount: getIt<GetUnreadCount>(),
       realtimeBus: getIt<RealtimeEventBus>(),
+      kycAccess: getIt<KycAccessController>(),
     ),
   );
 
@@ -622,6 +660,7 @@ Future<void> configureDependencies() async {
       getUnseenMatchCount: getIt<GetUnseenMatchCount>(),
       markMatchesSeen: getIt<MarkMatchesSeen>(),
       realtimeBus: getIt<RealtimeEventBus>(),
+      kycAccess: getIt<KycAccessController>(),
     ),
   );
 

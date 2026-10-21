@@ -12,6 +12,7 @@ import 'package:hivmeet/core/config/app_config.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/routes.dart';
 import 'package:hivmeet/core/config/logging_config.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
@@ -28,6 +29,8 @@ import 'package:hivmeet/presentation/blocs/notifications/notifications_bloc.dart
 import 'package:hivmeet/presentation/blocs/notifications/notifications_event.dart';
 import 'package:hivmeet/presentation/blocs/unread/unread_cubit.dart';
 import 'package:hivmeet/presentation/blocs/matches/unseen_matches_cubit.dart';
+import 'package:hivmeet/presentation/blocs/kyc/kyc_cubit.dart';
+import 'package:hivmeet/presentation/blocs/kyc/kyc_state.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -111,6 +114,7 @@ class _HIVMeetAppState extends State<HIVMeetApp> with WidgetsBindingObserver {
   PaymentReturnEvent? _deferredPaymentReturn;
   bool _hadAuthenticatedSession = false;
   bool _routerAuthenticationReady = false;
+  bool _socialFeaturesEnabled = false;
 
   @override
   void initState() {
@@ -161,9 +165,19 @@ class _HIVMeetAppState extends State<HIVMeetApp> with WidgetsBindingObserver {
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         notificationWs.suspend();
+        // The system document picker and UCrop temporarily pause the Flutter
+        // activity.  Their capture Future still owns the only in-memory KYC
+        // draft, so purging it here would make a successful native result
+        // return to an empty KYC form. Ordinary backgrounding still purges
+        // drafts; page disposal and logout always do so as well.
+        if (getIt<KycCubit>().state.stage != KycUiStage.capturing) {
+          unawaited(getIt<KycCubit>().clearSensitiveDrafts());
+        }
         break;
       case AppLifecycleState.resumed:
-        notificationWs.resume();
+        // `refresh` revokes the local KYC signal synchronously.  The social
+        // channels are reopened only after the server confirms active KYC.
+        unawaited(getIt<KycCubit>().refresh());
         getIt<RealtimeEventBus>().publish(const RealtimeEvent(
           type: RealtimeEventType.appResumed,
           source: RealtimeSource.local,
@@ -175,10 +189,38 @@ class _HIVMeetAppState extends State<HIVMeetApp> with WidgetsBindingObserver {
     }
   }
 
+  void _synchroniseSocialFeatures(BuildContext context) {
+    final enabled =
+        _routerAuthenticationReady && getIt<KycAccessController>().hasActiveKyc;
+    if (_socialFeaturesEnabled == enabled) return;
+    _socialFeaturesEnabled = enabled;
+
+    final notificationService = getIt<NotificationService>();
+    final notificationWs = getIt<NotificationWebSocketService>();
+    notificationService.setSessionActive(enabled);
+    if (!enabled) {
+      notificationWs.disconnect();
+      context.read<NotificationsBloc>().add(const ClearNotifications());
+      context.read<UnreadCubit>().reset();
+      context.read<UnseenMatchesCubit>().reset();
+      return;
+    }
+
+    // Every call below is gated by an explicit, unexpired KYC status returned
+    // from the server.  The services also observe the signal for revocation.
+    unawaited(notificationService.initialize());
+    context.read<NotificationsBloc>().add(const LoadNotifications());
+    unawaited(context.read<UnreadCubit>().refresh());
+    unawaited(context.read<UnseenMatchesCubit>().refresh());
+    unawaited(notificationWs.resume());
+    unawaited(notificationWs.connect());
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider<KycCubit>.value(value: getIt<KycCubit>()),
         BlocProvider<AuthBlocSimple>(
           create: (context) => getIt<AuthBlocSimple>(),
         ),
@@ -195,46 +237,66 @@ class _HIVMeetAppState extends State<HIVMeetApp> with WidgetsBindingObserver {
           create: (context) => getIt<NotificationsBloc>(),
         ),
       ],
-      child: BlocListener<AuthBlocSimple, AuthState>(
-        listener: (context, state) {
-          final notifService = getIt<NotificationService>();
-          final notificationWs = getIt<NotificationWebSocketService>();
-          _routerAuthenticationReady = state is Authenticated;
-          if (state is Authenticated) {
-            _hadAuthenticatedSession = true;
-            notifService.setSessionActive(true);
-            context.read<NotificationsBloc>().add(const LoadNotifications());
-            context.read<UnseenMatchesCubit>().refresh();
-            notifService.initialize();
-            // Idempotent : connect() ne fait rien si déjà connecté/en cours,
-            // nécessaire car ce listener peut re-recevoir `Authenticated`
-            // plusieurs fois pour une même session (voir AuthBlocSimple).
-            notificationWs.connect();
-            final paymentReturn = _deferredPaymentReturn ??
-                getIt<PaymentDeepLinkService>().takeLatest();
-            if (paymentReturn != null) {
-              WidgetsBinding.instance.addPostFrameCallback(
-                (_) => _handlePaymentReturn(paymentReturn),
-              );
-            }
-          } else if (state is Unauthenticated) {
-            notifService.setSessionActive(false);
-            context.read<NotificationsBloc>().add(const ClearNotifications());
-            context.read<UnseenMatchesCubit>().reset();
-            notifService.removeTokenFromBackend();
-            notificationWs.disconnect();
-            if (_hadAuthenticatedSession) {
-              _hadAuthenticatedSession = false;
-              _deferredPaymentReturn = null;
-              getIt<PaymentDeepLinkService>().takeLatest();
-              unawaited(
-                getIt<PaymentService>()
-                    .clearPendingPayment()
-                    .catchError((_) {}),
-              );
-            }
-          }
-        },
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<AuthBlocSimple, AuthState>(
+            listener: (context, state) {
+              final notifService = getIt<NotificationService>();
+              final notificationWs = getIt<NotificationWebSocketService>();
+              _routerAuthenticationReady = state is Authenticated;
+              if (state is Authenticated) {
+                _hadAuthenticatedSession = true;
+                _socialFeaturesEnabled = false;
+                notifService.setSessionActive(false);
+                notificationWs.disconnect();
+                context
+                    .read<NotificationsBloc>()
+                    .add(const ClearNotifications());
+                context.read<UnreadCubit>().reset();
+                context.read<UnseenMatchesCubit>().reset();
+                unawaited(getIt<KycCubit>().refresh());
+                // Idempotent : connect() ne fait rien si déjà connecté/en cours,
+                // nécessaire car ce listener peut re-recevoir `Authenticated`
+                // plusieurs fois pour une même session (voir AuthBlocSimple).
+                final paymentReturn = _deferredPaymentReturn ??
+                    getIt<PaymentDeepLinkService>().takeLatest();
+                if (paymentReturn != null) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _handlePaymentReturn(paymentReturn),
+                  );
+                }
+              } else if (state is Unauthenticated) {
+                _socialFeaturesEnabled = false;
+                unawaited(getIt<KycCubit>().resetForLogout());
+                notifService.setSessionActive(false);
+                context
+                    .read<NotificationsBloc>()
+                    .add(const ClearNotifications());
+                context.read<UnreadCubit>().reset();
+                context.read<UnseenMatchesCubit>().reset();
+                notifService.removeTokenFromBackend();
+                notificationWs.disconnect();
+                if (_hadAuthenticatedSession) {
+                  _hadAuthenticatedSession = false;
+                  _deferredPaymentReturn = null;
+                  getIt<PaymentDeepLinkService>().takeLatest();
+                  unawaited(
+                    getIt<PaymentService>()
+                        .clearPendingPayment()
+                        .catchError((_) {}),
+                  );
+                }
+              }
+            },
+          ),
+          BlocListener<KycCubit, KycState>(
+            listenWhen: (previous, current) =>
+                previous.stage != current.stage ||
+                previous.snapshot.hasActiveAccess !=
+                    current.snapshot.hasActiveAccess,
+            listener: (context, _) => _synchroniseSocialFeatures(context),
+          ),
+        ],
         child: MaterialApp.router(
           title: 'HIVMeet',
           debugShowCheckedModeBanner: false,

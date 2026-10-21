@@ -1,8 +1,22 @@
 ﻿# run_device.ps1
 # Launch Flutter on a Wi-Fi connected Android device.
 
-$projectRoot = 'D:\\Projets\\HIVMeet\\hivmeet'
-$logFile = Join-Path $projectRoot 'device_run.md'
+param(
+    # Target log file (defaults to device_run.md next to the script).
+    [string]$LogFile = '',
+    # Size cap (KB) of the active log file before it is rotated (0 = unlimited).
+    [int]$MaxLogKB = 2048,
+    # Number of rotated log backups kept next to the active file.
+    [int]$MaxLogBackups = 3,
+    # Keep Android logcat chatter (disable the noise filter).
+    [switch]$NoFilter
+)
+
+$projectRoot = 'D:\Projets\HIVMeet\hivmeet'
+$logFile = if ($LogFile) { $LogFile } else { Join-Path $projectRoot 'device_run.md' }
+
+# Shared bounded, dual-output logging helper (see scripts/FlutterLogSession.ps1).
+. (Join-Path $projectRoot 'scripts\FlutterLogSession.ps1')
 
 # Resolve Flutter SDK: HIVMEET_FLUTTER_SDK override > canonical project SDK
 # (Flutter 3.44.8 / Dart 3.12.2) > PATH fallback.
@@ -104,8 +118,11 @@ if (Test-Path $buildDir) {
 
 Write-Host "Running Flutter on device $deviceId" -ForegroundColor Green
 
-# Open log file with StreamWriter (UTF-8, single handle)
-$writer = [System.IO.StreamWriter]::new($logFile, $false, [System.Text.UTF8Encoding]::new($true))
+# Bounded, dual-output log session: every kept line is echoed to the terminal
+# AND appended to the log file, which is capped (MaxLogKB) and rotated into
+# numbered backups (<stem>.1.md, <stem>.2.md, ...) to prevent astronomically
+# large log files on long runs.
+$logSession = New-FlutterLogSession -Path $logFile -MaxBytes ($MaxLogKB * 1KB) -MaxBackups $MaxLogBackups -NoFilter:$NoFilter
 
 try {
     # Run flutter via cmd.exe with 2>&1 to merge stderr into stdout.
@@ -121,19 +138,19 @@ try {
 
     $process = [System.Diagnostics.Process]::Start($psi)
 
-    # Synchronous read — Write-Host and $writer work on the main thread
+    # Synchronous read — Write-FlutterLogLine writes to both the terminal and
+    # the rotating file on the main thread.
     while (-not $process.StandardOutput.EndOfStream) {
         $line = $process.StandardOutput.ReadLine()
-        if ($line -and $line -notmatch 'EGL_emulation') {
-            Write-Host $line
-            $writer.WriteLine($line)
-            $writer.Flush()
+        if ($line) {
+            Write-FlutterLogLine -Session $logSession -Line $line
         }
     }
 
     $process.WaitForExit()
 } finally {
-    $writer.Close()
+    Close-FlutterLogSession -Session $logSession
+    Write-FlutterLogSummary -Session $logSession
 }
 
 Read-Host 'Press Enter to exit device run'

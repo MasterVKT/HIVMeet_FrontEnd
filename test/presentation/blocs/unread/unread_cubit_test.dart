@@ -3,6 +3,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hivmeet/core/error/failures.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/usecases/usecase.dart';
@@ -11,6 +12,11 @@ import 'package:hivmeet/presentation/blocs/unread/unread_cubit.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockGetUnreadCount extends Mock implements GetUnreadCount {}
+
+class _NoopKycMediaCacheCleaner implements KycMediaCacheCleaner {
+  @override
+  Future<void> clearPrivateMedia() async {}
+}
 
 void main() {
   group('UnreadCubit', () {
@@ -43,6 +49,28 @@ void main() {
       await cubit.refresh();
 
       expect(cubit.state, 5);
+    });
+
+    test('does not request a social count until KYC becomes active', () async {
+      when(() => mockGetUnreadCount(any())).thenAnswer(
+        (_) async => const Right(5),
+      );
+      final access = KycAccessController(_NoopKycMediaCacheCleaner());
+      cubit = UnreadCubit(
+        getUnreadCount: mockGetUnreadCount,
+        realtimeBus: bus,
+        kycAccess: access,
+      );
+
+      await cubit.refresh();
+      verifyNever(() => mockGetUnreadCount(any()));
+
+      access.markActive(true);
+      await cubit.refresh();
+      verify(() => mockGetUnreadCount(any())).called(1);
+
+      access.requireVerification();
+      expect(cubit.state, 0);
     });
 
     test('a newMessage bus event triggers a debounced refresh', () async {

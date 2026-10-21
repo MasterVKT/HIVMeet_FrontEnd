@@ -347,6 +347,12 @@ class NotificationService {
           resolutionSummary: data['resolution_summary'] as String?,
         ));
         break;
+      case 'verification_update':
+        _realtimeBus.publish(const RealtimeEvent(
+          type: RealtimeEventType.kycVerificationUpdated,
+          source: RealtimeSource.fcm,
+        ));
+        break;
     }
   }
 
@@ -406,6 +412,8 @@ class NotificationService {
         return AppNotificationType.subscriptionExpiring;
       case 'report_resolved':
         return AppNotificationType.reportResolved;
+      case 'verification_update':
+        return AppNotificationType.system;
       default:
         return AppNotificationType.system;
     }

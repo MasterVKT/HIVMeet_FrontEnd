@@ -182,6 +182,9 @@ tasks.matching { task ->
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    // Local document framing/cropping UI. ML Kit runs on-device through
+    // Google Play services; it is not a KYC provider or biometric matcher.
+    implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
     
     // RETIRÉ: Les dépendances Google Play Core pour éviter les doublons

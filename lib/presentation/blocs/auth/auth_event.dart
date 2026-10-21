@@ -34,17 +34,6 @@ class LoginRequested extends AuthEvent {
   List<Object> get props => [email, password];
 }
 
-/// Événement pour login backend direct (debug only, bypass Firebase)
-class BackendLoginRequested extends AuthEvent {
-  final String email;
-  final String password;
-
-  const BackendLoginRequested({required this.email, required this.password});
-
-  @override
-  List<Object> get props => [email, password];
-}
-
 /// Événement pour une demande d'inscription
 class RegisterRequested extends AuthEvent {
   final String email;

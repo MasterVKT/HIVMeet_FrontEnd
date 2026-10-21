@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hivmeet/core/config/app_config.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/core/services/token_manager.dart';
 import 'package:hivmeet/injection.dart';
@@ -10,8 +11,9 @@ class ApiClient {
   static const _authRetryMarker = 'hivmeet.auth_retry_performed';
   late final Dio _dio;
   final TokenManager _tokenManager;
+  final KycAccessController _kycAccess;
 
-  ApiClient(this._tokenManager, {Dio? dio}) {
+  ApiClient(this._tokenManager, this._kycAccess, {Dio? dio}) {
     _dio = dio ??
         Dio(BaseOptions(
           baseUrl: _getBaseUrl(),
@@ -158,6 +160,17 @@ class ApiClient {
   /// Gère les erreurs de requête avec retry intelligent
   Future<void> _handleRequestError(
       DioException error, ErrorInterceptorHandler handler) async {
+    final responseBody = error.response?.data;
+    if (responseBody is Map && responseBody['error'] == 'kyc_required') {
+      // Keep the client restrictive until a fresh verification status succeeds.
+      // No error body or sensitive response content is logged here.
+      _kycAccess.requireVerification();
+    }
+    if (responseBody is Map &&
+        (responseBody['code'] == 'email_not_verified' ||
+            responseBody['error'] == 'email_not_verified')) {
+      await _tokenManager.requireEmailVerification();
+    }
     developer.log(
       '${error.response?.statusCode ?? "NETWORK"} ${_sanitizePath(error.requestOptions.path)}',
       name: 'ApiClient',
@@ -249,6 +262,19 @@ class ApiClient {
       'medical_document',
       'selfie_with_code',
       'documents',
+      'attempt_id',
+      'upload_id',
+      'idempotency_key',
+      'consent_version',
+      'confirmations',
+      'selfie_challenge',
+      'selfie_challenge_code',
+      'sha256',
+      'mime_type',
+      'size_bytes',
+      'expires_at',
+      'submitted_at',
+      'rejection_reason_code',
       'latitude',
       'longitude',
     };

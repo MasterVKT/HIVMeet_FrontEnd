@@ -6,13 +6,15 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:hivmeet/core/config/theme/app_theme.dart';
 import 'package:hivmeet/core/config/constants.dart';
+import 'package:hivmeet/core/config/routes.dart';
+import 'package:hivmeet/core/services/localization_service.dart';
 import 'package:hivmeet/injection.dart';
 import 'package:hivmeet/presentation/blocs/register/register_bloc.dart';
 import 'package:hivmeet/presentation/blocs/register/register_event.dart';
 import 'package:hivmeet/presentation/blocs/register/register_state.dart';
 import 'package:hivmeet/presentation/widgets/common/app_button.dart';
 import 'package:hivmeet/presentation/widgets/common/app_text_field.dart';
-import 'package:hivmeet/presentation/widgets/dialogs/hiv_dialogs.dart';
+import 'package:hivmeet/presentation/widgets/common/hiv_toast.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -41,28 +43,24 @@ class _RegisterPageState extends State<RegisterPage> {
           child: BlocConsumer<RegisterBloc, RegisterState>(
             listener: (context, state) {
               if (state.isSuccess) {
-                HIVDialog.show(
+                HIVToast.showInfo(
                   context: context,
-                  title: 'Inscription réussie',
-                  content:
-                      'Un email de vérification a été envoyé à ${state.email}. Veuillez vérifier votre boîte de réception.',
-                  actions: [
-                    DialogAction(
-                      label: 'OK',
-                      onPressed: (context) {
-                        Navigator.of(context).pop();
-                        context.go('/login');
-                      },
-                    ),
-                  ],
+                  message: LocalizationService.translate(
+                    state.verificationEmailSent == true
+                        ? 'auth.email_verification.registration_sent'
+                        : 'auth.email_verification.registration_send_failed',
+                  ),
                 );
+                context.go(AppRoutes.emailVerification);
               }
 
               if (state.errorMessage != null &&
                   state.errorMessage!.isNotEmpty) {
                 HIVToast.showError(
                   context: context,
-                  message: state.errorMessage!,
+                  message: LocalizationService.translate(
+                    state.errorMessage!,
+                  ),
                 );
               }
             },
@@ -118,10 +116,14 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'L\'email est requis';
+                                return LocalizationService.translate(
+                                  'auth.validation.email_required',
+                                );
                               }
                               if (!state.emailValid && value.isNotEmpty) {
-                                return 'Email invalide';
+                                return LocalizationService.translate(
+                                  'auth.validation.email_invalid',
+                                );
                               }
                               return null;
                             },
@@ -145,11 +147,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                 },
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Le mot de passe est requis';
+                                    return LocalizationService.translate(
+                                      'auth.validation.password_required',
+                                    );
                                   }
                                   if (!state.passwordValid &&
                                       value.isNotEmpty) {
-                                    return 'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
+                                    return LocalizationService.translate(
+                                      'auth.validation.password_requirements',
+                                    );
                                   }
                                   return null;
                                 },
@@ -181,10 +187,14 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Veuillez confirmer votre mot de passe';
+                                return LocalizationService.translate(
+                                  'auth.validation.password_confirmation_required',
+                                );
                               }
                               if (value != _passwordController.text) {
-                                return 'Les mots de passe ne correspondent pas';
+                                return LocalizationService.translate(
+                                  'auth.validation.password_mismatch',
+                                );
                               }
                               return null;
                             },
@@ -200,10 +210,14 @@ class _RegisterPageState extends State<RegisterPage> {
                             maxLength: 30,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Le nom est requis';
+                                return LocalizationService.translate(
+                                  'auth.validation.display_name_required',
+                                );
                               }
                               if (value.length < 3) {
-                                return 'Le nom doit contenir au moins 3 caractères';
+                                return LocalizationService.translate(
+                                  'auth.validation.display_name_invalid',
+                                );
                               }
                               return null;
                             },
@@ -213,15 +227,14 @@ class _RegisterPageState extends State<RegisterPage> {
                           // Date de naissance
                           InkWell(
                             onTap: () async {
+                              final now = DateTime.now();
+                              final adultCutoff =
+                                  DateTime(now.year - 18, now.month, now.day);
                               final DateTime? picked = await showDatePicker(
                                 context: context,
-                                initialDate: DateTime.now().subtract(
-                                  const Duration(days: 365 * 18),
-                                ),
+                                initialDate: _selectedBirthDate ?? adultCutoff,
                                 firstDate: DateTime(1900),
-                                lastDate: DateTime.now().subtract(
-                                  const Duration(days: 365 * 18),
-                                ),
+                                lastDate: adultCutoff,
                                 locale: const Locale('fr', 'FR'),
                               );
                               if (picked != null) {
@@ -275,7 +288,9 @@ class _RegisterPageState extends State<RegisterPage> {
                             onChanged: (value) =>
                                 setState(() => _selectedGender = value),
                             validator: (value) => value == null
-                                ? 'Veuillez sélectionner votre genre'
+                                ? LocalizationService.translate(
+                                    'auth.validation.gender_required',
+                                  )
                                 : null,
                           ),
                           const SizedBox(height: AppSpacing.lg),
@@ -378,21 +393,27 @@ class _RegisterPageState extends State<RegisterPage> {
                                         HIVToast.showError(
                                           context: context,
                                           message:
-                                              'Veuillez sélectionner votre date de naissance',
+                                              LocalizationService.translate(
+                                            'auth.validation.birth_date_required',
+                                          ),
                                         );
                                       }
                                       if (_selectedGender == null) {
                                         HIVToast.showError(
                                           context: context,
                                           message:
-                                              'Veuillez sélectionner votre genre',
+                                              LocalizationService.translate(
+                                            'auth.validation.gender_required',
+                                          ),
                                         );
                                       }
                                       if (!_acceptTerms) {
                                         HIVToast.showError(
                                           context: context,
                                           message:
-                                              'Veuillez accepter les conditions d\'utilisation',
+                                              LocalizationService.translate(
+                                            'auth.validation.terms_required',
+                                          ),
                                         );
                                       }
                                     }

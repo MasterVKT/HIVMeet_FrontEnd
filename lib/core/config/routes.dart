@@ -8,6 +8,7 @@ import 'package:hivmeet/presentation/pages/splash/splash_page.dart';
 import 'package:hivmeet/presentation/pages/onboarding/onboarding_page.dart';
 import 'package:hivmeet/presentation/pages/auth/login_page.dart';
 import 'package:hivmeet/presentation/pages/auth/register_page.dart';
+import 'package:hivmeet/presentation/pages/auth/email_verification_page.dart';
 import 'package:hivmeet/presentation/pages/discovery/discovery_page.dart';
 import 'package:hivmeet/presentation/pages/discovery/filters_page.dart';
 import 'package:hivmeet/presentation/pages/profile/profile_detail_page.dart'
@@ -43,6 +44,8 @@ import 'package:hivmeet/presentation/pages/interaction_history/my_passes_page.da
 import 'package:hivmeet/presentation/pages/interaction_history/stats_page.dart';
 import 'package:hivmeet/presentation/pages/notifications/notifications_page.dart';
 import 'package:hivmeet/core/services/localization_service.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
+import 'package:hivmeet/injection.dart';
 
 class AppRoutes {
   // Routes principales
@@ -50,6 +53,7 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String register = '/register';
+  static const String emailVerification = '/email-verification';
   static const String home = '/home';
 
   // Routes de navigation principale
@@ -102,10 +106,20 @@ class AppRoutes {
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.splash,
+    refreshListenable: getIt<KycAccessController>(),
     redirect: (context, state) {
       // Vérifier l'authentification pour les routes protégées
       final authBloc = context.read<AuthBlocSimple>();
       final authState = authBloc.state;
+
+      if (authState is EmailVerificationPending &&
+          state.matchedLocation != AppRoutes.emailVerification) {
+        return AppRoutes.emailVerification;
+      }
+      if (authState is Authenticated &&
+          state.matchedLocation == AppRoutes.emailVerification) {
+        return AppRoutes.discovery;
+      }
 
       // Routes qui nécessitent une authentification
       final protectedRoutes = [
@@ -134,6 +148,11 @@ class AppRouter {
         }
       }
 
+      if (_requiresActiveKyc(state.uri.path) &&
+          !getIt<KycAccessController>().hasActiveKyc) {
+        return AppRoutes.verification;
+      }
+
       return null; // Pas de redirection nécessaire
     },
     routes: [
@@ -155,6 +174,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.register,
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.emailVerification,
+        builder: (context, state) => const EmailVerificationPage(),
       ),
 
       // Pages de navigation principale
@@ -379,4 +402,32 @@ class AppRouter {
       ),
     ),
   );
+
+  static bool _requiresActiveKyc(String path) {
+    const selfProfilePaths = {
+      AppRoutes.profile,
+      AppRoutes.profileEdit,
+      AppRoutes.profilePhotos,
+      AppRoutes.profilePrivacy,
+      AppRoutes.profileNotifications,
+      AppRoutes.profileBlockedUsers,
+      AppRoutes.profileData,
+      AppRoutes.profileCurrency,
+    };
+    if (selfProfilePaths.contains(path)) return false;
+    if (path.startsWith('${AppRoutes.profile}/')) return true;
+    return [
+      AppRoutes.discovery,
+      AppRoutes.matches,
+      AppRoutes.conversations,
+      AppRoutes.chat,
+      AppRoutes.feed,
+      AppRoutes.profileDetail,
+      AppRoutes.likesReceived,
+      AppRoutes.interactionHistory,
+      AppRoutes.premium,
+      AppRoutes.legacySubscription,
+      AppRoutes.notifications,
+    ].any((route) => path.startsWith(route));
+  }
 }

@@ -1,4 +1,4 @@
-﻿// lib/presentation/pages/splash/splash_page.dart
+// lib/presentation/pages/splash/splash_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -91,6 +91,9 @@ class _SplashPageState extends State<SplashPage>
           _hasNavigated = true;
           context.go('/discovery');
           _debugLog('DEBUG SplashPage: Navigation vers /discovery effectuee');
+        } else if (state is EmailVerificationPending) {
+          _hasNavigated = true;
+          context.go('/email-verification');
         } else if (state is Unauthenticated) {
           _debugLog('DEBUG SplashPage: Unauthenticated detecte');
           _hasNavigated = true;

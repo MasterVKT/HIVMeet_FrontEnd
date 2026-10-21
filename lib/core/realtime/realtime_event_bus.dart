@@ -126,6 +126,7 @@ class RealtimeEventBus {
       case RealtimeEventType.conversationHidden:
       case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
+      case RealtimeEventType.kycVerificationUpdated:
       case RealtimeEventType.subscriptionChanged:
         return null;
     }

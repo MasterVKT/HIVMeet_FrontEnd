@@ -14,5 +14,6 @@
         ".claude/settings.local.json": false
     },
     "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx8G -Xms100m -Xlog:disable",
-    "ollamaCloudCopilot.streamIdleTimeoutSeconds": 300
+    "ollamaCloudCopilot.streamIdleTimeoutSeconds": 300,
+    "antigravity.serverStartupTimeoutMs": 300000
 }

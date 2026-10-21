@@ -61,7 +61,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) async {
-    LogService.debug('🔄 DEBUG Repository: signIn DÉMARRÉ pour $email');
+    LogService.debug('Firebase sign-in started');
 
     try {
       LogService.debug(

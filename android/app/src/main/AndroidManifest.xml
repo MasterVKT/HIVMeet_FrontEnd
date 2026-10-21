@@ -55,6 +55,15 @@
                     android:path="/result" />
             </intent-filter>
         </activity>
+        <!-- image_cropper 9 uses uCrop in a separate activity.  Keeping this
+             declaration explicit prevents an ActivityNotFoundException on a
+             physical device.  The theme opts out of Android 15 edge-to-edge
+             enforcement in values-v35/styles.xml, as required by uCrop. -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Ucrop.CropTheme" />
         <meta-data
             android:name="flutter_deeplinking_enabled"
             android:value="false" />

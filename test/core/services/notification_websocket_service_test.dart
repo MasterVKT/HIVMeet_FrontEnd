@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
 import 'package:hivmeet/core/services/authentication_service.dart';
@@ -12,6 +13,11 @@ import 'package:hivmeet/core/services/notification_websocket_service.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthenticationService extends Mock implements AuthenticationService {}
+
+class _NoopKycMediaCacheCleaner implements KycMediaCacheCleaner {
+  @override
+  Future<void> clearPrivateMedia() async {}
+}
 
 void main() {
   group('NotificationWebSocketService', () {
@@ -34,6 +40,21 @@ void main() {
 
       await service.connect();
 
+      expect(service.isConnected, isFalse);
+    });
+
+    test('does not request a token before KYC is active', () async {
+      final access = KycAccessController(_NoopKycMediaCacheCleaner());
+      final service = NotificationWebSocketService(
+        authService,
+        bus,
+        kycAccess: access,
+      );
+      addTearDown(service.dispose);
+
+      await service.connect();
+
+      verifyNever(() => authService.getAccessToken());
       expect(service.isConnected, isFalse);
     });
 

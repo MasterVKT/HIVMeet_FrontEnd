@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 
 import '../config/app_config.dart';
 import '../realtime/realtime_event.dart';
@@ -31,11 +32,16 @@ class NotificationWebSocketService {
   NotificationWebSocketService(
     this._authService,
     this._bus, {
+    KycAccessController? kycAccess,
     @visibleForTesting String? websocketUrl,
-  }) : _websocketUrl = websocketUrl;
+  })  : _kycAccess = kycAccess,
+        _websocketUrl = websocketUrl {
+    _kycAccess?.addListener(_onKycAccessChanged);
+  }
 
   final AuthenticationService _authService;
   final RealtimeEventBus _bus;
+  final KycAccessController? _kycAccess;
   final String? _websocketUrl;
 
   WebSocket? _socket;
@@ -53,6 +59,7 @@ class NotificationWebSocketService {
   bool get isConnected =>
       _socket != null && _socket!.readyState == WebSocket.open;
   bool get isConnecting => _isConnecting;
+  bool get _canUseSocialChannel => _kycAccess?.hasActiveKyc ?? true;
 
   /// Connecte au canal de notifications utilisateur.
   ///
@@ -66,6 +73,10 @@ class NotificationWebSocketService {
   /// `connect()` depuis un `BlocListener<AuthBlocSimple>` qui peut
   /// re-émettre `Authenticated` plusieurs fois pour une même session.
   Future<void> connect() async {
+    if (!_canUseSocialChannel) {
+      disconnect();
+      return;
+    }
     if (isConnected || _isConnecting) return;
     // Verrouille immédiatement, avant tout `await`, pour fermer la fenêtre
     // de course entre appelants concurrents (auth listener, `resume()`,
@@ -152,7 +163,16 @@ class NotificationWebSocketService {
   Future<void> resume() async {
     if (!_suspended) return;
     _suspended = false;
+    if (!_canUseSocialChannel) return;
     await connect();
+  }
+
+  void _onKycAccessChanged() {
+    if (!_canUseSocialChannel) {
+      disconnect();
+    } else if (!_suspended) {
+      connect();
+    }
   }
 
   void _startPresenceHeartbeat() {
@@ -284,6 +304,12 @@ class NotificationWebSocketService {
           resolutionSummary: data['resolution_summary'] as String?,
         ));
         break;
+      case 'verification_update':
+        _bus.publish(const RealtimeEvent(
+          type: RealtimeEventType.kycVerificationUpdated,
+          source: RealtimeSource.websocket,
+        ));
+        break;
       case null:
       default:
         // Type inconnu ou absent — ignoré silencieusement.
@@ -305,13 +331,13 @@ class NotificationWebSocketService {
     _socket = null;
     _presenceHeartbeatTimer?.cancel();
     _presenceHeartbeatTimer = null;
-    if (!_intentionalClose && !_suspended) {
+    if (!_intentionalClose && !_suspended && _canUseSocialChannel) {
       _scheduleReconnect();
     }
   }
 
   void _scheduleReconnect() {
-    if (_intentionalClose || _suspended) return;
+    if (_intentionalClose || _suspended || !_canUseSocialChannel) return;
     _reconnectTimer?.cancel();
 
     // `_reconnectAttempts` n'est pas borné (utile pour les logs), mais ne
@@ -331,11 +357,12 @@ class NotificationWebSocketService {
     }
 
     _reconnectTimer = Timer(cappedDelay, () {
-      if (!_intentionalClose && !_suspended) connect();
+      if (!_intentionalClose && !_suspended && _canUseSocialChannel) connect();
     });
   }
 
   void dispose() {
     disconnect();
+    _kycAccess?.removeListener(_onKycAccessChanged);
   }
 }

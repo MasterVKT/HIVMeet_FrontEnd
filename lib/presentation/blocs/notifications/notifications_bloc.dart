@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hivmeet/core/kyc/kyc_access_controller.dart';
 import 'package:hivmeet/core/notifications/read_receipt_notification_copy.dart';
 import 'package:hivmeet/core/realtime/realtime_event.dart';
 import 'package:hivmeet/core/realtime/realtime_event_bus.dart';
@@ -34,11 +35,13 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     required MessageRepository messageRepository,
     required RealtimeEventBus realtimeBus,
     required NotificationApi notificationApi,
+    KycAccessController? kycAccess,
   })  : _store = store,
         _matchRepository = matchRepository,
         _messageRepository = messageRepository,
         _realtimeBus = realtimeBus,
         _notificationApi = notificationApi,
+        _kycAccess = kycAccess,
         super(const NotificationsInitial()) {
     on<LoadNotifications>(_onLoad);
     on<RefreshNotifications>(_onRefresh);
@@ -50,7 +53,9 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     on<DeleteNotification>(_onDelete);
     on<DeleteAllNotifications>(_onDeleteAll);
 
+    _kycAccess?.addListener(_onKycAccessChanged);
     _realtimeSubscription = _realtimeBus.events.listen((event) {
+      if (!_canUseSocialData) return;
       if (event.type == RealtimeEventType.appResumed) {
         add(const RefreshNotifications());
       } else if (event.type == RealtimeEventType.conversationRead &&
@@ -63,103 +68,122 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     });
   }
 
+  final KycAccessController? _kycAccess;
+  bool get _canUseSocialData => _kycAccess?.hasActiveKyc ?? true;
+
+  void _onKycAccessChanged() {
+    if (!_canUseSocialData && !isClosed) add(const ClearNotifications());
+  }
+
   Future<void> _onLoad(
     LoadNotifications event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(
-        () => _reload(emit, showLoading: state is! NotificationsLoaded),
-      );
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(
+              () => _reload(emit, showLoading: state is! NotificationsLoaded),
+            );
 
   Future<void> _onRefresh(
     RefreshNotifications event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() => _reload(emit));
+      !_canUseSocialData ? Future.value() : _enqueue(() => _reload(emit));
 
   Future<void> _onRealtimeNotification(
     RealtimeNotificationReceived event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() async {
-        // FCM a déjà écrit son objet enrichi (titre/corps du push) dans le store.
-        // Le WebSocket n'a pas cette étape : on la complète ici.
-        if (event.realtimeEvent.source == RealtimeSource.websocket) {
-          await _store.add(_notificationFromRealtime(event.realtimeEvent));
-        }
-        await _reload(emit);
-      });
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(() async {
+              // FCM a déjà écrit son objet enrichi (titre/corps du push) dans le store.
+              // Le WebSocket n'a pas cette étape : on la complète ici.
+              if (event.realtimeEvent.source == RealtimeSource.websocket) {
+                await _store
+                    .add(_notificationFromRealtime(event.realtimeEvent));
+              }
+              await _reload(emit);
+            });
 
   Future<void> _onConversationRead(
     ConversationNotificationsRead event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() async {
-        final currentState = state;
-        final notifications = currentState is NotificationsLoaded
-            ? currentState.notifications
-            : await _store.load();
-        await _store.upsertAll(
-          notifications
-              .where(
-                (notification) =>
-                    !notification.isRead &&
-                    notification.type == AppNotificationType.newMessage &&
-                    notification.data['conversation_id'] ==
-                        event.conversationId,
-              )
-              .map((notification) => notification.copyWith(isRead: true)),
-        );
-        await _reload(emit);
-      });
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(() async {
+              final currentState = state;
+              final notifications = currentState is NotificationsLoaded
+                  ? currentState.notifications
+                  : await _store.load();
+              await _store.upsertAll(
+                notifications
+                    .where(
+                      (notification) =>
+                          !notification.isRead &&
+                          notification.type == AppNotificationType.newMessage &&
+                          notification.data['conversation_id'] ==
+                              event.conversationId,
+                    )
+                    .map((notification) => notification.copyWith(isRead: true)),
+              );
+              await _reload(emit);
+            });
 
   Future<void> _onMarkRead(
     MarkNotificationRead event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() async {
-        final currentState = state;
-        if (currentState is NotificationsLoaded) {
-          final notification = _findNotification(
-            currentState.notifications,
-            event.notificationId,
-          );
-          if (notification != null) {
-            // Une notification dérivée n'était pas forcément déjà persistée :
-            // l'upsert rend son état lu durable, même après un rafraîchissement.
-            await _store.add(notification.copyWith(isRead: true));
-          }
-        } else {
-          await _store.markRead(event.notificationId);
-        }
-        // Sync backend — best effort, ne pas bloquer l'UI
-        try {
-          await _notificationApi.markAsRead(event.notificationId);
-        } catch (_) {}
-        await _reload(emit);
-      });
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(() async {
+              final currentState = state;
+              if (currentState is NotificationsLoaded) {
+                final notification = _findNotification(
+                  currentState.notifications,
+                  event.notificationId,
+                );
+                if (notification != null) {
+                  // Une notification dérivée n'était pas forcément déjà persistée :
+                  // l'upsert rend son état lu durable, même après un rafraîchissement.
+                  await _store.add(notification.copyWith(isRead: true));
+                }
+              } else {
+                await _store.markRead(event.notificationId);
+              }
+              // Sync backend — best effort, ne pas bloquer l'UI
+              try {
+                await _notificationApi.markAsRead(event.notificationId);
+              } catch (_) {}
+              await _reload(emit);
+            });
 
   Future<void> _onMarkAllRead(
     MarkAllNotificationsRead event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() async {
-        final currentState = state;
-        if (currentState is NotificationsLoaded) {
-          await _store.upsertAll(
-            currentState.notifications
-                .where((notification) => !notification.isRead)
-                .map((notification) => notification.copyWith(isRead: true)),
-          );
-        } else {
-          await _store.markAllRead();
-        }
-        // Sync backend — best effort
-        try {
-          await _notificationApi.markAllAsRead();
-        } catch (_) {}
-        await _reload(emit);
-      });
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(() async {
+              final currentState = state;
+              if (currentState is NotificationsLoaded) {
+                await _store.upsertAll(
+                  currentState.notifications
+                      .where((notification) => !notification.isRead)
+                      .map((notification) =>
+                          notification.copyWith(isRead: true)),
+                );
+              } else {
+                await _store.markAllRead();
+              }
+              // Sync backend — best effort
+              try {
+                await _notificationApi.markAllAsRead();
+              } catch (_) {}
+              await _reload(emit);
+            });
 
   Future<void> _onClear(
     ClearNotifications event,
@@ -174,29 +198,33 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     DeleteNotification event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() async {
-        // Supprime localement
-        await _store.delete(event.notificationId);
-        // Supprime sur le backend — best effort
-        try {
-          await _notificationApi.deleteNotification(event.notificationId);
-        } catch (_) {}
-        await _reload(emit);
-      });
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(() async {
+              // Supprime localement
+              await _store.delete(event.notificationId);
+              // Supprime sur le backend — best effort
+              try {
+                await _notificationApi.deleteNotification(event.notificationId);
+              } catch (_) {}
+              await _reload(emit);
+            });
 
   Future<void> _onDeleteAll(
     DeleteAllNotifications event,
     Emitter<NotificationsState> emit,
   ) =>
-      _enqueue(() async {
-        // Supprime localement
-        await _store.clear();
-        // Supprime sur le backend — best effort
-        try {
-          await _notificationApi.deleteAllNotifications();
-        } catch (_) {}
-        emit(const NotificationsInitial());
-      });
+      !_canUseSocialData
+          ? Future.value()
+          : _enqueue(() async {
+              // Supprime localement
+              await _store.clear();
+              // Supprime sur le backend — best effort
+              try {
+                await _notificationApi.deleteAllNotifications();
+              } catch (_) {}
+              emit(const NotificationsInitial());
+            });
 
   Future<void> _enqueue(Future<void> Function() operation) {
     final result = _operationQueue.then((_) => operation());
@@ -211,6 +239,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     Emitter<NotificationsState> emit, {
     bool showLoading = false,
   }) async {
+    if (!_canUseSocialData) return;
     if (showLoading) emit(const NotificationsLoading());
 
     try {
@@ -220,6 +249,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       // Permet de récupérer l'historique des notifications manquées pendant
       // que l'app était fermée. Best-effort : ne bloque pas si le backend
       // est injoignable.
+      if (!_canUseSocialData) return;
       List<AppNotification> backendNotifications = const [];
       try {
         backendNotifications = await _notificationApi.getNotifications();
@@ -250,6 +280,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
         await _store.upsertAll(backendNotifications);
       }
 
+      if (!_canUseSocialData) return;
       if (!showLoading) {
         final currentState = state;
         final currentNotifications = currentState is NotificationsLoaded
@@ -274,7 +305,9 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
         // Keep the deduplicated local count while offline.
       }
 
+      if (!_canUseSocialData) return;
       final derived = await _loadDerived();
+      if (!_canUseSocialData) return;
       final storedIds =
           mergedWithBackend.map((notification) => notification.id).toSet();
       final merged = [
@@ -335,10 +368,12 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
   Future<List<AppNotification>> _loadDerived() async {
     final result = <AppNotification>[];
+    if (!_canUseSocialData) return result;
 
     // Filet de réconciliation au lancement : il couvre les éléments reçus
     // lorsque l'application n'était pas active, sans remplacer les entrées
     // persistées par FCM/WebSocket.
+    if (!_canUseSocialData) return result;
     try {
       final matchResult = await _matchRepository.getMatches();
       matchResult.fold(
@@ -449,6 +484,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       case RealtimeEventType.conversationHidden:
       case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
+      case RealtimeEventType.kycVerificationUpdated:
       case RealtimeEventType.subscriptionChanged:
         return false;
     }
@@ -638,6 +674,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       case RealtimeEventType.conversationHidden:
       case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
+      case RealtimeEventType.kycVerificationUpdated:
       case RealtimeEventType.subscriptionChanged:
         throw StateError('Unexpected non-notification realtime event');
     }
@@ -679,6 +716,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   @override
   Future<void> close() async {
     await _realtimeSubscription.cancel();
+    _kycAccess?.removeListener(_onKycAccessChanged);
     await super.close();
   }
 }

@@ -57,7 +57,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       result.fold(
         (failure) {
-          LogService.debug('Erreur dans _onAppStarted: ${failure.message}');
+          LogService.debug('Authentication startup failed');
           // En cas d'erreur, considérer l'utilisateur comme non authentifié
           emit(Unauthenticated());
         },
@@ -69,16 +69,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           }
         },
       );
-    } catch (e) {
-      LogService.debug('Exception dans _onAppStarted: $e');
+    } catch (_) {
+      LogService.debug('Authentication startup failed');
       // En cas d'exception, considérer l'utilisateur comme non authentifié
       emit(Unauthenticated());
     }
   }
 
   Future<void> _onLoggedIn(LoggedIn event, Emitter<AuthState> emit) async {
-    LogService.debug(
-        '🔄 DEBUG AuthBloc: _onLoggedIn DÉMARRÉ avec userId: ${event.userId}');
+    LogService.debug('Legacy AuthBloc received a login event');
 
     try {
       LogService.debug('🔄 DEBUG AuthBloc: Récupération current user...');
@@ -86,13 +85,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       result.fold(
         (failure) {
-          LogService.debug(
-              '❌ DEBUG AuthBloc: Échec récupération user: ${failure.message}');
+          LogService.debug('Legacy AuthBloc could not restore the user');
           emit(Unauthenticated());
         },
         (user) {
           if (user != null) {
-            LogService.debug('✅ DEBUG AuthBloc: User récupéré: ${user.email}');
+            LogService.debug('✅ DEBUG AuthBloc: authenticated user restored');
             LogService.debug('🔄 DEBUG AuthBloc: Émission Authenticated...');
             emit(Authenticated(user: user));
             LogService.debug('✅ DEBUG AuthBloc: Authenticated émis');
@@ -102,8 +100,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           }
         },
       );
-    } catch (e) {
-      LogService.debug('❌ DEBUG AuthBloc: Exception dans _onLoggedIn: $e');
+    } catch (_) {
+      LogService.debug('Legacy AuthBloc could not restore the user');
       emit(Unauthenticated());
     }
 
@@ -120,14 +118,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final result = await _signOut(NoParams());
         result.fold(
           (failure) {
-            LogService.debug('Erreur dans _onLoggedOut: ${failure.message}');
+            LogService.debug('Sign-out request failed');
             emit(
                 Unauthenticated()); // Même en cas d'erreur, considérer comme déconnecté
           },
           (_) => emit(Unauthenticated()),
         );
-      } catch (e) {
-        LogService.debug('Exception dans _onLoggedOut: $e');
+      } catch (_) {
+        LogService.debug('Sign-out request failed');
         emit(Unauthenticated());
       }
     } else {
@@ -147,13 +145,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         result.fold(
           (failure) {
-            emit(AuthError(failure.message));
+            emit(AuthError('auth.errors.session_refresh_failed'));
             emit(Unauthenticated());
           },
           (_) => emit(currentState),
         );
-      } catch (e) {
-        LogService.debug('Exception dans _onRefreshToken: $e');
+      } catch (_) {
+        LogService.debug('Session refresh failed');
         emit(Unauthenticated());
       }
     }
@@ -171,15 +169,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       result.fold(
-        (failure) => emit(AuthError(failure.message)),
+        (failure) => emit(AuthError('auth.errors.account_deletion_failed')),
         (_) {
           emit(AccountDeleted());
           emit(Unauthenticated());
         },
       );
-    } catch (e) {
-      LogService.debug('Exception dans _onDeleteAccountRequested: $e');
-      emit(AuthError('Erreur lors de la suppression du compte'));
+    } catch (_) {
+      LogService.debug('Account deletion request failed');
+      emit(AuthError('auth.errors.account_deletion_failed'));
     }
   }
 

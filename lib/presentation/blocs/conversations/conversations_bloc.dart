@@ -87,6 +87,7 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
       case RealtimeEventType.conversationRead:
       case RealtimeEventType.conversationRestored:
       case RealtimeEventType.appResumed:
+      case RealtimeEventType.kycVerificationUpdated:
       case RealtimeEventType.subscriptionChanged:
         add(const ReconcileConversations());
       case RealtimeEventType.conversationHidden:
